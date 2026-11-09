@@ -1,0 +1,16 @@
+[package]
+name = "mock-meme"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Testnet stand-in for an Intents-bridged memecoin (NEP-141 with a faucet)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+near-contract-standards = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

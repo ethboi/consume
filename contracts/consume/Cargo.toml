@@ -1,0 +1,17 @@
+[package]
+name = "consume"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "CONSUME: a memecoin that eats other memecoins"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+near-contract-standards = { workspace = true }
+uint = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
