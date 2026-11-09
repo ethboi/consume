@@ -47,6 +47,7 @@ fn config() -> Config {
         epoch_ns: U64(7 * DAY),
         heaviest_bonus_bps: 15000,
         media_base: Some("https://consume.test/vest".into()),
+        intents_id: Some(acc("intents.testnet")),
     }
 }
 
@@ -54,8 +55,8 @@ fn config() -> Config {
 fn setup(now: u64) -> Contract {
     ctx("owner.testnet", now);
     let mut c = Contract::new(config());
-    c.set_tribe(acc("pepe.testnet"), "PEPE".into(), 18, U128(1_000 * USD), U128(5_000 * USD), true);
-    c.set_tribe(acc("doge.testnet"), "DOGE".into(), 8, U128(1_000 * USD), U128(5_000 * USD), true);
+    c.set_tribe(acc("pepe.testnet"), "PEPE".into(), 18, U128(1_000 * USD), U128(5_000 * USD), true, None);
+    c.set_tribe(acc("doge.testnet"), "DOGE".into(), 8, U128(1_000 * USD), U128(5_000 * USD), true, None);
     ctx("feeder.testnet", now);
     c.set_prices(vec![
         (acc("pepe.testnet"), U128(5_000_000_000_000)),          // 5e-6 USD * 1e18
@@ -322,7 +323,7 @@ fn json_msg_can_name_a_recipient() {
 fn tribe_decimals_are_frozen() {
     let mut c = setup(DAY);
     ctx("owner.testnet", DAY);
-    c.set_tribe(acc("pepe.testnet"), "PEPE".into(), 6, U128(1_000 * USD), U128(5_000 * USD), true);
+    c.set_tribe(acc("pepe.testnet"), "PEPE".into(), 6, U128(1_000 * USD), U128(5_000 * USD), true, None);
 }
 
 #[test]
@@ -331,4 +332,106 @@ fn rate_never_rounds_a_meal_down_to_zero_early() {
     let minted = math::consume_for_meal(1000, 10_000 * USD, 100_000 * USD, 100 * USD);
     assert!(minted > 0);
     assert_eq!(minted, 100 * (1000 * ONE_CONSUME >> 10));
+}
+
+// ---------- NEAR Intents ----------
+
+const PEPE_OMFT: &str = "eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near";
+
+fn setup_intents(now: u64) -> Contract {
+    let mut c = setup(now);
+    ctx("owner.testnet", now);
+    c.set_tribe(acc(PEPE_OMFT), "PEPE".into(), 18, U128(1_000 * USD), U128(5_000 * USD), true, Some(true));
+    ctx("feeder.testnet", now);
+    c.set_prices(vec![(acc(PEPE_OMFT), U128(5_000_000_000_000))]);
+    c
+}
+
+fn feed_intents(c: &mut Contract, caller: &str, from: &str, token_id: &str, amount: u128, msg: &str, now: u64) -> Vec<U128> {
+    if c.get_meal_credit(acc(from)).0 < NearToken::from_millinear(100).as_yoctonear() {
+        credit(c, from, now);
+    }
+    ctx(caller, now);
+    match c.mt_on_transfer(acc(from), vec![acc(from)], vec![token_id.into()], vec![U128(amount)], msg.into()) {
+        near_sdk::PromiseOrValue::Value(r) => r,
+        _ => panic!("expected value"),
+    }
+}
+
+#[test]
+fn intents_feeding_mints_an_indulgence() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    let refund = feed_intents(&mut c, "intents.testnet", "alice.testnet", &id, pepe(20_000_000), "", DAY);
+    assert_eq!(refund, vec![U128(0)]);
+    let t = c.get_tribe(acc(PEPE_OMFT)).unwrap();
+    assert_eq!(t.stomach.0, pepe(20_000_000));
+    assert_eq!(t.eaten_usd.0, 100 * USD);
+    assert_eq!(c.nft.owner_by_id.get(&"1".to_string()), Some(acc("alice.testnet")));
+}
+
+#[test]
+fn intents_feeding_refunds_over_the_cap() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    // $2,000 offered, $1,000 meal cap
+    let refund = feed_intents(&mut c, "intents.testnet", "alice.testnet", &id, pepe(400_000_000), "", DAY);
+    assert_eq!(refund, vec![U128(pepe(200_000_000))]);
+}
+
+#[test]
+#[should_panic(expected = "Only the NEAR Intents contract can call this")]
+fn intents_feeding_from_anyone_else_is_refused() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    feed_intents(&mut c, "fake-intents.testnet", "alice.testnet", &id, pepe(20_000_000), "", DAY);
+}
+
+#[test]
+#[should_panic(expected = "fed directly")]
+fn direct_tribe_cannot_be_fed_through_intents() {
+    let mut c = setup_intents(DAY);
+    feed_intents(&mut c, "intents.testnet", "alice.testnet", "nep141:pepe.testnet", pepe(20_000_000), "", DAY);
+}
+
+#[test]
+#[should_panic(expected = "fed through NEAR Intents")]
+fn intents_tribe_cannot_be_fed_directly() {
+    let mut c = setup_intents(DAY);
+    feed(&mut c, PEPE_OMFT, "alice.testnet", pepe(20_000_000), DAY);
+}
+
+#[test]
+#[should_panic(expected = "only eats nep141")]
+fn non_nep141_intents_tokens_are_refused() {
+    let mut c = setup_intents(DAY);
+    feed_intents(&mut c, "intents.testnet", "alice.testnet", "nep245:x.near:1", 1, "", DAY);
+}
+
+#[test]
+fn intents_feeding_reads_the_msg() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    feed_intents(&mut c, "intents.testnet", "alice.testnet", &id, pepe(20_000_000), r#"{"recipient":"bob.testnet"}"#, DAY);
+    assert_eq!(c.nft.owner_by_id.get(&"1".to_string()), Some(acc("bob.testnet")));
+}
+
+#[test]
+#[should_panic(expected = "custody cannot change")]
+fn custody_is_fixed_once_eaten() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    feed_intents(&mut c, "intents.testnet", "alice.testnet", &id, pepe(20_000_000), "", DAY);
+    ctx("owner.testnet", DAY);
+    c.set_tribe(acc(PEPE_OMFT), "PEPE".into(), 18, U128(1_000 * USD), U128(5_000 * USD), true, Some(false));
+}
+
+#[test]
+#[should_panic(expected = "the Intents contract is fixed")]
+fn intents_contract_is_fixed_once_eaten() {
+    let mut c = setup_intents(DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    feed_intents(&mut c, "intents.testnet", "alice.testnet", &id, pepe(20_000_000), "", DAY);
+    ctx("owner.testnet", DAY);
+    c.set_intents_id(Some(acc("other.testnet")));
 }

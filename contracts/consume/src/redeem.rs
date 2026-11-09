@@ -10,12 +10,26 @@ use crate::math;
 use crate::{emit_event, Contract, ContractExt};
 
 const GAS_FT_TRANSFER: Gas = Gas::from_tgas(10);
+const GAS_MT_TRANSFER: Gas = Gas::from_tgas(15);
 const GAS_ON_WITHDRAW: Gas = Gas::from_tgas(5);
 
 #[ext_contract(ext_ft)]
 #[allow(dead_code)]
 trait MemeToken {
     fn ft_transfer(&mut self, receiver_id: AccountId, amount: U128, memo: Option<String>);
+}
+
+#[ext_contract(ext_mt)]
+#[allow(dead_code)]
+trait Intents {
+    fn mt_transfer(
+        &mut self,
+        receiver_id: AccountId,
+        token_id: String,
+        amount: U128,
+        approval: Option<(AccountId, u64)>,
+        memo: Option<String>,
+    );
 }
 
 #[near(serializers = [json])]
@@ -58,10 +72,21 @@ impl Contract {
                 continue;
             }
             self.owed.remove(&key);
-            ext_ft::ext(token.clone())
-                .with_attached_deposit(NearToken::from_yoctonear(1))
-                .with_static_gas(GAS_FT_TRANSFER)
-                .ft_transfer(account_id.clone(), U128(owed), Some("CONSUME stomach".to_string()))
+            let memo = Some("CONSUME stomach".to_string());
+            let via_intents = self.tribes.get(&token).map(|t| t.via_intents).unwrap_or(false);
+            let payout = match (via_intents, self.config.intents_id.clone()) {
+                // Paid into the redeemer's Intents balance, from where it can be
+                // withdrawn to the memecoin's home chain. No registration needed.
+                (true, Some(intents)) => ext_mt::ext(intents)
+                    .with_attached_deposit(NearToken::from_yoctonear(1))
+                    .with_static_gas(GAS_MT_TRANSFER)
+                    .mt_transfer(account_id.clone(), crate::intents::intents_token_id(&token), U128(owed), None, memo),
+                _ => ext_ft::ext(token.clone())
+                    .with_attached_deposit(NearToken::from_yoctonear(1))
+                    .with_static_gas(GAS_FT_TRANSFER)
+                    .ft_transfer(account_id.clone(), U128(owed), memo),
+            };
+            payout
                 .then(
                     Self::ext(env::current_account_id())
                         .with_static_gas(GAS_ON_WITHDRAW)

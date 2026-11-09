@@ -18,10 +18,26 @@ export const EXPLORER = NETWORK === "mainnet" ? "https://nearblocks.io" : "https
 /** True until the contract is deployed and configured: the page shows sample data. */
 export const DEMO = !CONSUME_CONTRACT;
 
+/**
+ * The NEAR Intents contract: intents.near on mainnet, or the mock in
+ * contracts/mock-intents on testnet (Intents has no testnet). When set,
+ * memecoins are fed from and paid back to the wallet's Intents balance.
+ */
+export const INTENTS_CONTRACT = env(process.env.NEXT_PUBLIC_INTENTS_CONTRACT) ?? "";
+/** Feed and redeem through NEAR Intents. The sample page shows this flow too. */
+export const VIA_INTENTS = DEMO || !!INTENTS_CONTRACT;
+/** Deposits and withdrawals are simulated by the testnet mock. */
+export const MOCK_INTENTS = VIA_INTENTS && NETWORK === "testnet";
+
 export function tokenAccount(h: Heresy): string {
   if (DEMO) return `${h.symbol.toLowerCase()}.sample`;
-  return NETWORK === "mainnet" ? h.mainnet : `${h.mock}.${MEME_PARENT}`;
+  // the Intents mock uses the real mainnet token ids
+  if (INTENTS_CONTRACT || NETWORK === "mainnet") return h.mainnet;
+  return `${h.mock}.${MEME_PARENT}`;
 }
+
+/** NEP-245 id of a NEP-141 token held on NEAR Intents. */
+export const intentsToken = (token: string) => `nep141:${token}`;
 
 export function heresyForToken(tokenId: string): Heresy | undefined {
   return HERESIES.find((h) => tokenAccount(h) === tokenId);
@@ -39,6 +55,7 @@ export type Tribe = {
   open: boolean;
   stomach: string;
   eaten_usd: string;
+  via_intents?: boolean;
 };
 
 export type Stats = {

@@ -6,9 +6,13 @@ import {
   CONSUME_CONTRACT,
   DEMO,
   EXPLORER,
+  INTENTS_CONTRACT,
+  MOCK_INTENTS,
   NETWORK,
+  VIA_INTENTS,
   cleanError,
   heresyForToken,
+  intentsToken,
   loadSnapshot,
   tokenAccount,
   view,
@@ -21,6 +25,9 @@ import { compact, daysLeft, fromRaw, shortAccount, toRaw, usd, usdCompact, usdVa
 import { Ouroboros } from "./Ouroboros";
 import { Stomach } from "./Stomach";
 import { Coin } from "./Coin";
+import { Chains } from "./Chains";
+import { IntentsWallet } from "./IntentsWallet";
+import { Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
 import { BookEmblem, CoinsEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
 import { TGAS, hasEvent, useWallet, type TxResult } from "./Wallet";
@@ -83,33 +90,45 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="hero split" aria-labelledby="mark">
         <div className="hero-grid">
           <div className="hero-copy">
+            {/* red bosses in the corners, as on the Indulgence card */}
+            <span className="boss tl" aria-hidden="true" />
+            <span className="boss tr" aria-hidden="true" />
+            <span className="boss bl" aria-hidden="true" />
+            <span className="boss br" aria-hidden="true" />
             <h1 id="mark">
-              <span className="sr-only">Consume: </span>A memecoin that eats other memecoins.
+              <span className="sr-only">Consume: </span>Where memecoins go to be eaten.
             </h1>
             <p className="hero-explain">
-              Feed it DOGE, PEPE, SHIB and seven more. It keeps them in its stomach for good and pays you in $CONSUME, and every $CONSUME
-              is a claim on everything it has eaten.
+              A memecoin that eats memecoins from any chain. Feed it yours and get paid in $CONSUME.
             </p>
             <ol className="howto" aria-label="How it works">
               <li>
-                <b>I</b>Feed it one of ten memecoins.
+                <CoinsEmblem />
+                <b>I</b>
+                <span>Feed it a memecoin</span>
               </li>
               <li>
-                <b>II</b>It grants you an Indulgence, an NFT.
+                <Seal size={46} />
+                <b>II</b>
+                <span>Get an Indulgence</span>
               </li>
               <li>
-                <b>III</b>Collect $CONSUME as it is released.
+                <HourglassEmblem />
+                <b>III</b>
+                <span>Collect $CONSUME</span>
               </li>
               <li>
-                <b>IV</b>Redeem $CONSUME for a share of the Stomach.
+                <ScalesEmblem />
+                <b>IV</b>
+                <span>Redeem for memecoins</span>
               </li>
             </ol>
             <div className="hero-actions">
               <a className="press big" href="#feed">
                 Feed the Stomach
               </a>
-              <a className="press quiet" href="#rule">
-                Read the rule
+              <a className="text-link" href="#rule">
+                <span aria-hidden="true">☞</span> How it works
               </a>
             </div>
           </div>
@@ -146,7 +165,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
           <div className="tile">
             <dt>Consumed so far</dt>
             <dd className="value">{usdCompact(snap.stats.total_eaten_usd)}</dd>
-            <dd className="note">across ten memes</dd>
+            <dd className="note">across ten memecoins</dd>
           </div>
           <div className="tile">
             <dt>Backing per $CONSUME</dt>
@@ -168,16 +187,24 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             ) : (
               <dd className="value">None yet</dd>
             )}
-            <dd className="note">{feast ? `feeding it pays ${bonusX}×` : "the most fed meme this week"}</dd>
+            <dd className="note">{feast ? `feeding it pays ${bonusX}×` : "the most fed memecoin this week"}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="chapter" id="chains" aria-labelledby="chains-h">
+        <header>
+          <h2 id="chains-h">From any chain</h2>
+          <p>NEAR Intents brings memecoins from Dogecoin, Ethereum and Solana to NEAR, so one contract can eat them all.</p>
+        </header>
+        <Chains />
       </section>
 
       <section className="chapter" id="crucible" aria-labelledby="crucible-h">
         <header>
           <StomachEmblem />
           <h2 id="crucible-h">The Stomach</h2>
-          <p>Every meme it has eaten, held by the contract. No function lets anyone withdraw it except by redeeming $CONSUME.</p>
+          <p>Everything it has eaten. Only redeeming takes it out.</p>
         </header>
         <div className="crucible-layout">
           <div>
@@ -193,10 +220,10 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
           </div>
           <div>
             <table className="ledger">
-              <caption>The ten memes it will eat, and what it holds of each.</caption>
+              <caption>The ten memecoins it will eat, and what it holds of each.</caption>
               <thead>
                 <tr>
-                  <th scope="col">Meme</th>
+                  <th scope="col">Memecoin</th>
                   <th scope="col">Held</th>
                   <th scope="col">Worth</th>
                   <th scope="col">Price</th>
@@ -230,7 +257,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                   This week&apos;s feast is <strong>{feast}</strong>: feeding it pays {bonusX}×, because it was eaten most last week.
                 </p>
               ) : (
-                <p>No feast this week. Whichever meme is fed most this week becomes next week&apos;s feast.</p>
+                <p>No feast this week. Whichever memecoin is fed most this week becomes next week&apos;s feast.</p>
               )}
             </div>
           </div>
@@ -241,9 +268,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <CoinsEmblem />
           <h2 id="feed-h">Feed the Stomach</h2>
-          <p>Give it one of the ten. Receive an Indulgence that releases $CONSUME to you over 30 days.</p>
+          <p>Pick a memecoin, feed it, get an Indulgence.</p>
           <aside className="marginal">
-            <span aria-hidden="true">☞</span> New here? Connect a wallet, get test memes from the faucet, then feed.
+            <span aria-hidden="true">☞</span> {MOCK_INTENTS ? "New? Bring test memecoins in from their chains first." : "New? Get test memecoins from the faucet first."}
           </aside>
         </header>
         <Feed snap={snap} tick={tick} onDone={done} />
@@ -253,9 +280,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <HourglassEmblem />
           <h2 id="writs-h">Your Indulgences</h2>
-          <p>Each Indulgence is an NFT. Whoever holds it collects what has been released, so it can be sold or given away.</p>
+          <p>Each one pays out $CONSUME over 30 days.</p>
           <aside className="marginal">
-            <span aria-hidden="true">☞</span> The card is the NFT itself. Sell it and the rest goes with it.
+            <span aria-hidden="true">☞</span> The card is the NFT. Sell it and the payout goes with it.
           </aside>
         </header>
         <Indulgences snap={snap} tick={tick} onDone={done} />
@@ -265,16 +292,17 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <ScalesEmblem />
           <h2 id="transmute-h">Redeem</h2>
-          <p>Burn $CONSUME. Take your share of every meme in the Stomach.</p>
+          <p>Burn $CONSUME, get memecoins back.</p>
         </header>
         <Redeem snap={snap} tick={tick} onDone={done} />
+        {VIA_INTENTS && <IntentsWallet snap={snap} tick={tick} onDone={done} />}
       </section>
 
       <section className="chapter" id="ledger" aria-labelledby="ledger-h">
         <header>
           <QuillEmblem />
           <h2 id="ledger-h">The Ledger</h2>
-          <p>The latest feedings, newest first.</p>
+          <p>Latest feedings.</p>
         </header>
         <Entries recent={snap.recent} />
       </section>
@@ -283,14 +311,18 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <BookEmblem />
           <h2 id="rule-h">The Rule</h2>
-          <p>Everything below is enforced by the contract{CONSUME_CONTRACT ? ` ${CONSUME_CONTRACT}` : ""}.</p>
+          <p>All enforced by the contract.</p>
         </header>
         <Rule snap={snap} />
       </section>
 
       <footer className="colophon invert">
         <span>
-          Built at NEAR HACKATHON. {NETWORK === "testnet" ? "Running on NEAR testnet with stand-in memes from a faucet." : "Running on NEAR mainnet."}
+          Built at NEAR HACKATHON. {NETWORK === "mainnet"
+            ? "Running on NEAR mainnet."
+            : MOCK_INTENTS
+              ? "Running on NEAR testnet, with a stand-in for NEAR Intents that simulates deposits and withdrawals."
+              : "Running on NEAR testnet with stand-in memecoins from a faucet."}
         </span>
         <span>
           {REPO_URL && (
@@ -377,6 +409,8 @@ function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number)
 
 /** Registration calls needed before `accountId` can receive these tokens. */
 async function registrationCalls(tokens: string[], accountId: string) {
+  // NEAR Intents balances need no registration
+  if (VIA_INTENTS) return [];
   const calls = [];
   for (const token of tokens) {
     const reg = await view<unknown>(token, "storage_balance_of", { account_id: accountId }).catch(() => null);
@@ -410,7 +444,11 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
   const raw = toRaw(amount, h.decimals);
 
   const bal = useLive(DEMO || !accountId ? null : `${accountId}:${token}:${tick}`, async () =>
-    BigInt(await view<string>(token, "ft_balance_of", { account_id: accountId })),
+    BigInt(
+      VIA_INTENTS
+        ? await view<string>(INTENTS_CONTRACT, "mt_balance_of", { account_id: accountId, token_id: intentsToken(token) })
+        : await view<string>(token, "ft_balance_of", { account_id: accountId }),
+    ),
   );
   const credit = useLive(DEMO || !accountId ? null : `${accountId}:credit:${tick}`, async () =>
     BigInt((await view<string>(CONSUME_CONTRACT, "get_meal_credit", { account_id: accountId })) ?? "0"),
@@ -427,9 +465,23 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
     setBusy(true);
     setError(null);
     try {
+      const whole = Number(h.faucetWhole).toLocaleString("en-US");
+      if (MOCK_INTENTS) {
+        const [r] = await send([
+          {
+            receiverId: INTENTS_CONTRACT,
+            methodName: "simulate_deposit",
+            args: { token_id: intentsToken(token), from_chain: h.chain },
+            gas: TGAS(30),
+          },
+        ]);
+        if (r.failure) throw new Error(r.failure);
+        onDone(`${whole} test ${h.symbol} arrived in your NEAR Intents balance${h.chain === "NEAR" ? "" : ` from ${h.chain}`}.`, r.hash);
+        return;
+      }
       const [r] = await send([{ receiverId: token, methodName: "faucet", args: {}, gas: TGAS(30) }]);
       if (r.failure) throw new Error(r.failure);
-      onDone(`The faucet gave you ${Number(h.faucetWhole).toLocaleString("en-US")} test ${h.symbol}.`, r.hash);
+      onDone(`The faucet gave you ${whole} test ${h.symbol}.`, r.hash);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -451,13 +503,23 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
         min_consume: ((BigInt(quote.consume) * BigInt(99)) / BigInt(100)).toString(),
         deadline_ns: (BigInt(Date.now() + 10 * 60_000) * BigInt(1_000_000)).toString(),
       });
-      calls.push({
-        receiverId: token,
-        methodName: "ft_transfer_call",
-        args: { receiver_id: CONSUME_CONTRACT, amount: raw.toString(), msg },
-        deposit: ONE_YOCTO,
-        gas: TGAS(150),
-      });
+      calls.push(
+        VIA_INTENTS
+          ? {
+              receiverId: INTENTS_CONTRACT,
+              methodName: "mt_transfer_call",
+              args: { receiver_id: CONSUME_CONTRACT, token_id: intentsToken(token), amount: raw.toString(), msg },
+              deposit: ONE_YOCTO,
+              gas: TGAS(150),
+            }
+          : {
+              receiverId: token,
+              methodName: "ft_transfer_call",
+              args: { receiver_id: CONSUME_CONTRACT, amount: raw.toString(), msg },
+              deposit: ONE_YOCTO,
+              gas: TGAS(150),
+            },
+      );
       const results = await send(calls);
       const last = results[results.length - 1];
       if (!hasEvent(results, "meal")) {
@@ -523,7 +585,8 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
               {balance !== null && (
                 <>
                   {" "}
-                  You hold {fromRaw(balance, h.decimals)}.{" "}
+                  You hold {fromRaw(balance, h.decimals)}
+                  {VIA_INTENTS ? " on NEAR Intents" : ""}.{" "}
                   <button
                     className="link-button"
                     type="button"
@@ -540,10 +603,10 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             ☞
           </span>
           <div className="get">
-            <span className="r-label">It grants an Indulgence for</span>
+            <span className="r-label">You get</span>
             <span className="r-amount">{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "0"}</span>
             <span className="r-sub">
-              $CONSUME, released over 30 days{quote?.bonus ? ", feast bonus included" : ""}
+              $CONSUME over 30 days{quote?.bonus ? ", feast bonus included" : ""}
             </span>
           </div>
         </div>
@@ -560,9 +623,9 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           ) : q.loading ? (
             <p className="hint">Asking what it pays…</p>
           ) : !quote ? (
-            <p className="hint">Enter an amount to see what it pays.</p>
+            <p className="hint">Enter an amount.</p>
           ) : (
-            <p className="hint">The {h.symbol} stays in the Stomach for good; it only comes back out as shares when $CONSUME is redeemed.</p>
+            <p className="hint">Fed memecoins stay in the Stomach for good.</p>
           )}
         </div>
 
@@ -578,7 +641,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           )}
           {NETWORK === "testnet" && (
             <button className="small-button" disabled={DEMO || busy || !accountId} onClick={faucet}>
-              Get test {h.symbol}
+              {MOCK_INTENTS ? (h.chain === "NEAR" ? `Deposit test ${h.symbol}` : `Bring test ${h.symbol} from ${h.chain}`) : `Get test ${h.symbol}`}
             </button>
           )}
         </div>
@@ -599,7 +662,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
       </div>
 
       <fieldset className="coin-picker">
-        <legend>Which meme</legend>
+        <legend>Which memecoin</legend>
         {THE_TEN.map((x) => {
           const t = snap.tribes.find(([k]) => k === tokenAccount(x))?.[1];
           return (
@@ -848,7 +911,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
       ]);
       if (!hasEvent(results, "redeem")) throw new Error(results[results.length - 1].failure ?? "The redemption did not go through.");
       setAmount("");
-      await afterPayout(results, `Redeemed ${fromRaw(raw, CONSUME_DEC, 0)} $CONSUME for ${usd(totalMicro)} of memes.`);
+      await afterPayout(results, `Redeemed ${fromRaw(raw, CONSUME_DEC, 0)} $CONSUME for ${usd(totalMicro)} of memecoins.`);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -924,16 +987,13 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           )}
         </div>
-        <p className="hint">
-          Your share is counted against all $CONSUME, including what is still locked in Indulgences, so nobody can empty the Stomach before
-          others are paid.
-        </p>
+        <p className="hint">Locked $CONSUME counts too, so nobody can empty it first.</p>
       </div>
 
       <div className="redeem-out" aria-live="polite">
         <span className="r-label">You receive</span>
         <span className="r-amount">{usd(totalMicro)}</span>
-        <span className="r-sub">paid in the memes themselves</span>
+        <span className="r-sub">{VIA_INTENTS ? "paid in memecoins to your NEAR Intents balance" : "paid in memecoins"}</span>
         {shares.length > 0 ? (
           <ul className="basket">
             {shares.map(([k, v]) => {
@@ -948,7 +1008,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             })}
           </ul>
         ) : (
-          <p className="hint">Enter an amount to see your share of each meme.</p>
+          <p className="hint">Enter an amount.</p>
         )}
       </div>
     </div>
@@ -965,7 +1025,7 @@ function Entries({ recent }: { recent: VestView[] }) {
       <thead>
         <tr>
           <th scope="col">No.</th>
-          <th scope="col">Meme</th>
+          <th scope="col">Memecoin</th>
           <th scope="col">Fed by</th>
           <th scope="col" className="num">Amount</th>
           <th scope="col" className="num">Worth</th>
@@ -1012,23 +1072,21 @@ function Rule({ snap }: { snap: Snapshot }) {
           <b>I</b>
           <h3>Feed</h3>
           <p>
-            Give it one of ten memecoins. It pays {c.start_rate} $CONSUME per dollar to begin with, and every {usd(c.halving_usd, 0)} it
-            eats, famine halves that. Early feeders earn the most.
+            {c.start_rate} $CONSUME per dollar to start, halved every {usd(c.halving_usd, 0)} eaten. Early feeders earn most.
           </p>
         </li>
         <li>
           <b>II</b>
           <h3>Release</h3>
           <p>
-            Your $CONSUME arrives in an Indulgence that releases it over {days} days. Break the seal early and you keep what is released plus
-            half the rest; the other {haircut}% is never minted.
+            Paid out over {days} days. Break the seal early and lose {haircut}% of what is still locked.
           </p>
         </li>
         <li>
           <b>III</b>
           <h3>Redeem</h3>
           <p>
-            Burn $CONSUME for your share of every meme in the Stomach, paid in the memes themselves. Nothing else can take them out.
+            Burn $CONSUME for your share of the Stomach, paid in memecoins. Nothing else takes them out.
           </p>
         </li>
       </ol>
@@ -1036,12 +1094,10 @@ function Rule({ snap }: { snap: Snapshot }) {
       <div className="trust">
         <h3>Who you trust</h3>
         <p>
-          <strong>The Assayer</strong> posts prices from NEAR Intents quotes; feedings are refused if its price is over 15 minutes old. A
-          wrong price can overpay feedings up to each meme&apos;s daily limit.
+          <strong>The Assayer</strong> sets prices from NEAR Intents quotes. A bad price can overpay, up to each memecoin&apos;s daily limit.
         </p>
         <p>
-          <strong>The owner</strong> can add memes, set limits and replace the Assayer, but cannot withdraw from the Stomach. The role is meant
-          to pass to a DAO, and the contract&apos;s keys to be deleted, once it is set up.
+          <strong>The owner</strong> can add memecoins, set limits and swap the Assayer, but cannot withdraw. It passes to a DAO after launch.
         </p>
       </div>
 
@@ -1073,14 +1129,14 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>The Stomach</h3>
             <p>
-              Fed memes never leave except through redemption. Burning $CONSUME pays your share of every meme inside, measured against all $CONSUME
+              Fed memecoins never leave except through redemption. Burning $CONSUME pays your share of every memecoin inside, measured against all $CONSUME
               including what is still locked in Indulgences.
             </p>
           </div>
           <div>
             <h3>Feasts and limits</h3>
             <p>
-              The meme fed most in a week pays {c.heaviest_bonus_bps / 100}% the next week. Each meme has a largest feeding and a daily limit; thin
+              The memecoin fed most in a week pays {c.heaviest_bonus_bps / 100}% the next week. Each memecoin has a largest feeding and a daily limit; thin
               markets get small ones so a bad price cannot be used to empty the Stomach.
             </p>
           </div>
@@ -1094,7 +1150,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>Who you trust</h3>
             <p>
-              The owner can add memes, change limits, seal a meme and replace the Assayer, but has no way to withdraw from the Stomach. A bad
+              The owner can add memecoins, change limits, seal a memecoin and replace the Assayer, but has no way to withdraw from the Stomach. A bad
               owner could still list a fake token or appoint a dishonest Assayer, so the owner role is meant to pass to a DAO, and the contract
               account&apos;s keys to be deleted once it is set up.
             </p>

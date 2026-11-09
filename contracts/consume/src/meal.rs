@@ -73,7 +73,7 @@ impl Contract {
         }
     }
 
-    fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, min_consume: u128) -> u128 {
+    pub(crate) fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, min_consume: u128) -> u128 {
         let storage_before = env::storage_usage();
         let q = self.plan_meal(&token_id, amount);
         require!(q.consume.0 >= min_consume, "Pays less than your minimum, refunded");
@@ -146,6 +146,7 @@ impl Contract {
                 "meal_usd": q.meal_usd,
                 "consume": q.consume,
                 "bonus": q.bonus,
+                "via_intents": self.tribes.get(&token_id).map(|t| t.via_intents).unwrap_or(false),
             }),
         );
         // the feeder pays for the storage this feeding created
@@ -167,6 +168,23 @@ struct MealMsg {
     deadline_ns: Option<U64>,
 }
 
+/// Read a feeding's `msg` (same rules for NEP-141 and Intents feedings):
+/// returns who gets the Indulgence and the smallest acceptable payout.
+pub(crate) fn parse_meal_msg(sender_id: &AccountId, msg: &str) -> (AccountId, u128) {
+    let m = msg.trim();
+    if m.is_empty() {
+        (sender_id.clone(), 0)
+    } else if m.starts_with('{') {
+        let parsed: MealMsg = near_sdk::serde_json::from_str(m).unwrap_or_else(|_| env::panic_str("msg is not valid JSON"));
+        if let Some(deadline) = parsed.deadline_ns {
+            require!(env::block_timestamp() <= deadline.0, "Feeding arrived after its deadline, refunded");
+        }
+        (parsed.recipient.unwrap_or_else(|| sender_id.clone()), parsed.min_consume.map(|v| v.0).unwrap_or(0))
+    } else {
+        (m.parse().unwrap_or_else(|_| env::panic_str("msg must be empty, an account id or JSON")), 0)
+    }
+}
+
 #[near]
 impl FungibleTokenReceiver for Contract {
     /// Feed CONSUME: call `ft_transfer_call` on a tribe's token with this contract
@@ -175,19 +193,10 @@ impl FungibleTokenReceiver for Contract {
     /// caps is refunded; a failed check refunds everything.
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         let token_id = env::predecessor_account_id();
-        let m = msg.trim();
-        let (eater, min_consume) = if m.is_empty() {
-            (sender_id.clone(), 0)
-        } else if m.starts_with('{') {
-            let parsed: MealMsg =
-                near_sdk::serde_json::from_str(m).unwrap_or_else(|_| env::panic_str("msg is not valid JSON"));
-            if let Some(deadline) = parsed.deadline_ns {
-                require!(env::block_timestamp() <= deadline.0, "Feeding arrived after its deadline, refunded");
-            }
-            (parsed.recipient.unwrap_or_else(|| sender_id.clone()), parsed.min_consume.map(|v| v.0).unwrap_or(0))
-        } else {
-            (m.parse().unwrap_or_else(|_| env::panic_str("msg must be empty, an account id or JSON")), 0)
-        };
+        if let Some(t) = self.tribes.get(&token_id) {
+            require!(!t.via_intents, "This memecoin is fed through NEAR Intents (mt_transfer_call)");
+        }
+        let (eater, min_consume) = parse_meal_msg(&sender_id, &msg);
         let refund = self.eat(token_id, sender_id, eater, amount.0, min_consume);
         PromiseOrValue::Value(U128(refund))
     }

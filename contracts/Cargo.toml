@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["consume", "mock-meme", "integration-tests"]
+members = ["consume", "mock-meme", "mock-intents", "integration-tests"]
 
 [workspace.dependencies]
 near-sdk = "5.30.1"

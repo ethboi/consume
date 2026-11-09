@@ -5,10 +5,17 @@
 //! $CONSUME to whoever holds it, linearly over the vesting period.
 //! Burn $CONSUME with `redeem` to take your share of everything in the stomach.
 //!
+//! Memecoins can also arrive through NEAR Intents (`intents.near`, or the
+//! testnet mock in `mock-intents`): a tribe marked `via_intents` is fed with
+//! `mt_transfer_call` on the Intents contract, stays in CONSUME's Intents
+//! balance, and redemptions are paid there with `mt_transfer`, so they can be
+//! withdrawn to the memecoin's home chain.
+//!
 //! One contract holds the $CONSUME token (NEP-141), the Vest NFTs (NEP-171)
 //! and the stomach, so minting, vesting and redemption never need a
 //! cross-contract call except for paying out stomach shares.
 
+mod intents;
 mod math;
 mod meal;
 mod redeem;
@@ -77,6 +84,10 @@ pub struct Tribe {
     pub stomach: U128,
     /// Lifetime USD value eaten from this tribe, in micro-USD.
     pub eaten_usd: U128,
+    /// True if this memecoin is held on NEAR Intents (fed with
+    /// `mt_transfer_call`, paid out with `mt_transfer`) rather than as a
+    /// NEP-141 balance on its token contract. Fixed once the tribe has eaten.
+    pub via_intents: bool,
 }
 
 /// The vesting position held by a Vest NFT.
@@ -124,6 +135,9 @@ pub struct Config {
     pub heaviest_bonus_bps: u32,
     /// Base URL for Vest NFT images, e.g. "https://consume.example/vest".
     pub media_base: Option<String>,
+    /// The NEAR Intents contract (`intents.near` on mainnet, the mock on
+    /// testnet). Only this account can feed `via_intents` tribes.
+    pub intents_id: Option<AccountId>,
 }
 
 #[near(contract_state)]
@@ -204,7 +218,10 @@ impl Contract {
     }
 
     /// Add a tribe, or update its caps and symbol. Never touches the stomach.
-    /// A tribe's decimals are fixed once it is added.
+    /// A tribe's decimals are fixed once it is added, and where it is held
+    /// (`via_intents`) is fixed once it has eaten. `via_intents` defaults to the
+    /// current setting, or false for a new tribe.
+    #[allow(clippy::too_many_arguments)]
     pub fn set_tribe(
         &mut self,
         token_id: AccountId,
@@ -213,13 +230,19 @@ impl Contract {
         max_meal_usd: U128,
         daily_cap_usd: U128,
         open: bool,
+        via_intents: Option<bool>,
     ) {
         self.assert_owner();
         require!(decimals <= MAX_DECIMALS, "decimals too large");
         let tribe = match self.tribes.get(&token_id) {
             Some(t) => {
                 require!(t.decimals == decimals, "A tribe's decimals cannot change");
-                Tribe { symbol, decimals, max_meal_usd, daily_cap_usd, open, ..t.clone() }
+                let via_intents = via_intents.unwrap_or(t.via_intents);
+                require!(
+                    via_intents == t.via_intents || (t.eaten_usd.0 == 0 && t.stomach.0 == 0),
+                    "A tribe's custody cannot change once it has eaten"
+                );
+                Tribe { symbol, decimals, max_meal_usd, daily_cap_usd, open, via_intents, ..t.clone() }
             }
             None => Tribe {
                 symbol,
@@ -231,8 +254,10 @@ impl Contract {
                 open,
                 stomach: U128(0),
                 eaten_usd: U128(0),
+                via_intents: via_intents.unwrap_or(false),
             },
         };
+        require!(!tribe.via_intents || self.config.intents_id.is_some(), "Set the Intents contract first");
         self.tribes.insert(token_id, tribe);
     }
 
@@ -245,6 +270,17 @@ impl Contract {
     pub fn set_price_feeder(&mut self, price_feeder_id: AccountId) {
         self.assert_owner();
         self.config.price_feeder_id = price_feeder_id;
+    }
+
+    /// Point CONSUME at the NEAR Intents contract. Refused once any Intents
+    /// tribe has eaten, since its stomach is held there.
+    pub fn set_intents_id(&mut self, intents_id: Option<AccountId>) {
+        self.assert_owner();
+        require!(
+            !self.tribes.values().any(|t| t.via_intents && (t.eaten_usd.0 > 0 || t.stomach.0 > 0)),
+            "Intents tribes have eaten; the Intents contract is fixed"
+        );
+        self.config.intents_id = intents_id;
     }
 
     pub fn set_media_base(&mut self, media_base: Option<String>) {
