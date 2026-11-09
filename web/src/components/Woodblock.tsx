@@ -9,12 +9,13 @@ const rad = (d: number) => (d * Math.PI) / 180;
 // spine at r=140 and its outer edge at r=158 (same units as Ouroboros).
 const at = (deg: number, r: number) => `${(r * Math.cos(rad(deg))).toFixed(1)},${(r * Math.sin(rad(deg))).toFixed(1)}`;
 
-/** Solid black wedges radiating from the serpent: a two-colour sunburst. */
+/** Black wedges radiating from the serpent: a two-colour sunburst, red-led
+ *  (each wedge covers about 40% of its 9° slot at the edge). */
 function wedges() {
   const out: string[] = [];
   for (let i = 0; i < 40; i++) {
     const a = i * 9;
-    out.push(`M${at(a - 0.6, 150)} L${at(a - 3.2, 800)} L${at(a + 3.2, 800)} L${at(a + 0.6, 150)} Z`);
+    out.push(`M${at(a - 0.4, 150)} L${at(a - 1.8, 800)} L${at(a + 1.8, 800)} L${at(a + 0.4, 150)} Z`);
   }
   return out.join(" ");
 }

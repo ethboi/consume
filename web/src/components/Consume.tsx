@@ -359,7 +359,9 @@ function Masthead() {
     <header className="masthead">
       <a className="masthead-mark" href="#mark" aria-label="CONSUME, back to top">
         <Ouroboros size={40} detailed={false} title="" />
-        <span>Consume</span>
+        <span>
+          <b>C</b>onsume
+        </span>
       </a>
       <nav aria-label="Sections">
         <a href="#crucible">The Stomach</a>

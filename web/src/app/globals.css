@@ -2875,3 +2875,85 @@ details.all-rules summary {
 .howto li {
   align-content: start;
 }
+
+/* a bigger serpent: 95% of the art panel (was 82%), coins pulled in closer */
+.hero-art .hero-sigil {
+  width: 95%;
+}
+.hero-art .float-coin {
+  --r: 50cqw;
+  width: 12.5cqw;
+}
+@media (max-width: 700px) {
+  .hero-art .hero-sigil {
+    width: 86%;
+  }
+}
+
+/* ---- the top bar in black, full width ---- */
+.masthead {
+  background: var(--ink);
+  color: var(--paper);
+  /* full bleed while the content keeps the column */
+  box-shadow: 0 0 0 100vmax var(--ink);
+  clip-path: inset(0 -100vmax);
+  border-bottom: 0;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  position: relative;
+  z-index: 4;
+}
+.masthead::after {
+  content: "";
+  position: absolute;
+  left: -100vmax;
+  right: -100vmax;
+  bottom: 0;
+  height: 4px;
+  background: var(--rubric);
+}
+.masthead-mark {
+  color: var(--paper);
+  gap: 12px;
+}
+.masthead-mark span {
+  font-size: 2.3rem;
+  color: var(--paper);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  letter-spacing: 0.5px;
+}
+.masthead-mark span b {
+  font-weight: inherit;
+  color: #e2533f;
+}
+.masthead-mark svg {
+  width: 44px;
+  height: 44px;
+  color: var(--paper);
+  background: radial-gradient(circle closest-side, var(--rubric) 0 66%, transparent 67%);
+}
+.masthead nav a {
+  color: rgba(239, 233, 220, 0.75);
+}
+.masthead nav a:hover {
+  color: #e2533f;
+}
+.masthead .sign-button {
+  color: var(--paper);
+  border-color: rgba(239, 233, 220, 0.8);
+}
+.masthead .sign-button:hover:not(:disabled) {
+  background: var(--paper);
+  color: var(--ink);
+}
+.masthead .sign-button:disabled {
+  opacity: 0.5;
+}
+.masthead-mark svg {
+  background: radial-gradient(circle closest-side, var(--rubric) 0 86%, var(--paper) 87% 92%, transparent 93%);
+  padding: 0;
+}
+.masthead-mark svg path {
+  stroke-width: 16px;
+}
