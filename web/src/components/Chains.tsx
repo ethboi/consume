@@ -5,7 +5,7 @@
 
 import { HERESIES } from "@/lib/heresies";
 import { useLive } from "@/lib/live";
-import { INTENTS_CONTRACT, MOCK_INTENTS } from "@/lib/near";
+import { DEMO, INTENTS_CONTRACT, MOCK_INTENTS } from "@/lib/near";
 import { Coin } from "./Coin";
 import { Ouroboros } from "./Ouroboros";
 
@@ -60,7 +60,7 @@ export function Chains() {
             <small>one contract on NEAR</small>
           </span>
         </div>
-        {MOCK_INTENTS && (
+        {MOCK_INTENTS && !DEMO && (
           <figcaption className="hint">
             NEAR Intents has no testnet, so here it is a stand-in contract{INTENTS_CONTRACT ? ` (${INTENTS_CONTRACT})` : ""} with the same
             calls. Arrivals and withdrawals are simulated; feeding and redeeming are real.

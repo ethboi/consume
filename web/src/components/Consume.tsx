@@ -38,7 +38,9 @@ const CONSUME_DEC = 18;
 const REPO_URL = (process.env.NEXT_PUBLIC_REPO_URL ?? "").trim();
 // where the ten coins hang around the serpent (degrees, 0 = right, clockwise),
 // clear of the head at the top and the banner below
-const ORBIT = [150, 172, 194, 216, 238, 302, 324, 346, 8, 30];
+// ten coins evenly spaced (36° apart), one above the serpent's head and one
+// below; none sits on the horizontal where the wordmark breaks past the ring
+const ORBIT = Array.from({ length: 10 }, (_, i) => (270 + i * 36) % 360);
 
 type Toast = { text: string; href?: string } | null;
 type Done = (text: string, hash?: string) => void;
@@ -84,7 +86,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
   return (
     <div className="folio">
       <Masthead />
-      {DEMO && <p className="demo-note">Sample figures. The contract is not deployed yet, so nothing here can be signed.</p>}
+      {DEMO && <p className="demo-note">A preview with sample figures. The testnet contract is not live yet, so the buttons are off.</p>}
       {loadError && <p className="demo-note">Could not read the contract just now ({loadError}). Showing sample figures.</p>}
 
       <section className="hero split" aria-labelledby="mark">
@@ -99,28 +101,33 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <span className="sr-only">Consume: </span>Where memecoins go to be eaten.
             </h1>
             <p className="hero-explain">
-              A memecoin that eats memecoins from any chain. Feed it yours and get paid in $CONSUME.
+              A memecoin on NEAR, backed by every memecoin it eats. Feed it yours from any chain, earn $CONSUME, and burn
+              $CONSUME any time for your share of the pile.
             </p>
             <ol className="howto" aria-label="How it works">
               <li>
                 <CoinsEmblem />
                 <b>I</b>
                 <span>Feed it a memecoin</span>
+                <i>DOGE, PEPE and eight more</i>
               </li>
               <li>
                 <Seal size={40} />
                 <b>II</b>
                 <span>Get an Indulgence</span>
+                <i>an NFT that pays you</i>
               </li>
               <li>
                 <HourglassEmblem />
                 <b>III</b>
                 <span>Collect $CONSUME</span>
+                <i>a little each day for 30 days</i>
               </li>
               <li>
                 <ScalesEmblem />
                 <b>IV</b>
                 <span>Redeem for memecoins</span>
+                <i>burn $CONSUME, take your share</i>
               </li>
             </ol>
             <div className="hero-actions">
@@ -163,19 +170,19 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         {/* the tally: four figures on a black band */}
         <dl className="tally">
           <div className="tile">
-            <dt>Consumed so far</dt>
+            <dt>Eaten so far</dt>
             <dd className="value">{usdCompact(snap.stats.total_eaten_usd)}</dd>
             <dd className="note">across ten memecoins</dd>
           </div>
           <div className="tile">
             <dt>Backing per $CONSUME</dt>
             <dd className="value">{floorLabel}</dd>
-            <dd className="note">its share of the Stomach</dd>
+            <dd className="note">what one $CONSUME redeems for now</dd>
           </div>
           <div className="tile">
-            <dt>Paid per dollar fed</dt>
+            <dt>$CONSUME per $1 fed</dt>
             <dd className="value">{fromRaw(snap.stats.current_rate, CONSUME_DEC, 0)}</dd>
-            <dd className="note">halves at {usdCompact(snap.stats.next_halving_at_usd)} consumed</dd>
+            <dd className="note">halves at {usdCompact(snap.stats.next_halving_at_usd)} eaten, so early pays most</dd>
           </div>
           <div className="tile feast">
             <dt>This week&apos;s feast</dt>
@@ -187,24 +194,16 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             ) : (
               <dd className="value">None yet</dd>
             )}
-            <dd className="note">{feast ? `feeding it pays ${bonusX}×` : "the most fed memecoin this week"}</dd>
+            <dd className="note">{feast ? `${feast} feedings earn ${bonusX}× $CONSUME` : "next week, the most fed memecoin earns extra"}</dd>
           </div>
         </dl>
-      </section>
-
-      <section className="chapter" id="chains" aria-labelledby="chains-h">
-        <header>
-          <h2 id="chains-h">From any chain</h2>
-          <p>NEAR Intents brings memecoins from Dogecoin, Ethereum and Solana to NEAR, so one contract can eat them all.</p>
-        </header>
-        <Chains />
       </section>
 
       <section className="chapter" id="crucible" aria-labelledby="crucible-h">
         <header>
           <StomachEmblem />
           <h2 id="crucible-h">The Stomach</h2>
-          <p>Everything it has eaten. Only redeeming takes it out.</p>
+          <p>Everything it has eaten. It backs every $CONSUME, and only redeeming takes it out.</p>
         </header>
         <div className="crucible-layout">
           <div>
@@ -251,6 +250,14 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </div>
       </section>
 
+      <section className="chapter" id="chains" aria-labelledby="chains-h">
+        <header>
+          <h2 id="chains-h">From any chain</h2>
+          <p>NEAR Intents brings memecoins from Dogecoin, Ethereum and Solana to NEAR, so one contract can eat them all.</p>
+        </header>
+        <Chains />
+      </section>
+
       <section className="chapter band band-red" id="feed" aria-labelledby="feed-h">
         <header>
           <CoinsEmblem />
@@ -267,7 +274,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <HourglassEmblem />
           <h2 id="writs-h">Your Indulgences</h2>
-          <p>Each one pays out $CONSUME over 30 days.</p>
+          <p>NFTs that pay you $CONSUME over 30 days.</p>
           <aside className="marginal">
             <span aria-hidden="true">☞</span> The card is the NFT. Sell it and the payout goes with it.
           </aside>

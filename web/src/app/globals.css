@@ -2864,3 +2864,14 @@ details.all-rules summary {
     gap: 12px;
   }
 }
+/* each hero step glossed in a few plain words */
+.howto i {
+  display: block;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  color: var(--faded);
+  margin-top: 3px;
+}
+.howto li {
+  align-content: start;
+}
