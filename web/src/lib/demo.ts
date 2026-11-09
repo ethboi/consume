@@ -49,7 +49,7 @@ const tribes: [string, Tribe][] = HERESIES.map((h) => [
 
 function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAgo: number, opts: Partial<VestView["vest"]> = {}): VestView {
   const h = HERESIES.find((x) => x.symbol === symbol)!;
-  const total = BigInt(mealUsd) * BigInt(1000) * pow10(18);
+  const total = BigInt(mealUsd) * BigInt(500) * pow10(18); // at the current sample rate
   const start = nowNs - BigInt(daysAgo) * DAY;
   return {
     token_id: String(id),
@@ -66,17 +66,21 @@ function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAg
       bonus: false,
       ...opts,
     },
-    claimable: "0",
-    locked: total.toString(),
-    exit_payout: "0",
+    // released linearly over 30 days; nothing claimed yet in the sample
+    claimable: ((total * BigInt(Math.min(daysAgo, 30))) / BigInt(30)).toString(),
+    locked: (total - (total * BigInt(Math.min(daysAgo, 30))) / BigInt(30)).toString(),
+    exit_payout: (
+      (total * BigInt(Math.min(daysAgo, 30))) / BigInt(30) +
+      (total - (total * BigInt(Math.min(daysAgo, 30))) / BigInt(30)) / BigInt(2)
+    ).toString(),
   };
 }
 
 const recent: VestView[] = [
-  vest(214, "gutterpriest.testnet", "PEPE", 420, 0, { bonus: true }),
-  vest(213, "mirabel.testnet", "DOGE", 1000, 0),
-  vest(212, "anchorite.testnet", "SHIB", 250, 1),
-  vest(211, "the-miller.testnet", "PENGU", 600, 1),
+  vest(214, "gutterpriest.testnet", "PEPE", 420, 12, { bonus: true }),
+  vest(213, "mirabel.testnet", "DOGE", 1000, 21),
+  vest(212, "anchorite.testnet", "SHIB", 250, 4),
+  vest(211, "the-miller.testnet", "PENGU", 600, 27),
   vest(210, "gutterpriest.testnet", "SPX", 180, 2, { exited: true }),
   vest(209, "brother-odo.testnet", "BLACKDRAGON", 90, 3),
   vest(208, "mirabel.testnet", "TURBO", 300, 4),

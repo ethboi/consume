@@ -732,7 +732,7 @@ main,
 
 .picker {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(156px, 1fr));
   align-content: start;
   gap: 8px;
   border: none;
@@ -781,7 +781,7 @@ main,
 }
 .picker .s {
   font-family: var(--font-sc);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 .picker .s.long {
   font-size: 0.72em;
@@ -1231,4 +1231,956 @@ main,
 }
 .writ:has(.writ-card) {
   padding-top: 14px;
+}
+
+/* ================= full width: bands edge to edge, content centred ================= */
+
+:root {
+  --col: 1180px;
+  /* side padding that centres a --col wide column in any width */
+  --side: max(var(--gutter), calc((100% - var(--col)) / 2));
+}
+
+.folio {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-image: none;
+  outline: 0;
+  box-shadow: none;
+}
+/* a hatched band across the very top and bottom of the page */
+.folio::before,
+.folio::after {
+  content: "";
+  position: static;
+  display: block;
+  transform: none;
+  height: 12px;
+  padding: 0;
+  font-size: 0;
+  background: repeating-linear-gradient(45deg, var(--ink) 0 2.2px, transparent 2.2px 6px);
+}
+.folio::before {
+  border-bottom: 3px solid var(--ink);
+}
+.folio::after {
+  border-top: 3px solid var(--ink);
+}
+
+.masthead {
+  max-width: var(--col);
+  margin: 0 auto;
+  padding-inline: var(--gutter);
+}
+.folio > .demo-note {
+  max-width: calc(var(--col) - 2 * var(--gutter));
+  margin: 14px auto 0;
+}
+
+.hero {
+  padding-top: 26px;
+}
+.hero > .hero-sub,
+.hero > .hero-actions {
+  padding-inline: var(--gutter);
+}
+.woodblock {
+  border-left: 0;
+  border-right: 0;
+  outline-offset: -14px;
+}
+.hero-sigil {
+  width: min(560px, 80vw);
+}
+
+.chapter {
+  padding-inline: var(--side);
+}
+.chapter.band {
+  margin-inline: 0;
+  padding-inline: var(--side);
+}
+.the-ten {
+  margin-inline: calc(50% - 50vw);
+  padding-inline: max(var(--gutter), calc(50vw - var(--col) / 2));
+}
+.colophon.invert {
+  margin: 26px 0 0;
+  padding-inline: var(--side);
+}
+
+/* ================= how it works, in the corners of the woodblock ================= */
+
+.corners {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 26px 30px 96px 30px;
+  pointer-events: none;
+  z-index: 3;
+}
+.corners li {
+  position: absolute;
+  width: min(250px, 21vw);
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: -6px;
+  padding: 11px 14px 11px 60px;
+  font-size: var(--t-sm);
+  line-height: 1.3;
+  text-align: left;
+  box-shadow: 6px 6px 0 var(--ink);
+  pointer-events: auto;
+}
+.corners b {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 40px;
+  transform: translateY(-50%);
+  text-align: center;
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: 1.45rem;
+  line-height: 1;
+  color: var(--rubric);
+  border-right: 1.5px solid var(--ink);
+}
+.corners .tl {
+  top: 0;
+  left: 0;
+}
+.corners .tr {
+  top: 0;
+  right: 0;
+}
+.corners .bl {
+  bottom: 0;
+  left: 0;
+}
+.corners .br {
+  bottom: 0;
+  right: 0;
+}
+.woodblock .floor {
+  order: 10;
+}
+/* too narrow for the corners: the steps sit under the picture instead */
+@media (max-width: 1180px) {
+  .corners {
+    position: static;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    width: min(640px, 100%);
+    margin: 22px auto 4px;
+  }
+  .corners li {
+    position: relative;
+    inset: auto;
+    width: auto;
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+}
+@media (max-width: 560px) {
+  .corners {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================= marginal notes with a pointing hand ================= */
+
+.chapter > header .marginal {
+  margin-left: auto;
+  max-width: 270px;
+  font-style: italic;
+  font-size: var(--t-sm);
+  line-height: 1.35;
+  color: var(--rubric);
+  border-left: 2px solid currentColor;
+  padding: 2px 0 2px 12px;
+}
+.marginal span {
+  font-style: normal;
+  font-size: 1.25em;
+  margin-right: 2px;
+}
+.band-red > header .marginal {
+  color: var(--paper);
+}
+.band-ink > header .marginal,
+.band.invert > header .marginal {
+  color: #e2533f;
+}
+@media (max-width: 900px) {
+  .chapter > header .marginal {
+    margin-left: 0;
+    max-width: none;
+  }
+}
+
+/* ================= the tally: four figures on a black band ================= */
+
+.tally {
+  margin: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--ink);
+  color: var(--paper);
+  border-top: 4px solid var(--rubric);
+  border-bottom: 4px solid var(--rubric);
+  padding: 26px var(--side);
+}
+.tally .tile {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 4px 22px;
+  border-left: 1.5px solid rgba(239, 233, 220, 0.25);
+}
+.tally .tile:first-child {
+  border-left: 0;
+}
+.tally dt {
+  font-family: var(--font-sc);
+  font-size: var(--t-sm);
+  color: #e2533f;
+}
+.tally dd {
+  margin: 0;
+}
+.tally .value {
+  font-family: var(--font-text);
+  font-size: clamp(1.9rem, 3.4vw, 2.9rem);
+  line-height: 1.05;
+  font-variant-numeric: lining-nums;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tally .note {
+  font-style: italic;
+  font-size: var(--t-sm);
+  color: #b7aa98;
+}
+@media (max-width: 820px) {
+  .tally {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 20px;
+  }
+  .tally .tile:nth-child(3) {
+    border-left: 0;
+  }
+}
+
+.hero-intro {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  padding: 34px var(--gutter) 8px;
+}
+.hero-intro .hero-lede {
+  font-size: clamp(1.4rem, 2.6vw, 2.1rem);
+  line-height: 1.25;
+  max-width: 30ch;
+  margin: 0;
+}
+.press.big {
+  font-size: 1.35rem;
+  padding: 13px 30px;
+  background: var(--rubric);
+  border-color: var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.press.big:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+.tally .tile {
+  text-align: left;
+  justify-items: start;
+}
+.hero-intro .hero-lede {
+  max-width: 44ch;
+}
+
+/* ================= round two: clearer content under the hero ================= */
+
+/* readable sizes: nothing essential below 15px */
+:root {
+  --t-sm: 0.95rem;
+  --t-xs: 0.85rem;
+}
+.hint,
+.chapter > header p {
+  font-size: 1rem;
+}
+
+/* one ornament per heading: the emblem and a red initial, no boxed letter */
+.chapter h2 {
+  font-size: clamp(2.4rem, 4.4vw, 3.6rem);
+}
+.chapter h2::first-letter,
+.band-red h2::first-letter,
+.band-ink h2::first-letter,
+.band h2::first-letter {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  color: var(--rubric);
+}
+.band-red h2::first-letter {
+  color: var(--ink);
+}
+.chapter > header {
+  margin-bottom: 30px;
+}
+.chapter > header > p {
+  flex-basis: 100%;
+  margin-left: 70px;
+  margin-top: -8px;
+  max-width: 62ch;
+}
+.emblem {
+  width: 58px;
+  height: 58px;
+}
+
+/* ---- feed: the receipt is the hero of the form ---- */
+.leaf.offering {
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  align-items: start;
+}
+.receipt {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 18px;
+  border: 2px solid var(--ink);
+  outline: 1px solid var(--ink);
+  outline-offset: -7px;
+  padding: 22px 24px;
+}
+.receipt .r-label {
+  display: block;
+  font-family: var(--font-sc);
+  font-size: var(--t-sm);
+  color: var(--faded);
+  margin-bottom: 4px;
+}
+.receipt .r-sub {
+  display: block;
+  font-size: var(--t-sm);
+  font-style: italic;
+  color: var(--faded);
+  margin-top: 4px;
+}
+.receipt .give .field-row {
+  align-items: center;
+  border-bottom: 2.5px solid var(--ink);
+}
+.receipt input.amount {
+  border: 0;
+  font-size: clamp(1.7rem, 3vw, 2.4rem);
+  padding: 2px 0;
+  width: 100%;
+}
+.receipt .r-token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sc);
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+.receipt .r-hand {
+  font-size: 2.4rem;
+  color: var(--rubric);
+  line-height: 1;
+}
+.receipt .get {
+  text-align: right;
+}
+.receipt .r-amount {
+  display: block;
+  font-size: clamp(2rem, 3.6vw, 2.9rem);
+  line-height: 1.05;
+  color: var(--rubric);
+  font-variant-numeric: lining-nums;
+}
+.verdict-line {
+  min-height: 2.6em;
+  margin: 14px 0 6px;
+}
+.verdict-line p {
+  margin: 0;
+}
+.verdict-line .error,
+.redeem .error {
+  color: var(--rubric);
+  font-style: italic;
+}
+details.fine {
+  margin-top: 18px;
+  border-top: 1px solid rgba(20, 17, 16, 0.25);
+  padding-top: 10px;
+  font-size: var(--t-sm);
+}
+details.fine summary,
+details.all-rules summary {
+  cursor: pointer;
+  font-family: var(--font-sc);
+}
+details.fine p {
+  margin: 8px 0 0;
+  color: var(--faded);
+}
+.coin-picker {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px 6px;
+}
+.coin-picker legend {
+  font-family: var(--font-sc);
+  margin-bottom: 10px;
+}
+.coin-picker label {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 2px 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-sc);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.coin-picker label:hover {
+  border-color: var(--ink);
+}
+.coin-picker label:has(input:checked) {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.coin-picker label:has(input:disabled) {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.coin-picker label:has(input:focus-visible) {
+  outline: 2px solid var(--rubric);
+  outline-offset: 2px;
+}
+.coin-picker input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+@media (max-width: 900px) {
+  .leaf.offering {
+    grid-template-columns: 1fr;
+  }
+  .coin-picker {
+    order: -1;
+  }
+  .receipt {
+    grid-template-columns: 1fr;
+  }
+  .receipt .get {
+    text-align: left;
+  }
+  .receipt .r-hand {
+    transform: rotate(90deg);
+    justify-self: start;
+  }
+}
+
+/* ---- indulgences: the card beside the numbers that matter ---- */
+.ind-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
+  gap: 26px;
+}
+.ind {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 22px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  padding: 18px;
+}
+.ind-card {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--ink);
+}
+.ind-body h3 {
+  font-size: var(--t-xl);
+  margin: 0 0 6px;
+}
+.ind-body h3::first-letter {
+  color: var(--rubric);
+}
+.ind-body h3 .no {
+  font-family: var(--font-sc);
+  font-size: 1.1rem;
+  color: var(--faded);
+}
+.ind-meal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--t-sm);
+  margin: 0 0 14px;
+}
+.ind-claim {
+  display: grid;
+  margin: 0 0 12px;
+}
+.ind-claim .label {
+  font-family: var(--font-sc);
+  font-size: var(--t-sm);
+  color: var(--faded);
+}
+.ind-claim .big {
+  font-size: 2.5rem;
+  line-height: 1.05;
+  color: var(--rubric);
+  font-variant-numeric: lining-nums;
+}
+.ind-claim .unit,
+.ind-claim .small {
+  font-size: var(--t-sm);
+  font-style: italic;
+}
+.ind-facts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 4px 26px;
+  margin: 0 0 10px;
+}
+.ind-facts dt {
+  font-family: var(--font-sc);
+  font-size: var(--t-xs);
+  color: var(--faded);
+}
+.ind-facts dd {
+  margin: 0;
+  font-variant-numeric: lining-nums;
+}
+.ind-break {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(20, 17, 16, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--t-sm);
+  font-style: italic;
+  color: var(--faded);
+}
+.small-button.danger {
+  border-color: var(--rubric);
+  color: var(--rubric);
+}
+.ind.broken {
+  background: var(--paper-2);
+}
+@media (max-width: 600px) {
+  .ind-list {
+    grid-template-columns: 1fr;
+  }
+  .ind {
+    grid-template-columns: 110px 1fr;
+  }
+}
+
+/* ---- redeem: what you burn on the left, what you get on the right ---- */
+.leaf.redeem {
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 40px;
+}
+.redeem input.amount {
+  font-size: 1.9rem;
+}
+.redeem-in .actions {
+  margin: 16px 0 12px;
+}
+.redeem-out {
+  border-left: 2px solid var(--ink);
+  padding-left: 34px;
+}
+.redeem-out .r-label {
+  display: block;
+  font-family: var(--font-sc);
+  color: var(--faded);
+}
+.redeem-out .r-amount {
+  display: block;
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  line-height: 1.05;
+  color: var(--rubric);
+  font-variant-numeric: lining-nums;
+}
+.redeem-out .r-sub {
+  display: block;
+  font-style: italic;
+  color: var(--faded);
+  margin-bottom: 14px;
+}
+.basket {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 22px;
+}
+.basket li {
+  display: grid;
+  grid-template-columns: 30px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px dotted rgba(20, 17, 16, 0.35);
+  padding-bottom: 4px;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.basket .s {
+  font-family: var(--font-sc);
+}
+@media (max-width: 820px) {
+  .leaf.redeem {
+    grid-template-columns: 1fr;
+  }
+  .redeem-out {
+    border-left: 0;
+    border-top: 2px solid var(--ink);
+    padding: 20px 0 0;
+  }
+}
+
+/* ---- the ledger as an account book ---- */
+.book {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: lining-nums tabular-nums;
+  border-top: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+}
+.book th {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: var(--t-sm);
+  color: var(--faded);
+  text-align: left;
+  padding: 10px 10px;
+  border-bottom: 1.5px solid var(--ink);
+}
+.book td {
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(179, 38, 30, 0.3);
+}
+.book .num {
+  text-align: right;
+}
+.book .no {
+  color: var(--rubric);
+  font-family: var(--font-sc);
+}
+.book .meme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sc);
+}
+.book .tag {
+  font-family: var(--font-text);
+  font-size: var(--t-xs);
+  color: var(--rubric);
+  border: 1px solid currentColor;
+  padding: 0 6px;
+}
+.book tr.broken td {
+  color: var(--faded);
+}
+@media (max-width: 760px) {
+  .book th:nth-child(3),
+  .book td:nth-child(3),
+  .book th:nth-child(4),
+  .book td:nth-child(4) {
+    display: none;
+  }
+}
+
+/* ---- the rule: three steps, the trust box, details folded ---- */
+.steps {
+  list-style: none;
+  margin: 0 0 34px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 34px;
+}
+.steps li {
+  position: relative;
+  padding-top: 12px;
+  border-top: 3px solid #e2533f;
+}
+.steps b {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  color: #e2533f;
+  font-size: 1.3rem;
+}
+.steps h3 {
+  font-family: var(--font-display);
+  font-size: 2.1rem;
+  margin: 2px 0 8px;
+  color: var(--ink);
+}
+.steps p {
+  font-size: 1.05rem;
+  color: var(--ink);
+  opacity: 0.9;
+}
+.trust {
+  border: 2px solid #e2533f;
+  padding: 18px 22px;
+  margin-bottom: 26px;
+  max-width: 86ch;
+}
+.trust h3 {
+  font-family: var(--font-sc);
+  color: #e2533f;
+  margin-bottom: 8px;
+}
+.trust p {
+  font-size: 1rem;
+}
+.trust strong {
+  font-weight: 400;
+  color: #e2533f;
+}
+details.all-rules summary {
+  color: #e2533f;
+  margin-bottom: 18px;
+}
+@media (max-width: 820px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.receipt input.amount,
+.redeem input.amount {
+  background: transparent;
+  color: var(--ink);
+  min-width: 0;
+}
+.receipt input.amount:focus-visible {
+  outline: none;
+}
+.receipt .give .field-row:focus-within {
+  border-bottom-color: var(--rubric);
+}
+.coin-picker label span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.74rem;
+}
+
+/* ================= split hero: the pitch on the left, the plate on the right ================= */
+
+.hero.split {
+  display: block;
+  text-align: left;
+  padding: 0;
+}
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: clamp(28px, 5vw, 64px);
+  align-items: center;
+  padding: 44px var(--side) 48px;
+}
+.hero-copy h1 {
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: clamp(2.4rem, 4.6vw, 4rem);
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  margin: 0 0 18px;
+  padding-top: 16px;
+  border-top: 6px solid var(--rubric);
+  max-width: 14ch;
+}
+.hero-explain {
+  font-size: 1.2rem;
+  line-height: 1.5;
+  max-width: 42ch;
+  margin-bottom: 22px;
+}
+.howto {
+  list-style: none;
+  margin: 0 0 26px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 2px solid var(--ink);
+  max-width: 560px;
+}
+.howto li {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  align-items: baseline;
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid rgba(20, 17, 16, 0.3);
+  font-size: 1rem;
+  line-height: 1.3;
+}
+.howto b {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  color: var(--rubric);
+  font-size: 1.15rem;
+}
+.hero.split .hero-actions {
+  justify-content: flex-start;
+  margin-top: 0;
+  padding: 0;
+}
+
+/* the plate: a contained woodblock */
+.hero-art .woodblock {
+  border: 6px solid var(--ink);
+  outline: 1.5px solid var(--ink);
+  outline-offset: -14px;
+  box-shadow: 10px 10px 0 var(--ink);
+  aspect-ratio: 1 / 1;
+  display: grid;
+  place-items: center;
+}
+.hero-art .woodblock-content {
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.hero-art .hero-sigil {
+  width: 68%;
+}
+.hero-sigil .wordmark {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  max-width: none;
+  font-family: var(--font-display);
+  font-size: 22cqw;
+  line-height: 1;
+  transform: translate(-2.2cqw, 1cqw);
+  white-space: nowrap;
+  color: var(--rubric);
+  -webkit-text-stroke: 1.1cqw var(--ink);
+  paint-order: stroke fill;
+  text-shadow:
+    0.45cqw 0.45cqw 0 var(--ink),
+    0.9cqw 0.9cqw 0 var(--ink),
+    1.35cqw 1.35cqw 0 var(--ink),
+    1.8cqw 1.8cqw 0 var(--ink);
+}
+@media (max-width: 900px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .hero-art {
+    max-width: 520px;
+    width: 100%;
+    justify-self: center;
+  }
+}
+@media (max-width: 520px) {
+  .howto {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================= full-bleed hero: the sunburst runs edge to edge ================= */
+
+.hero.split .hero-grid {
+  position: relative;
+  overflow: hidden;
+  background: var(--rubric);
+  border-bottom: 6px solid var(--ink);
+  padding-bottom: 0;
+  row-gap: 40px;
+}
+/* the plate loses its frame: its glory now fills the whole hero */
+.hero-art .woodblock {
+  background: transparent;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.hero-art .woodblock-art {
+  display: none;
+}
+.hero-art {
+  position: static;
+}
+.hero-art .hero-sigil {
+  width: 82%;
+}
+/* the pitch sits on a printed paper card over the sunburst */
+.hero-copy {
+  position: relative;
+  z-index: 3;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  outline: 1.5px solid var(--ink);
+  outline-offset: -11px;
+  box-shadow: 12px 12px 0 var(--ink);
+  padding: clamp(24px, 3vw, 40px);
+}
+.hero-copy h1 {
+  padding-top: 0;
+  border-top: 0;
+}
+.hero.split .floor {
+  grid-column: 1 / -1;
+  margin: 0 calc(-1 * var(--side));
+  position: relative;
+  z-index: 2;
+  border-top: 5px solid var(--ink);
+  height: 76px;
+}
+.hero.split .floor {
+  width: auto;
+  margin-inline: calc(50% - 50vw);
 }
