@@ -20,10 +20,11 @@ const COLOURS: [string, string][] = [
 
 const STYLE =
   CARD_FONT_CSS +
-  ".bl{font-family:CardBlackletter,serif}.fell{font-family:CardFell,Georgia,serif}.sc{font-family:CardFellSC,Georgia,serif}";
+  ".bl{font-family:CardBlackletter,serif}.fell{font-family:CardFell,Georgia,serif}.sc{font-family:CardFellSC,Georgia,serif}" +
+  ".coin-legend{font-family:CardFellSC,Georgia,serif;fill:#141110;letter-spacing:.5px}";
 
 const date = (ns: bigint) =>
-  new Date(Number(ns / BigInt(1_000_000))).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  new Date(Number(ns / BigInt(1_000_000))).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const id = (await ctx.params).id.replace(/\.svg$/i, "");

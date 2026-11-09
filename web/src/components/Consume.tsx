@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
+import { DEMO_MINE } from "@/lib/demo";
 import {
   CONSUME_CONTRACT,
   DEMO,
@@ -25,6 +26,7 @@ import { compact, daysLeft, fromRaw, shortAccount, toRaw, usd, usdCompact, usdVa
 import { Ouroboros } from "./Ouroboros";
 import { Stomach } from "./Stomach";
 import { Coin } from "./Coin";
+import { CARD_H, CARD_W } from "./IndulgenceCard";
 import { Chains } from "./Chains";
 import { IntentsWallet } from "./IntentsWallet";
 import { Seal } from "./Seal";
@@ -132,7 +134,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             </ol>
             <div className="hero-actions">
               <a className="press big" href="#feed">
-                Feed the Stomach
+                Feed the Serpent
               </a>
               <a className="text-link" href="#rule">
                 <span aria-hidden="true">☞</span> How it works
@@ -202,7 +204,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="chapter" id="crucible" aria-labelledby="crucible-h">
         <header>
           <StomachEmblem />
-          <h2 id="crucible-h">The Stomach</h2>
+          <h2 id="crucible-h">The Serpent’s Stomach</h2>
           <p>Everything it has eaten. It backs every $CONSUME, and only redeeming takes it out.</p>
         </header>
         <div className="crucible-layout">
@@ -261,7 +263,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="chapter band band-red" id="feed" aria-labelledby="feed-h">
         <header>
           <CoinsEmblem />
-          <h2 id="feed-h">Feed the Stomach</h2>
+          <h2 id="feed-h">Feed the Serpent</h2>
           <p>Pick a memecoin, feed it, get an Indulgence.</p>
           <aside className="marginal">
             <span aria-hidden="true">☞</span> {MOCK_INTENTS ? "New? Bring test memecoins in from their chains first." : "New? Get test memecoins from the faucet first."}
@@ -602,7 +604,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             <span className="r-label">You get</span>
             <span className={quote ? "r-amount" : "r-amount empty"}>{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "nothing yet"}</span>
             <span className="r-sub">
-              $CONSUME over 30 days{quote?.bonus ? ", feast bonus included" : ""}
+              {quote ? "" : "paid in "}$CONSUME over 30 days{quote?.bonus ? ", feast bonus included" : ""}
             </span>
           </div>
         </div>
@@ -628,7 +630,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
         <div className="actions">
           {accountId ? (
             <button className="press big" disabled={DEMO || busy || !quote || over} onClick={feed}>
-              {busy ? "Waiting for the wallet" : "Feed the Stomach"}
+              {busy ? "Waiting for the wallet" : "Feed the Serpent"}
             </button>
           ) : (
             <button className="press big" disabled={DEMO} onClick={connect}>
@@ -705,7 +707,7 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
 
   // refreshed every 30 s and on focus, so "Collect" stays current as it vests
   const live = useLive(DEMO || !accountId ? null : `${accountId}:${tick}`, () => loadAllVests(accountId!), 30_000);
-  const vests = DEMO ? snap.recent.slice(0, 4) : live.data;
+  const vests = DEMO ? DEMO_MINE.map((id) => snap.recent.find((v) => v.token_id === id)!) : live.data;
 
   const act = async (id: string, method: "claim" | "exit", text: string) => {
     setBusyId(id);
@@ -735,7 +737,7 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
       </p>
     );
   if (!vests) return <p className="empty">Reading your Indulgences…</p>;
-  if (vests.length === 0) return <p className="empty">You hold no Indulgences yet. Feed the Stomach to receive one.</p>;
+  if (vests.length === 0) return <p className="empty">You hold no Indulgences yet. Feed the Serpent to receive one.</p>;
 
   return (
     <>
@@ -752,14 +754,16 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
           return (
             <article key={v.token_id} className={v.vest.exited ? "ind broken" : "ind"}>
               {/* the NFT's own image, exactly as wallets and marketplaces show it */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className="ind-card"
-                src={`/indulgence/${v.token_id}.svg?v=${tick}`}
-                width={600}
-                height={900}
-                alt={`Indulgence ${v.token_id}, the NFT card`}
-              />
+              <a className="ind-card-link" href={`/indulgence/${v.token_id}.svg`} target="_blank" rel="noreferrer" title="Open the card full size">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className="ind-card"
+                  src={`/indulgence/${v.token_id}.svg?v=${tick}`}
+                  width={CARD_W}
+                  height={CARD_H}
+                  alt={`Indulgence ${v.token_id}, the NFT card. Opens full size.`}
+                />
+              </a>
               <div className="ind-body">
                 <h3>
                   Indulgence <span className="no">№ {v.token_id}</span>
@@ -1106,8 +1110,8 @@ function Rule({ snap }: { snap: Snapshot }) {
           <strong>The owner</strong> can add memecoins, set limits and swap the Assayer, but cannot withdraw. It passes to a DAO after launch.
         </p>
         <p>
-          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents contract
-          that is can never change once it has eaten.
+          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. The owner cannot
+          switch to a different Intents contract once it has eaten.
         </p>
       </div>
 

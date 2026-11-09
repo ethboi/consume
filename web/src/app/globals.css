@@ -2957,3 +2957,40 @@ details.all-rules summary {
 .masthead-mark svg path {
   stroke-width: 16px;
 }
+/* the tarot card brings its own rounded black edge */
+.ind-card {
+  border: 0;
+  border-radius: 3%;
+}
+
+/* site review: jar tags, card link, phone ledes */
+.jar-sealed-tag {
+  font-family: var(--font-text);
+  font-style: italic;
+  fill: var(--rubric);
+  text-anchor: middle;
+}
+.ind-card-link {
+  display: block;
+  align-self: start;
+  border-radius: 3%;
+}
+.ind-card-link:hover .ind-card,
+.ind-card-link:focus-visible .ind-card {
+  transform: translateY(-2px);
+}
+.ind-card {
+  transition: transform 0.15s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ind-card {
+    transition: none;
+  }
+}
+/* on phones the lede starts at the margin, not under a heading it no longer lines up with */
+@media (max-width: 700px) {
+  .chapter > header > p {
+    margin-left: 0;
+    margin-top: 0;
+  }
+}

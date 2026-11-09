@@ -1,6 +1,8 @@
-// The Indulgence NFT image: a printed charter. Rendered to a standalone SVG by
-// app/indulgence/[id]/route.ts and used as the NFT's media. Everything is
-// drawn here; the route embeds the fonts and swaps CSS variables for colours.
+// The Indulgence NFT image, drawn as a woodcut tarot card: a numeral in a box
+// at the top, one tall picture, and the card's title in a box at the foot.
+// Rendered to a standalone SVG by app/indulgence/[id]/route.ts and used as the
+// NFT's media. Everything is drawn here; the route embeds the fonts and swaps
+// CSS variables for colours.
 
 import { Coin } from "./Coin";
 import { Ouroboros } from "./Ouroboros";
@@ -13,87 +15,127 @@ export type CardData = {
   eaten: string; // formatted amount, e.g. "81,871,345"
   mealUsd: string; // "$420.00"
   consume: string; // "420,000"
-  from: string; // "9 November 2026"
-  to: string; // "9 December 2026"
+  from: string; // "9 Nov 2026"
+  to: string; // "9 Dec 2026"
   released: number; // 0..1
   days: number; // length of the vest in days
   exited: boolean;
   bonus: boolean;
 };
 
-const W = 600;
-const H = 900;
-const PANEL = { x: 58, y: 168, w: 484, h: 330 };
+/** Tarot proportions, 7:12. */
+export const CARD_W = 600;
+export const CARD_H = 1030;
+
+const W = CARD_W;
+const H = CARD_H;
 const CX = W / 2;
-const CY = PANEL.y + PANEL.h / 2;
-const SERPENT = 372; // drawn larger than the panel so it breaks the frame
+/** The picture between the two boxes. */
+const PIC = { x: 64, y: 138, w: 472, h: 668 };
+const SUN = { x: CX, y: 418 }; // centre of the serpent and the rays
+const SERPENT = 396;
+const GROUND_Y = 718;
 
 const INK = "var(--ink)";
 const PAPER = "var(--paper)";
 const RED = "var(--rubric)";
 
-/** A red boss in each corner of the frame. */
-function Boss({ x, y }: { x: number; y: number }) {
+/** The arcana each memecoin's device stands for. */
+const TITLES: Record<string, string> = {
+  DOGE: "The Hound",
+  SHIB: "The Crowned Dog",
+  PEPE: "The Frog",
+  PENGU: "The Penguin",
+  SPX: "The Bull",
+  TURBO: "The Toad",
+  BOME: "The Book",
+  BLACKDRAGON: "The Dragon",
+  SHITZU: "The Lapdog",
+  NearKat: "The Cat",
+};
+
+/** Roman numerals up to 3999; larger numbers stay Arabic. */
+export function roman(n: number): string {
+  if (!Number.isInteger(n) || n <= 0 || n > 3999) return String(n);
+  const table: [number, string][] = [
+    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
+    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ];
+  let out = "";
+  for (const [v, s] of table) {
+    while (n >= v) {
+      out += s;
+      n -= v;
+    }
+  }
+  return out;
+}
+
+function Star({ x, y, s = 1, fill = RED }: { x: number; y: number; s?: number; fill?: string }) {
   return (
-    <g transform={`translate(${x} ${y})`}>
-      <rect x={-15} y={-15} width={30} height={30} fill={RED} stroke={INK} strokeWidth={2.5} />
-      <path d="M0,-10 L3,-3 L10,0 L3,3 L0,10 L-3,3 L-10,0 L-3,-3 Z" fill={PAPER} />
-    </g>
+    <path
+      transform={`translate(${x} ${y}) scale(${s})`}
+      d="M0,-12 L2.6,-2.6 L12,0 L2.6,2.6 L0,12 L-2.6,2.6 L-12,0 L-2.6,-2.6 Z"
+      fill={fill}
+    />
   );
 }
 
-/** The title carried on a ribbon with folded tails. */
-function Ribbon() {
+/** A framed box with a fine inner rule, as on old printed cards. */
+function Box({ y, h }: { y: number; h: number }) {
   return (
     <g>
-      <path d="M92,74 L40,74 L62,104 L40,134 L110,134 Z" fill={PAPER} stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-      <path d="M508,74 L560,74 L538,104 L560,134 L490,134 Z" fill={PAPER} stroke={INK} strokeWidth={3} strokeLinejoin="round" />
-      <path d="M92,74 L110,60 L110,120 Z M508,74 L490,60 L490,120 Z" fill={INK} />
-      <path
-        d="M110,60 Q205,44 300,56 T490,60 L490,120 Q395,136 300,124 T110,120 Z"
-        fill={PAPER}
-        stroke={INK}
-        strokeWidth={3.2}
-        strokeLinejoin="round"
-      />
-      <path d="M118,68 Q205,53 300,64 T482,68 M118,112 Q205,127 300,116 T482,112" fill="none" stroke={INK} strokeWidth={0.9} />
-      <text x={CX} y={110} textAnchor="middle" className="bl" fontSize={58} fill={RED}>
-        Indulgence
-      </text>
+      <rect x={PIC.x} y={y} width={PIC.w} height={h} fill={PAPER} stroke={INK} strokeWidth={3.5} />
+      <rect x={PIC.x + 7} y={y + 7} width={PIC.w - 14} height={h - 14} fill="none" stroke={INK} strokeWidth={1} />
     </g>
   );
 }
 
-/** A wax seal hanging from two ribbon tails. */
-function HangingSeal({ x, y }: { x: number; y: number }) {
-  const rim = "✦ CONSUME ✦ THE STOMACH ";
+/** The wax seal, pressed on the corner of the picture. Cracked once broken. */
+function Seal({ x, y, broken }: { x: number; y: number; broken: boolean }) {
   return (
     <g transform={`translate(${x} ${y})`}>
-      {/* ribbon tails hanging out below the wax */}
-      <path d="M-16,20 L-40,74 L-27,68 L-19,80 L-2,30 Z" fill={RED} stroke={INK} strokeWidth={2} strokeLinejoin="round" />
-      <path d="M16,20 L40,74 L27,68 L19,80 L2,30 Z" fill={RED} stroke={INK} strokeWidth={2} strokeLinejoin="round" />
-      {/* and the cord it hangs from */}
-      <path d="M-6,-70 L-6,-44 M6,-70 L6,-44" stroke={RED} strokeWidth={5} />
       <path
         d="M0,-48 C9,-46 13,-51 21,-45 C30,-40 35,-42 40,-34 C46,-26 52,-22 51,-12 C50,-3 55,3 52,12 C49,21 52,28 45,35 C38,43 35,49 25,52 C15,55 10,59 0,56 C-10,59 -15,55 -25,52 C-35,49 -38,43 -45,35 C-52,28 -49,21 -52,12 C-55,3 -50,-3 -51,-12 C-52,-22 -46,-26 -40,-34 C-35,-42 -30,-40 -21,-45 C-13,-51 -9,-46 0,-48 Z"
         fill="var(--wax, #9b1d18)"
         stroke={INK}
-        strokeWidth={2}
+        strokeWidth={2.4}
       />
-      <circle r={39} fill="none" stroke="rgba(0,0,0,0.38)" strokeWidth={2} />
-      <circle r={27} fill="none" stroke="rgba(0,0,0,0.38)" strokeWidth={1.5} />
-      <defs>
-        <path id="seal-rim" d="M0,0 m-33,0 a33,33 0 1,1 66,0 a33,33 0 1,1 -66,0" />
-      </defs>
-      <text className="sc" fontSize={8.5} fill="rgba(0,0,0,0.55)" letterSpacing={0.6}>
-        <textPath href="#seal-rim" textLength={203} lengthAdjust="spacing">
-          {rim}
-        </textPath>
-      </text>
-      <g transform="translate(-24 -24)" color="rgba(0,0,0,0.5)">
-        <Ouroboros size={48} detailed={false} title="" />
+      <circle r={38} fill="none" stroke="rgba(0,0,0,0.38)" strokeWidth={2} />
+      <g transform="translate(-27 -27)" color="rgba(0,0,0,0.5)">
+        <Ouroboros size={54} detailed={false} title="" />
       </g>
       <path d="M-30,-30 Q0,-44 30,-30" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={3} strokeLinecap="round" />
+      {broken && (
+        <path
+          d="M-8,-50 L-2,-26 L-12,-10 L4,6 L-6,22 L6,40 L0,58"
+          fill="none"
+          stroke={PAPER}
+          strokeWidth={4.5}
+          strokeLinejoin="bevel"
+        />
+      )}
+    </g>
+  );
+}
+
+/** The payout on a ribbon across the picture. */
+function Banderole({ text }: { text: string }) {
+  const y = 646;
+  return (
+    <g>
+      <path d={`M104,${y - 18} L72,${y - 18} L88,${y + 4} L72,${y + 26} L118,${y + 26} Z`} fill={PAPER} stroke={INK} strokeWidth={2.6} strokeLinejoin="round" />
+      <path d={`M496,${y - 18} L528,${y - 18} L512,${y + 4} L528,${y + 26} L482,${y + 26} Z`} fill={PAPER} stroke={INK} strokeWidth={2.6} strokeLinejoin="round" />
+      <path
+        d={`M104,${y - 30} Q200,${y - 42} 300,${y - 32} T496,${y - 30} L496,${y + 18} Q400,${y + 30} 300,${y + 20} T104,${y + 18} Z`}
+        fill={PAPER}
+        stroke={INK}
+        strokeWidth={3}
+        strokeLinejoin="round"
+      />
+      <text x={CX} y={y + 6} textAnchor="middle" className="bl" fontSize={text.length > 16 ? 34 : 40} fill={RED}>
+        {text}
+      </text>
     </g>
   );
 }
@@ -102,7 +144,9 @@ export function IndulgenceCard({ d }: { d: CardData }) {
   const done = !d.exited && d.released >= 1;
   const days = Math.max(1, Math.round(d.days));
   const filled = Math.floor(Math.min(1, Math.max(0, d.released)) * days + 1e-9);
-  const tick = 360 / days;
+  const step = 450 / days;
+  const title = TITLES[d.symbol] ?? d.symbol;
+  const numeral = roman(Number(d.id));
 
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
@@ -111,112 +155,111 @@ export function IndulgenceCard({ d }: { d: CardData }) {
           <rect width="7" height="7" fill={PAPER} />
           <rect width="2.6" height="7" fill={INK} />
         </pattern>
-        <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(40)">
-          <rect width="5" height="5" fill={PAPER} />
-          <rect width="1.8" height="5" fill={INK} />
-        </pattern>
-        <clipPath id="panel">
-          <rect x={PANEL.x} y={PANEL.y} width={PANEL.w} height={PANEL.h} />
+        <clipPath id="pic">
+          <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} />
         </clipPath>
       </defs>
 
-      {/* the block: black edge, hatched band, paper face with a red inner rule */}
-      <rect width={W} height={H} fill={INK} />
-      <rect x={12} y={12} width={W - 24} height={H - 24} fill="url(#band)" />
-      <rect x={26} y={26} width={W - 52} height={H - 52} fill={PAPER} stroke={INK} strokeWidth={4} />
-      <rect x={36} y={36} width={W - 72} height={H - 72} fill="none" stroke={RED} strokeWidth={2} />
-      <Boss x={26} y={26} />
-      <Boss x={W - 26} y={26} />
-      <Boss x={26} y={H - 26} />
-      <Boss x={W - 26} y={H - 26} />
+      {/* the card: black edge with rounded corners, a hatched border, a paper face */}
+      <rect width={W} height={H} rx={34} fill={INK} />
+      <rect x={10} y={10} width={W - 20} height={H - 20} rx={26} fill="url(#band)" />
+      <rect x={22} y={22} width={W - 44} height={H - 44} rx={16} fill={PAPER} stroke={INK} strokeWidth={3} />
+      <rect x={34} y={34} width={W - 68} height={H - 68} rx={8} fill="none" stroke={RED} strokeWidth={1.8} />
 
-      <Ribbon />
-      {/* the number in a red lozenge */}
-      <g transform={`translate(${CX} 150)`}>
-        <path d="M-58,0 L-44,-14 L44,-14 L58,0 L44,14 L-44,14 Z" fill={RED} stroke={INK} strokeWidth={2} />
-        <text y={6} textAnchor="middle" className="sc" fontSize={17} fill={PAPER} letterSpacing={1.5}>
-          {`№ ${d.id}`}
+      {/* the numeral */}
+      <Box y={50} h={74} />
+      <Star x={104} y={87} s={0.8} />
+      <Star x={W - 104} y={87} s={0.8} />
+      <text x={CX} y={103} textAnchor="middle" className="sc" fontSize={numeral.length > 9 ? 34 : 44} letterSpacing={5} fill={INK}>
+        {numeral}
+      </text>
+
+      {/* the picture: red ground, black rays, the serpent around the memecoin */}
+      <g clipPath="url(#pic)">
+        <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} fill={RED} />
+        <Glory x={SUN.x - 700} y={SUN.y - 700} size={1400} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 140) / 400} fill={PAPER} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 168) / 400} fill="none" stroke={INK} strokeWidth={8} />
+        <g transform={`translate(${SUN.x - SERPENT / 2} ${SUN.y - SERPENT / 2})`} color={INK}>
+          <Ouroboros size={SERPENT} title="" />
+        </g>
+        <g transform={`translate(${SUN.x - 94} ${SUN.y - 92})`}>
+          <Coin symbol={d.symbol} chain={d.chain} size={188} />
+        </g>
+        {/* stars in the sky */}
+        <Star x={PIC.x + 38} y={PIC.y + 40} s={0.9} fill={PAPER} />
+        <Star x={PIC.x + 82} y={PIC.y + 92} s={0.45} fill={PAPER} />
+        <Star x={PIC.x + PIC.w - 120} y={PIC.y + 30} s={0.4} fill={PAPER} />
+
+        {/* the ground, with one mark for each day of the payout */}
+        <path
+          d={`M${PIC.x},${GROUND_Y + 14} Q${PIC.x + 120},${GROUND_Y - 10} ${CX},${GROUND_Y + 4} T${PIC.x + PIC.w},${GROUND_Y + 2} L${PIC.x + PIC.w},${PIC.y + PIC.h} L${PIC.x},${PIC.y + PIC.h} Z`}
+          fill={INK}
+          stroke={PAPER}
+          strokeWidth={3}
+        />
+        <path
+          d={`M100,${GROUND_Y + 12} l4,-10 l3,10 M168,${GROUND_Y + 2} l3,-9 l4,9 M420,${GROUND_Y + 4} l4,-10 l3,10 M488,${GROUND_Y + 8} l3,-8 l4,8`}
+          stroke={PAPER}
+          strokeWidth={2.4}
+          fill="none"
+          strokeLinejoin="round"
+        />
+        <g transform={`translate(${CX - 225} ${GROUND_Y + 30})`}>
+          {Array.from({ length: days }, (_, i) => (
+            <rect
+              key={i}
+              x={i * step + 1.5}
+              y={0}
+              width={step - 4}
+              height={18}
+              fill={i < filled ? RED : INK}
+              stroke={PAPER}
+              strokeWidth={1.6}
+            />
+          ))}
+        </g>
+        <text x={CX} y={GROUND_Y + 74} textAnchor="middle" className="fell" fontSize={16} fontStyle="italic" fill={PAPER}>
+          {d.exited ? `Seal broken: ${filled} of ${days} days released, the rest forfeit` : `${filled} of ${days} days released`}
         </text>
       </g>
+      <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} fill="none" stroke={INK} strokeWidth={5} />
 
-      {/* the woodblock: red, black glory, the serpent breaking the frame, the coin inside */}
-      <g clipPath="url(#panel)">
-        <rect x={PANEL.x} y={PANEL.y} width={PANEL.w} height={PANEL.h} fill={RED} />
-        <Glory x={CX - 700} y={CY - 700} size={1400} />
-      </g>
-      <rect x={PANEL.x} y={PANEL.y} width={PANEL.w} height={PANEL.h} fill="none" stroke={INK} strokeWidth={5} />
-      <circle cx={CX} cy={CY} r={(SERPENT * 140) / 400} fill={PAPER} />
-      <circle cx={CX} cy={CY} r={(SERPENT * 168) / 400} fill="none" stroke={INK} strokeWidth={8} />
-      <g transform={`translate(${CX - SERPENT / 2} ${CY - SERPENT / 2})`} color={INK}>
-        <Ouroboros size={SERPENT} title="" />
-      </g>
-      <g transform={`translate(${CX - 88} ${CY - 86})`}>
-        <Coin symbol={d.symbol} chain={d.chain} size={176} />
-      </g>
+      <Banderole text={`${d.consume} Consume`} />
+
       {d.bonus && (
-        <g transform={`translate(${PANEL.x + PANEL.w - 116} ${PANEL.y + 16})`}>
-          <path d="M0,0 H100 V34 H0 L12,17 Z" fill={PAPER} stroke={INK} strokeWidth={2.5} />
-          <text x={56} y={25} textAnchor="middle" className="bl" fontSize={23} fill={RED}>
+        <g transform={`translate(${PIC.x + 14} ${PIC.y + 132})`}>
+          <path d="M0,0 H104 L92,17 L104,34 H0 Z" fill={PAPER} stroke={INK} strokeWidth={2.5} />
+          <text x={46} y={25} textAnchor="middle" className="bl" fontSize={23} fill={RED}>
             Feast
           </text>
         </g>
       )}
 
-      {/* the inscription, with a rubricated initial */}
-      <g transform="translate(70 528)">
-        <rect width={50} height={56} fill="url(#hatch)" stroke={INK} strokeWidth={2.4} />
-        <rect x={5} y={5} width={40} height={46} fill={PAPER} stroke={INK} strokeWidth={1} />
-        <text x={25} y={45} textAnchor="middle" className="bl" fontSize={46} fill={RED}>
-          F
-        </text>
-      </g>
-      <g className="fell" fill={INK}>
-        <text x={132} y={548} fontSize={21}>
-          {`or ${d.eaten} ${d.symbol} fed to the Stomach,`}
-        </text>
-        <text x={132} y={576} fontSize={21}>
-          {`worth ${d.mealUsd}, this Indulgence grants`}
-        </text>
-      </g>
-      <text x={CX} y={632} textAnchor="middle" className="bl" fontSize={46} fill={RED}>
-        {`${d.consume} Consume`}
-      </text>
-      <g className="fell" fill={INK} textAnchor="middle" fontStyle="italic">
-        <text x={CX} y={664} fontSize={18}>
-          to its bearer, released a little each day
-        </text>
-        <text x={CX} y={688} fontSize={18}>
-          {`from ${d.from} to ${d.to}.`}
-        </text>
-      </g>
+      <Seal x={PIC.x + PIC.w - 40} y={PIC.y + 44} broken={d.exited} />
 
-      {/* one mark for each day of the vest, inked as it is released */}
-      <g transform={`translate(${CX - 180} 708)`}>
-        {Array.from({ length: days }, (_, i) => (
-          <rect
-            key={i}
-            x={i * tick + 1}
-            y={0}
-            width={tick - 3}
-            height={16}
-            fill={i < filled ? (d.exited ? RED : INK) : PAPER}
-            stroke={INK}
-            strokeWidth={1.4}
-          />
-        ))}
+      {/* the title */}
+      <Box y={822} h={166} />
+      <text x={CX} y={876} textAnchor="middle" className="sc" fontSize={title.length > 12 ? 36 : 42} letterSpacing={4} fill={INK}>
+        {title.toUpperCase()}
+      </text>
+      <path d={`M${CX - 120},894 H${CX + 120}`} stroke={RED} strokeWidth={2} />
+      <Star x={CX} y={894} s={0.5} />
+      <g className="fell" fill={INK} textAnchor="middle">
+        <text x={CX} y={924} fontSize={19}>
+          {`Indulgence for ${d.eaten} ${d.symbol}, worth ${d.mealUsd},`}
+        </text>
+        <text x={CX} y={950} fontSize={19}>
+          {`released to its bearer from ${d.from} to ${d.to}.`}
+        </text>
+        <text x={CX} y={973} fontSize={14.5} fontStyle="italic">
+          Break the seal early and half of what is still locked is forfeit.
+        </text>
       </g>
-      <text x={CX - 180} y={744} className="fell" fontSize={14} fontStyle="italic" fill={INK}>
-        {d.exited ? "Released early, the rest forfeit" : `${filled} of ${days} days released`}
-      </text>
-      <text x={CX + 180} y={744} textAnchor="end" className="fell" fontSize={14} fontStyle="italic" fill={INK}>
-        Breaking the seal early forfeits half.
-      </text>
-
-      <HangingSeal x={CX} y={806} />
 
       {/* stamps across the picture */}
       {d.exited && (
-        <g transform={`translate(${CX} ${CY + 70}) rotate(-14)`} opacity={0.94}>
+        <g transform={`translate(${CX} ${SUN.y + 40}) rotate(-14)`} opacity={0.94}>
           <rect x={-190} y={-42} width={380} height={84} fill={PAPER} stroke={RED} strokeWidth={7} />
           <text x={0} y={22} textAnchor="middle" className="bl" fontSize={60} fill={RED}>
             Seal broken
@@ -224,7 +267,7 @@ export function IndulgenceCard({ d }: { d: CardData }) {
         </g>
       )}
       {done && (
-        <g transform={`translate(${CX} ${CY + 70}) rotate(-10)`} opacity={0.94}>
+        <g transform={`translate(${CX} ${SUN.y + 40}) rotate(-10)`} opacity={0.94}>
           <rect x={-196} y={-40} width={392} height={80} fill={PAPER} stroke={INK} strokeWidth={6} />
           <text x={0} y={21} textAnchor="middle" className="bl" fontSize={54} fill={INK}>
             Fully released

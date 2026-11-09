@@ -85,6 +85,7 @@ export function Stomach({ jars }: { jars: Jar[] }) {
             const level = base - share * s.fill;
             const clipId = `jar-${ri}-${i}`;
             const long = jar.symbol.length > 8;
+            const lw = long ? 96 : 74; // a long name gets a wider label
             return (
               <g key={jar.symbol} className={jar.open ? "jar" : "jar jar-sealed"}>
                 <clipPath id={clipId}>
@@ -100,11 +101,19 @@ export function Stomach({ jars }: { jars: Jar[] }) {
                 <path d={s.body(cx, base)} fill="none" stroke="var(--ink)" strokeWidth={2.6} strokeLinejoin="round" />
                 <path d={s.extra(cx, base)} fill="var(--paper)" stroke="var(--ink)" strokeWidth={2.2} strokeLinejoin="round" />
                 {/* apothecary label */}
-                <rect x={cx - 37} y={base - s.label - 11} width={74} height={22} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1.4} />
-                <text x={cx} y={base - s.label + 4.5} className="jar-label" fontSize={long ? 9.5 : 13}>
+                <rect x={cx - lw / 2} y={base - s.label - 11} width={lw} height={22} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1.4} />
+                <text x={cx} y={base - s.label + 4.5} className="jar-label" fontSize={long ? 10.5 : 13}>
                   {jar.symbol}
                 </text>
-                {!jar.open && <path d={`M${cx - 37},${base - s.label - 11} l74,22 M${cx + 37},${base - s.label - 11} l-74,22`} stroke="var(--rubric)" strokeWidth={1.6} />}
+                {/* a closed memecoin keeps its name and gets a red "sealed" slip under it */}
+                {!jar.open && (
+                  <>
+                    <rect x={cx - 24} y={base - s.label + 15} width={48} height={15} fill="var(--paper)" stroke="var(--rubric)" strokeWidth={1.2} />
+                    <text x={cx} y={base - s.label + 26} className="jar-sealed-tag" fontSize={10.5}>
+                      sealed
+                    </text>
+                  </>
+                )}
               </g>
             );
           })}

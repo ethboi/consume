@@ -49,7 +49,8 @@ const tribes: [string, Tribe][] = HERESIES.map((h) => [
 
 function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAgo: number, opts: Partial<VestView["vest"]> = {}): VestView {
   const h = HERESIES.find((x) => x.symbol === symbol)!;
-  const total = BigInt(mealUsd) * BigInt(500) * pow10(18); // at the current sample rate
+  // at the current sample rate; a feast feeding earns 1.5x
+  const total = (BigInt(mealUsd) * BigInt(500) * pow10(18) * BigInt(opts.bonus ? 3 : 2)) / BigInt(2);
   const start = nowNs - BigInt(daysAgo) * DAY;
   return {
     token_id: String(id),
@@ -76,16 +77,20 @@ function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAg
   };
 }
 
+// Newest first. Numbers follow the dates: the most recent feeding has the highest number.
 const recent: VestView[] = [
-  vest(214, "gutterpriest.testnet", "PEPE", 420, 12, { bonus: true }),
-  vest(213, "mirabel.testnet", "DOGE", 1000, 21),
+  vest(214, "brother-odo.testnet", "BLACKDRAGON", 90, 2),
+  vest(213, "gutterpriest.testnet", "SPX", 180, 3, { exited: true }),
   vest(212, "anchorite.testnet", "SHIB", 250, 4),
-  vest(211, "the-miller.testnet", "PENGU", 600, 27),
-  vest(210, "gutterpriest.testnet", "SPX", 180, 2, { exited: true }),
-  vest(209, "brother-odo.testnet", "BLACKDRAGON", 90, 3),
-  vest(208, "mirabel.testnet", "TURBO", 300, 4),
-  vest(207, "plague-doctor.testnet", "BOME", 120, 5),
+  vest(211, "mirabel.testnet", "TURBO", 300, 4),
+  vest(210, "plague-doctor.testnet", "BOME", 120, 5),
+  vest(209, "gutterpriest.testnet", "PEPE", 420, 12, { bonus: true }),
+  vest(208, "mirabel.testnet", "DOGE", 1000, 21),
+  vest(207, "the-miller.testnet", "PENGU", 600, 27),
 ];
+
+// The wallet's own Indulgences in the preview: a spread of ages.
+export const DEMO_MINE = ["209", "208", "212", "207"];
 
 export const DEMO_SNAPSHOT: Snapshot = {
   tribes,
