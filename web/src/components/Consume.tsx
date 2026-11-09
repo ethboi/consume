@@ -108,7 +108,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 <span>Feed it a memecoin</span>
               </li>
               <li>
-                <Seal size={46} />
+                <Seal size={40} />
                 <b>II</b>
                 <span>Get an Indulgence</span>
               </li>
@@ -209,14 +209,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <div className="crucible-layout">
           <div>
             <Stomach jars={held.map(({ h, t, micro }) => ({ symbol: h.symbol, usd: Number(micro) / 1e6, open: t?.open ?? false }))} />
-            <div className="held">
-              <span>Held now, after redemptions</span>
-              <strong>{usd(totalMicro, 0)}</strong>
-            </div>
-            <div className="held">
-              <span>Backing for each $CONSUME</span>
-              <strong className="rubric">{floorLabel}</strong>
-            </div>
           </div>
           <div>
             <table className="ledger">
@@ -232,12 +224,12 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <tbody>
                 {held.map(({ h, t, micro }) => (
                   <tr key={h.symbol}>
-                    <td className="with-coin">
-                      <Coin symbol={h.symbol} size={30} />
-                      <span className="sym">{h.symbol}</span>
-                      <span className="chain">
-                        from {h.chain}
-                        {t && !t.open ? ", sealed for now" : ""}
+                    <td>
+                      <span className="with-coin">
+                        <Coin symbol={h.symbol} size={30} />
+                        <span className="sym">{h.symbol}</span>
+                        <span className="chain">from {h.chain}</span>
+                        {t && !t.open && <em className="tag">sealed</em>}
                       </span>
                     </td>
                     <td>{t ? compact(t.stomach, t.decimals) : "0"}</td>
@@ -247,18 +239,13 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 ))}
               </tbody>
             </table>
-            <div className="decree">
-              <p>
-                It pays <strong>{fromRaw(snap.stats.current_rate, CONSUME_DEC, 2)} $CONSUME</strong> for every dollar fed. At {usd(snap.stats.next_halving_at_usd, 0)}{" "}
-                consumed, famine halves that.
-              </p>
-              {feast ? (
-                <p>
-                  This week&apos;s feast is <strong>{feast}</strong>: feeding it pays {bonusX}×, because it was eaten most last week.
-                </p>
-              ) : (
-                <p>No feast this week. Whichever memecoin is fed most this week becomes next week&apos;s feast.</p>
-              )}
+            <div className="held">
+              <span>Held now, after redemptions</span>
+              <strong>{usd(totalMicro, 0)}</strong>
+            </div>
+            <div className="held">
+              <span>Backing for each $CONSUME</span>
+              <strong className="rubric">{floorLabel}</strong>
             </div>
           </div>
         </div>
@@ -567,7 +554,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                 className="amount"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="0"
+                placeholder="Amount"
                 value={amount}
                 onChange={(e) => {
                   setAmount(e.target.value);
@@ -604,7 +591,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           </span>
           <div className="get">
             <span className="r-label">You get</span>
-            <span className="r-amount">{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "0"}</span>
+            <span className={quote ? "r-amount" : "r-amount empty"}>{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "nothing yet"}</span>
             <span className="r-sub">
               $CONSUME over 30 days{quote?.bonus ? ", feast bonus included" : ""}
             </span>
@@ -857,6 +844,8 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
 
 // ---------------------------------------------------------------- redeem
 
+const EXAMPLE_REDEEM = BigInt(100_000) * BigInt(10) ** BigInt(18);
+
 function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send } = useWallet();
   const [amount, setAmount] = useState("");
@@ -870,16 +859,20 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
   const owedLive = useLive(DEMO || !accountId ? null : `${accountId}:owed:${tick}`, () =>
     view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }),
   );
-  const q = useLive(raw && raw > BigInt(0) ? `redeem:${raw}:${tick}` : null, async () => {
+  const balance = bal.data ?? null;
+  // Before an amount is typed, preview what all of your $CONSUME (or a sample
+  // amount) would take, so the panel shows what redeeming is worth.
+  const typed = raw !== null && raw > BigInt(0);
+  const preview = typed ? raw! : balance && balance > BigInt(0) ? balance : EXAMPLE_REDEEM;
+  const q = useLive(`redeem:${preview}:${tick}`, async () => {
     if (DEMO) {
       const d = BigInt(snap.stats.consume_supply) + BigInt(snap.stats.total_unvested);
-      return { shares: snap.tribes.map(([k, t]) => [k, ((BigInt(t.stomach) * raw!) / d).toString()] as [string, string]), denominator: d.toString() };
+      return { shares: snap.tribes.map(([k, t]) => [k, ((BigInt(t.stomach) * preview) / d).toString()] as [string, string]), denominator: d.toString() };
     }
-    await sleep(300);
-    return view<RedeemQuote>(CONSUME_CONTRACT, "quote_redeem", { amount: raw!.toString() });
+    if (typed) await sleep(300);
+    return view<RedeemQuote>(CONSUME_CONTRACT, "quote_redeem", { amount: preview.toString() });
   });
   const quote = q.data ?? null;
-  const balance = bal.data ?? null;
   const owed = owedLive.data ?? [];
 
   const totalMicro =
@@ -900,7 +893,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
   };
 
   const redeem = async () => {
-    if (!raw || !quote || !accountId) return;
+    if (!typed || !raw || !quote || !accountId) return;
     setBusy(true);
     setError(null);
     try {
@@ -954,7 +947,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
               className="amount"
               inputMode="decimal"
               autoComplete="off"
-              placeholder="0"
+              placeholder="Amount"
               value={amount}
               onChange={(e) => {
                 setAmount(e.target.value);
@@ -978,7 +971,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
         </div>
         {(shownError || over) && <p className="error">{shownError ?? "That is more $CONSUME than you hold."}</p>}
         <div className="actions">
-          <button className="press big" disabled={DEMO || busy || !quote || over || !accountId} onClick={redeem}>
+          <button className="press big" disabled={DEMO || busy || !typed || !quote || over || !accountId} onClick={redeem}>
             {busy ? "Waiting for the wallet" : "Burn and redeem"}
           </button>
           {owed.length > 0 && (
@@ -991,7 +984,9 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
       </div>
 
       <div className="redeem-out" aria-live="polite">
-        <span className="r-label">You receive</span>
+        <span className="r-label">
+          {typed ? "You receive" : balance && balance > BigInt(0) ? "All your $CONSUME takes" : `For example, ${fromRaw(EXAMPLE_REDEEM, CONSUME_DEC, 0)} $CONSUME takes`}
+        </span>
         <span className="r-amount">{usd(totalMicro)}</span>
         <span className="r-sub">{VIA_INTENTS ? "paid in memecoins to your NEAR Intents balance" : "paid in memecoins"}</span>
         {shares.length > 0 ? (
@@ -1008,7 +1003,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             })}
           </ul>
         ) : (
-          <p className="hint">Enter an amount.</p>
+          <p className="hint">{q.loading ? "Weighing the Stomach…" : "The Stomach is empty, so there is nothing to take yet."}</p>
         )}
       </div>
     </div>
@@ -1040,11 +1035,13 @@ function Entries({ recent }: { recent: VestView[] }) {
           return (
             <tr key={v.token_id} className={v.vest.exited ? "broken" : ""}>
               <td className="no">{v.token_id}</td>
-              <td className="meme">
-                {h && <Coin symbol={h.symbol} size={26} />}
-                <span>{h?.symbol}</span>
-                {v.vest.bonus && <em className="tag">feast</em>}
-                {v.vest.exited && <em className="tag">seal broken</em>}
+              <td>
+                <span className="meme">
+                  {h && <Coin symbol={h.symbol} size={26} />}
+                  <span>{h?.symbol}</span>
+                  {v.vest.bonus && <em className="tag">feast</em>}
+                  {v.vest.exited && <em className="tag">seal broken</em>}
+                </span>
               </td>
               <td>{shortAccount(v.owner_id)}</td>
               <td className="num">{h ? compact(v.vest.eaten, h.decimals) : ""}</td>
@@ -1098,6 +1095,10 @@ function Rule({ snap }: { snap: Snapshot }) {
         </p>
         <p>
           <strong>The owner</strong> can add memecoins, set limits and swap the Assayer, but cannot withdraw. It passes to a DAO after launch.
+        </p>
+        <p>
+          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents contract
+          that is can never change once it has eaten.
         </p>
       </div>
 

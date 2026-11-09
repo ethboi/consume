@@ -22,14 +22,17 @@ export function Chains() {
 
   return (
     <div className="chains">
-      <figure className="chain-map" aria-label="Memecoins from four chains reach the Stomach through NEAR Intents">
+      <figure className="chain-map" aria-label="Memecoins travel from four chains through NEAR Intents to the Stomach, and redemptions travel back the same way">
         <div className="chain-row">
           {CHAINS.map((c) => (
             <div key={c} className="chain-card">
               <span className="chain-name">{c}</span>
               <span className="chain-coins">
                 {HERESIES.filter((h) => h.chain === c).map((h) => (
-                  <Coin key={h.symbol} symbol={h.symbol} size={38} />
+                  <span key={h.symbol} className="chain-coin">
+                    <Coin symbol={h.symbol} size={40} />
+                    <span>{h.symbol}</span>
+                  </span>
                 ))}
               </span>
             </div>
@@ -39,16 +42,23 @@ export function Chains() {
           {CHAINS.map((c) => (
             <span key={c} />
           ))}
+          <em className="leg l">in</em>
+          <em className="leg r">home</em>
         </div>
         <div className="intents-band">NEAR Intents</div>
         <div className="chain-arrows single" aria-hidden="true">
           <span />
+          <em className="leg l">feed</em>
+          <em className="leg r">redeem</em>
         </div>
         <div className="chain-stomach">
           <span className="roundel">
-            <Ouroboros size={64} detailed={false} title="" />
+            <Ouroboros size={80} title="" />
           </span>
-          <span>The Stomach, one contract on NEAR</span>
+          <span>
+            The Stomach
+            <small>one contract on NEAR</small>
+          </span>
         </div>
         {MOCK_INTENTS && (
           <figcaption className="hint">
