@@ -1,4 +1,4 @@
-//! Redeem: burn $CONSUME, take your share of every meme in the reliquary.
+//! Redeem: burn $CONSUME, take your share of every meme in the stomach.
 
 use near_contract_standards::fungible_token::events::FtBurn;
 use near_sdk::json_types::U128;
@@ -27,7 +27,7 @@ pub struct RedeemQuote {
 }
 
 impl Contract {
-    /// Everyone's claim on the reliquary is counted against minted $CONSUME plus
+    /// Everyone's claim on the stomach is counted against minted $CONSUME plus
     /// $CONSUME still vesting, so early claimers cannot drain it before later
     /// vests unlock.
     fn denominator(&self) -> u128 {
@@ -39,7 +39,7 @@ impl Contract {
         let shares = self
             .tribes
             .iter()
-            .map(|(k, t)| (k.clone(), U128(if denom == 0 { 0 } else { math::mul_div(t.reliquary.0, amount, denom) })))
+            .map(|(k, t)| (k.clone(), U128(if denom == 0 { 0 } else { math::mul_div(t.stomach.0, amount, denom) })))
             .collect();
         RedeemQuote { shares, denominator: U128(denom) }
     }
@@ -61,7 +61,7 @@ impl Contract {
             ext_ft::ext(token.clone())
                 .with_attached_deposit(NearToken::from_yoctonear(1))
                 .with_static_gas(GAS_FT_TRANSFER)
-                .ft_transfer(account_id.clone(), U128(owed), Some("CONSUME reliquary".to_string()))
+                .ft_transfer(account_id.clone(), U128(owed), Some("CONSUME stomach".to_string()))
                 .then(
                     Self::ext(env::current_account_id())
                         .with_static_gas(GAS_ON_WITHDRAW)
@@ -80,7 +80,7 @@ impl Contract {
         self.quote(amount.0)
     }
 
-    /// Burn `amount` $CONSUME and take your share of every tribe in the reliquary.
+    /// Burn `amount` $CONSUME and take your share of every tribe in the stomach.
     /// Payouts go out straight away. If a transfer fails (for example you are not
     /// registered on that meme's token), the amount stays owed to you and
     /// `withdraw_owed` retries it. Requires 1 yoctoNEAR.
@@ -97,7 +97,7 @@ impl Contract {
                 continue;
             }
             let tribe = self.tribes.get_mut(token).unwrap();
-            tribe.reliquary = U128(tribe.reliquary.0 - share.0);
+            tribe.stomach = U128(tribe.stomach.0 - share.0);
             *self.owed.entry((account.clone(), token.clone())).or_insert(0) += share.0;
         }
         self.token.internal_withdraw(&account, amount);

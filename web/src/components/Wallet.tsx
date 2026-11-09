@@ -22,9 +22,47 @@ type WalletState = {
   ready: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  /** Sends the calls as one wallet approval when possible. Resolves to tx hashes. */
-  send: (calls: Call[]) => Promise<string[]>;
+  /** Sends the calls as one wallet approval when possible. Resolves to what
+   *  actually happened on chain: hash, every log line, and any failed receipt. */
+  send: (calls: Call[]) => Promise<TxResult[]>;
 };
+
+export type TxResult = { hash: string; logs: string[]; failure?: string };
+
+type Outcome = {
+  transaction: { hash: string };
+  status?: unknown;
+  receipts_outcome?: { outcome: { logs: string[]; status: unknown } }[];
+};
+
+function failureOf(status: unknown): string | undefined {
+  if (status && typeof status === "object" && "Failure" in status) return cleanError(JSON.stringify((status as { Failure: unknown }).Failure));
+  return undefined;
+}
+
+function toResult(o: Outcome): TxResult {
+  const receipts = o.receipts_outcome ?? [];
+  return {
+    hash: o.transaction.hash,
+    logs: receipts.flatMap((r) => r.outcome.logs),
+    failure: failureOf(o.status) ?? receipts.map((r) => failureOf(r.outcome.status)).find(Boolean),
+  };
+}
+
+/** True if any CONSUME event with this name was logged. */
+export function hasEvent(results: TxResult[], event: string): boolean {
+  return results.some((r) =>
+    r.logs.some((l) => {
+      if (!l.startsWith("EVENT_JSON:")) return false;
+      try {
+        const j = JSON.parse(l.slice("EVENT_JSON:".length));
+        return j.standard === "consume" && j.event === event;
+      } catch {
+        return false;
+      }
+    }),
+  );
+}
 
 const Ctx = createContext<WalletState | null>(null);
 
@@ -86,10 +124,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       if (transactions.length === 1) {
         const r = await wallet.signAndSendTransaction(transactions[0]);
-        return [r.transaction.hash];
+        return [toResult(r as unknown as Outcome)];
       }
       const rs = await wallet.signAndSendTransactions({ transactions });
-      return rs.map((r) => r.transaction.hash);
+      return rs.map((r) => toResult(r as unknown as Outcome));
     } catch (e) {
       throw new Error(cleanError(e));
     }

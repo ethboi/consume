@@ -137,8 +137,19 @@ input {
 }
 .masthead-mark span {
   font-family: var(--font-display);
-  font-size: var(--t-xl);
+  font-size: 2.4rem;
+  line-height: 1;
   color: var(--rubric);
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 2px 2px 0 var(--ink), 3.5px 3.5px 0 var(--ink);
+}
+.masthead-mark svg {
+  width: 46px;
+  height: 46px;
+  color: var(--ink);
+  background: radial-gradient(circle closest-side, var(--rubric) 0 64%, transparent 65%);
+  border-radius: 50%;
 }
 
 .masthead nav {
@@ -243,11 +254,40 @@ input {
 }
 /* the ten coins drifting around the serpent */
 .float-coin {
+  --r: 57cqw;
+  /* where it hangs, and where the serpent's mouth is (head at the top) */
+  --orbit: translate(-50%, -50%) rotate(var(--a)) translateX(var(--r)) rotate(calc(-1 * var(--a))) rotate(var(--tilt));
+  --mouth: translate(-50%, -50%) translate(-7cqw, -33cqw) rotate(0deg);
   position: absolute;
   left: 50%;
   top: 50%;
   width: 15cqw;
-  transform: translate(-50%, -50%) rotate(var(--a)) translateX(57cqw) rotate(calc(-1 * var(--a))) rotate(var(--tilt));
+  transform: var(--orbit);
+  /* one coin is swallowed every 6 s, each in turn */
+  animation: devour 60s cubic-bezier(0.5, 0, 0.6, 1) calc(var(--i) * 6s + 3s) infinite;
+}
+@keyframes devour {
+  0%,
+  90% {
+    transform: var(--orbit);
+    opacity: 1;
+  }
+  95% {
+    transform: var(--mouth) scale(0.42);
+    opacity: 1;
+  }
+  96.5% {
+    transform: var(--mouth) scale(0.08);
+    opacity: 0;
+  }
+  99% {
+    transform: var(--orbit) scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: var(--orbit);
+    opacity: 1;
+  }
 }
 .hero-sigil .float-coin svg {
   position: static;
@@ -270,7 +310,12 @@ input {
 @media (max-width: 700px) {
   .float-coin {
     width: 13cqw;
-    transform: translate(-50%, -50%) rotate(var(--a)) translateX(50cqw) rotate(calc(-1 * var(--a))) rotate(var(--tilt));
+    --r: 50cqw;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .float-coin {
+    animation: none;
   }
 }
 
@@ -285,15 +330,24 @@ input {
 }
 .hero-sigil h1 {
   position: relative;
-  /* sized to the ring, so it sits inside the serpent at every width */
-  font-size: 15.5cqw;
+  z-index: 2;
+  /* big enough to break past the serpent on both sides; sized to the ring so it
+     scales with it at every width */
+  font-size: 22cqw;
   line-height: 1;
   /* blackletter capitals carry extra left bearing: nudge to the optical centre */
-  transform: translate(-1.5cqw, 1.5cqw);
+  transform: translate(-2.2cqw, 1cqw);
   white-space: nowrap;
-  /* red title on the paper disc, with an ink offset like a misregistered print */
+  /* cut like woodcut title lettering: red, a heavy black outline, and a stepped
+     black relief */
   color: var(--rubric);
-  text-shadow: 0.3cqw 0.4cqw 0 var(--ink);
+  -webkit-text-stroke: 1.1cqw var(--ink);
+  paint-order: stroke fill;
+  text-shadow:
+    0.45cqw 0.45cqw 0 var(--ink),
+    0.9cqw 0.9cqw 0 var(--ink),
+    1.35cqw 1.35cqw 0 var(--ink),
+    1.8cqw 1.8cqw 0 var(--ink);
 }
 
 .banderole {
@@ -730,8 +784,10 @@ main,
   overflow-wrap: anywhere;
 }
 .picker .s.long {
-  font-size: 0.82em;
-  letter-spacing: -0.01em;
+  font-size: 0.72em;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 .picker .c {
   font-size: var(--t-xs);
@@ -970,4 +1026,209 @@ main,
 }
 .toast a {
   color: #f0b6ad;
+}
+
+
+/* ================= woven bands of black and red ================= */
+
+/* a band runs the full width of the page, inside the frame */
+.chapter.band {
+  position: relative;
+  margin: 26px calc(-1 * var(--gutter)) 26px;
+  padding: 52px var(--gutter) 48px;
+  border-top: none;
+}
+.chapter.band + .chapter,
+.chapter + .chapter.band {
+  border-top: none;
+}
+
+/* saw-toothed edges, cut like a woodcut border */
+.chapter.band::before,
+.chapter.band::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 14px;
+  background-size: 18px 14px;
+  background-repeat: repeat-x;
+}
+.chapter.band::before {
+  top: -13px;
+  background-image:
+    linear-gradient(45deg, var(--band) 50%, transparent 50%),
+    linear-gradient(-45deg, var(--band) 50%, transparent 50%);
+  background-position: 0 100%, 9px 100%;
+  background-image: conic-gradient(from 135deg at 50% 0%, var(--band) 90deg, transparent 0);
+  background-position: 0 0;
+}
+.chapter.band::after {
+  bottom: -13px;
+  background-image: conic-gradient(from -45deg at 50% 100%, var(--band) 90deg, transparent 0);
+  background-position: 0 0;
+}
+
+.band-red {
+  --band: var(--rubric);
+  background: var(--rubric);
+}
+.band-ink {
+  --band: var(--ink);
+  background: var(--ink);
+}
+
+/* headings on a coloured band print in paper */
+.band > header h2,
+.band > header p {
+  color: var(--paper);
+}
+.band > header p {
+  opacity: 0.85;
+}
+.band > header .emblem {
+  stroke: var(--paper);
+}
+.band-red .chapter-h,
+.band-red h2::first-letter {
+  color: var(--rubric);
+  background: var(--paper);
+}
+.band-ink h2::first-letter {
+  color: var(--rubric);
+  background: var(--paper);
+}
+.band h2::first-letter {
+  box-shadow: inset 0 0 0 5px var(--paper), inset 0 0 0 6px var(--ink);
+  border-color: var(--paper);
+}
+
+/* forms and writs on a band keep their paper; shadows switch colour */
+.band-red .leaf::after {
+  background: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 5px);
+}
+.band-ink .writ {
+  outline-color: var(--ink);
+}
+.band-ink .empty,
+.band-red .empty {
+  color: var(--paper);
+}
+.band-ink .demo-note {
+  color: var(--paper);
+}
+
+/* after a band, a red-hatched shadow for variety */
+.after-band .leaf::after {
+  background: repeating-linear-gradient(45deg, var(--rubric) 0 1.8px, transparent 1.8px 5px);
+}
+
+/* the ten coins struck on a black strip */
+.the-ten {
+  background: var(--ink);
+  margin: 0 calc(-1 * var(--gutter)) 34px;
+  padding: 22px var(--gutter) 16px;
+  position: relative;
+}
+.the-ten li span {
+  color: var(--paper);
+}
+.the-ten::before,
+.the-ten::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--rubric);
+}
+.the-ten::before {
+  top: 6px;
+}
+.the-ten::after {
+  bottom: 6px;
+}
+
+/* reversed print: swap ink and paper for everything inside */
+.invert {
+  --ink: #efe9dc;
+  --paper: #141110;
+  --faded: #b7aa98;
+  --hatch: repeating-linear-gradient(45deg, var(--rubric) 0 1.6px, transparent 1.6px 5px);
+  background: #141110;
+  color: #efe9dc;
+}
+.invert .rule h3 {
+  color: #e2533f;
+}
+.chapter.band.invert {
+  --band: #141110;
+}
+.colophon.invert {
+  margin: 26px calc(-1 * var(--gutter)) -40px;
+  padding: 22px var(--gutter) 26px;
+  border-top: 4px solid var(--rubric);
+}
+.colophon.invert a {
+  color: #e2533f;
+}
+
+/* the ledger: red rules between entries */
+.entries li {
+  border-bottom-color: rgba(179, 38, 30, 0.35);
+}
+.entries li:nth-child(odd) {
+  background: linear-gradient(90deg, rgba(179, 38, 30, 0.06), transparent 70%);
+}
+
+/* the crucible's totals in a black box */
+.held:last-of-type {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 12px 14px;
+  border-top: none;
+}
+.held:last-of-type span {
+  color: var(--paper);
+  opacity: 0.8;
+}
+.held:last-of-type strong.rubric {
+  color: #e2533f;
+}
+
+/* in a reversed band, "paper" is black: headings use the light ink instead */
+.band.invert > header h2,
+.band.invert > header p {
+  color: var(--ink);
+}
+.band.invert > header .emblem {
+  stroke: var(--ink);
+}
+
+/* an inline action that reads as a link */
+.link-button {
+  font: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--rubric);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.link-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* an Indulgence shown as its NFT card */
+.writ-card {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-bottom: 12px;
+  border: 1px solid var(--ink);
+}
+.writ:has(.writ-card) {
+  padding-top: 14px;
 }

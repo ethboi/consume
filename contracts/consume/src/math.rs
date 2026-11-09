@@ -46,13 +46,14 @@ pub fn amount_for_usd(usd: u128, decimals: u8, price_e18: u128) -> u128 {
     r.as_u128()
 }
 
-/// Whole $CONSUME per USD once `total_eaten` micro-USD has been eaten.
+/// Raw $CONSUME (18 decimals) per USD once `total_eaten` micro-USD has been
+/// eaten. Kept in raw units so halvings stay exact (125 halves to 62.5, not 62).
 pub fn rate_at(start_rate: u128, halving_usd: u128, total_eaten: u128) -> u128 {
     let halvings = total_eaten / halving_usd;
     if halvings >= 128 {
         0
     } else {
-        start_rate >> halvings
+        (start_rate * ONE_CONSUME) >> halvings
     }
 }
 
@@ -74,8 +75,8 @@ pub fn consume_for_meal(start_rate: u128, halving_usd: u128, total_eaten: u128, 
         }
         let era_end = next_halving_at(halving_usd, eaten);
         let take = left.min(era_end - eaten);
-        // take micro-USD * rate whole-CONSUME-per-USD -> raw units
-        minted += mul_div(take, rate * ONE_CONSUME, MICRO_USD);
+        // take micro-USD * raw-CONSUME-per-USD -> raw units
+        minted += mul_div(take, rate, MICRO_USD);
         eaten += take;
         left -= take;
     }

@@ -3,12 +3,15 @@
 
 import { HERESIES, type Heresy } from "./heresies";
 
-export const NETWORK = (process.env.NEXT_PUBLIC_NETWORK ?? "testnet") as "testnet" | "mainnet";
-export const CONSUME_CONTRACT = process.env.NEXT_PUBLIC_CONSUME_CONTRACT ?? "";
+// Empty values in .env count as unset, so the defaults below apply.
+const env = (v: string | undefined) => (v && v.trim()) || undefined;
+
+export const NETWORK = (env(process.env.NEXT_PUBLIC_NETWORK) ?? "testnet") as "testnet" | "mainnet";
+export const CONSUME_CONTRACT = env(process.env.NEXT_PUBLIC_CONSUME_CONTRACT) ?? "";
 /** Parent account of the testnet mock memes, e.g. "memes.consume.testnet". */
-const MEME_PARENT = process.env.NEXT_PUBLIC_MEME_PARENT ?? "";
+const MEME_PARENT = env(process.env.NEXT_PUBLIC_MEME_PARENT) ?? "";
 export const RPC_URL =
-  process.env.NEXT_PUBLIC_RPC_URL ??
+  env(process.env.NEXT_PUBLIC_RPC_URL) ??
   (NETWORK === "mainnet" ? "https://free.rpc.fastnear.com" : "https://test.rpc.fastnear.com");
 export const EXPLORER = NETWORK === "mainnet" ? "https://nearblocks.io" : "https://testnet.nearblocks.io";
 
@@ -34,7 +37,7 @@ export type Tribe = {
   max_meal_usd: string;
   daily_cap_usd: string;
   open: boolean;
-  reliquary: string;
+  stomach: string;
   eaten_usd: string;
 };
 

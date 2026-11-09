@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
 import {
   CONSUME_CONTRACT,
@@ -19,16 +19,16 @@ import {
 } from "@/lib/near";
 import { compact, daysLeft, fromRaw, shortAccount, toRaw, usd, usdValue, vestedFraction } from "@/lib/format";
 import { Ouroboros } from "./Ouroboros";
-import { Crucible } from "./Crucible";
-import { Seal } from "./Seal";
+import { Stomach } from "./Stomach";
 import { Coin } from "./Coin";
 import { Banderole, Glory, Woodblock } from "./Woodblock";
-import { BookEmblem, CoinsEmblem, CrucibleEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
-import { TGAS, useWallet } from "./Wallet";
+import { BookEmblem, CoinsEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
+import { TGAS, hasEvent, useWallet, type TxResult } from "./Wallet";
+import { sleep, useLive } from "@/lib/live";
 
 const ONE_YOCTO = "1";
 const CONSUME_DEC = 18;
-const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL ?? "";
+const REPO_URL = (process.env.NEXT_PUBLIC_REPO_URL ?? "").trim();
 // where the ten coins hang around the serpent (degrees, 0 = right, clockwise),
 // clear of the head at the top and the banner below
 const ORBIT = [150, 172, 194, 216, 238, 302, 324, 346, 8, 30];
@@ -63,7 +63,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
   const tribeByToken = useMemo(() => new Map(snap.tribes), [snap.tribes]);
   const held = THE_TEN.map((h) => {
     const t = tribeByToken.get(tokenAccount(h));
-    const micro = t ? usdValue(t.reliquary, t.decimals, t.price_e18) : BigInt(0);
+    const micro = t ? usdValue(t.stomach, t.decimals, t.price_e18) : BigInt(0);
     return { h, t, micro };
   });
   const totalMicro = held.reduce((a, x) => a + x.micro, BigInt(0));
@@ -84,25 +84,25 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <Woodblock>
           <div className="hero-sigil">
             <Glory />
+            <Ouroboros animate />
             {THE_TEN.map((h, i) => (
               <span
                 key={h.symbol}
                 className="float-coin"
-                style={{ ["--a" as string]: `${ORBIT[i]}deg`, ["--tilt" as string]: `${(i % 2 ? 1 : -1) * (6 + (i % 4) * 4)}deg`, ["--delay" as string]: `${-i * 0.7}s` }}
+                style={{ ["--a" as string]: `${ORBIT[i]}deg`, ["--tilt" as string]: `${(i % 2 ? 1 : -1) * (6 + (i % 4) * 4)}deg`, ["--delay" as string]: `${-i * 0.7}s`, ["--i" as string]: i }}
                 aria-hidden="true"
               >
                 <Coin symbol={h.symbol} chain={h.chain} size={64} />
               </span>
             ))}
-            <Ouroboros animate />
             <h1 id="mark">Consume</h1>
           </div>
           <Banderole>A memecoin that eats other memecoins.</Banderole>
           <div className="floor" aria-hidden="true" />
         </Woodblock>
         <p className="hero-sub">
-          Feed the Crucible your DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays inside for good, and every
-          $CONSUME can be transmuted back into its share of everything there.
+          Feed it your DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach for good, and every
+          $CONSUME can be redeemed for its share of everything in its stomach.
         </p>
         <p className="hero-sub">
           So far it has consumed <strong>{usd(snap.stats.total_eaten_usd, 0)}</strong>. Each $CONSUME is backed by{" "}
@@ -110,7 +110,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </p>
         <div className="hero-actions">
           <a className="press" href="#feed">
-            Feed the Crucible
+            Feed the Stomach
           </a>
           <a className="press quiet" href="#rule">
             Read the rule
@@ -120,9 +120,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
 
       <section className="chapter" id="crucible" aria-labelledby="crucible-h">
         <header>
-          <CrucibleEmblem />
-          <h2 id="crucible-h">The Crucible</h2>
-          <p>Every meme it has eaten, held by the contract. Nobody holds a key to it.</p>
+          <StomachEmblem />
+          <h2 id="crucible-h">The Stomach</h2>
+          <p>Every meme it has eaten, held by the contract. No function lets anyone withdraw it except by redeeming $CONSUME.</p>
         </header>
         <ul className="the-ten" aria-label="The ten memes it eats">
           {THE_TEN.map((h) => (
@@ -134,7 +134,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </ul>
         <div className="crucible-layout">
           <div>
-            <Crucible jars={held.map(({ h, t, micro }) => ({ symbol: h.symbol, usd: Number(micro) / 1e6, open: t?.open ?? false }))} />
+            <Stomach jars={held.map(({ h, t, micro }) => ({ symbol: h.symbol, usd: Number(micro) / 1e6, open: t?.open ?? false }))} />
             <div className="held">
               <span>Held in all ten jars</span>
               <strong>{usd(totalMicro, 0)}</strong>
@@ -166,7 +166,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                         {t && !t.open ? ", sealed for now" : ""}
                       </span>
                     </td>
-                    <td>{t ? compact(t.reliquary, t.decimals) : "0"}</td>
+                    <td>{t ? compact(t.stomach, t.decimals) : "0"}</td>
                     <td>{usd(micro, 0)}</td>
                     <td className={t?.open ? "" : "closed"}>{t ? priceLabel(t.price_e18) : "none"}</td>
                   </tr>
@@ -175,7 +175,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             </table>
             <div className="decree">
               <p>
-                It pays <strong>{snap.stats.current_rate} $CONSUME</strong> for every dollar fed. At {usd(snap.stats.next_halving_at_usd, 0)}{" "}
+                It pays <strong>{fromRaw(snap.stats.current_rate, CONSUME_DEC, 2)} $CONSUME</strong> for every dollar fed. At {usd(snap.stats.next_halving_at_usd, 0)}{" "}
                 consumed, famine halves that.
               </p>
               {feast ? (
@@ -190,31 +190,31 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </div>
       </section>
 
-      <section className="chapter" id="feed" aria-labelledby="feed-h">
+      <section className="chapter band band-red" id="feed" aria-labelledby="feed-h">
         <header>
           <CoinsEmblem />
-          <h2 id="feed-h">Feed the Crucible</h2>
-          <p>Give it one of the ten. Receive a Writ that releases $CONSUME to you over 30 days.</p>
+          <h2 id="feed-h">Feed the Stomach</h2>
+          <p>Give it one of the ten. Receive an Indulgence that releases $CONSUME to you over 30 days.</p>
         </header>
-        <Feed snap={snap} onDone={done} />
+        <Feed snap={snap} tick={tick} onDone={done} />
       </section>
 
-      <section className="chapter" id="writs" aria-labelledby="writs-h">
+      <section className="chapter band band-ink" id="writs" aria-labelledby="writs-h">
         <header>
           <HourglassEmblem />
-          <h2 id="writs-h">Your Writs</h2>
-          <p>Each Writ is an NFT. Whoever holds it collects what has been released, so it can be sold or given away.</p>
+          <h2 id="writs-h">Your Indulgences</h2>
+          <p>Each Indulgence is an NFT. Whoever holds it collects what has been released, so it can be sold or given away.</p>
         </header>
-        <Writs snap={snap} tick={tick} onDone={done} />
+        <Indulgences snap={snap} tick={tick} onDone={done} />
       </section>
 
-      <section className="chapter" id="transmute" aria-labelledby="transmute-h">
+      <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h">
         <header>
           <ScalesEmblem />
-          <h2 id="transmute-h">Transmute</h2>
-          <p>Burn $CONSUME. Take your share of every meme in the Crucible.</p>
+          <h2 id="transmute-h">Redeem</h2>
+          <p>Burn $CONSUME. Take your share of every meme in the Stomach.</p>
         </header>
-        <Transmute snap={snap} tick={tick} onDone={done} />
+        <Redeem snap={snap} tick={tick} onDone={done} />
       </section>
 
       <section className="chapter" id="ledger" aria-labelledby="ledger-h">
@@ -226,7 +226,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <Entries recent={snap.recent} />
       </section>
 
-      <section className="chapter" id="rule" aria-labelledby="rule-h">
+      <section className="chapter band band-ink invert" id="rule" aria-labelledby="rule-h">
         <header>
           <BookEmblem />
           <h2 id="rule-h">The Rule</h2>
@@ -235,7 +235,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <Rule snap={snap} />
       </section>
 
-      <footer className="colophon">
+      <footer className="colophon invert">
         <span>
           Built at NEAR HACKATHON. {NETWORK === "testnet" ? "Running on NEAR testnet with stand-in memes from a faucet." : "Running on NEAR mainnet."}
         </span>
@@ -283,10 +283,10 @@ function Masthead() {
         <span>Consume</span>
       </a>
       <nav aria-label="Sections">
-        <a href="#crucible">The Crucible</a>
+        <a href="#crucible">The Stomach</a>
         <a href="#feed">Feed</a>
-        <a href="#writs">Writs</a>
-        <a href="#transmute">Transmute</a>
+        <a href="#writs">Indulgences</a>
+        <a href="#transmute">Redeem</a>
         <a href="#ledger">Ledger</a>
       </nav>
       {accountId ? (
@@ -304,12 +304,50 @@ function Masthead() {
 
 // ---------------------------------------------------------------- feed
 
-function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
+const CREDIT_TOP_UP = "100000000000000000000000"; // 0.1 NEAR
+const CREDIT_LOW = BigInt("30000000000000000000000"); // below 0.03 NEAR, top up
+
+function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number): MealQuote | null {
+  const tribe = snap.tribes.find(([k]) => k === token)?.[1];
+  if (!tribe) return null;
+  const meal = usdValue(raw, decimals, tribe.price_e18);
+  const cap = BigInt(tribe.max_meal_usd);
+  const m = meal > cap ? cap : meal;
+  return {
+    accepted: raw.toString(),
+    refund: "0",
+    meal_usd: m.toString(),
+    consume: ((m * BigInt(snap.stats.current_rate)) / BigInt(1_000_000)).toString(),
+    bonus: snap.stats.heaviest_last_epoch === token,
+  };
+}
+
+/** Registration calls needed before `accountId` can receive these tokens. */
+async function registrationCalls(tokens: string[], accountId: string) {
+  const calls = [];
+  for (const token of tokens) {
+    const reg = await view<unknown>(token, "storage_balance_of", { account_id: accountId }).catch(() => null);
+    if (reg) continue;
+    if (NETWORK === "testnet") {
+      calls.push({ receiverId: token, methodName: "register", args: { account_id: accountId }, gas: TGAS(10) });
+    } else {
+      const bounds = await view<{ min: string }>(token, "storage_balance_bounds");
+      calls.push({
+        receiverId: token,
+        methodName: "storage_deposit",
+        args: { account_id: accountId, registration_only: true },
+        deposit: bounds.min,
+        gas: TGAS(10),
+      });
+    }
+  }
+  return calls;
+}
+
+function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send, connect } = useWallet();
   const [symbol, setSymbol] = useState("PEPE");
   const [amount, setAmount] = useState("");
-  const [balance, setBalance] = useState<bigint | null>(null);
-  const [quote, setQuote] = useState<MealQuote | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -318,45 +356,27 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
   const tribe = snap.tribes.find(([k]) => k === token)?.[1];
   const raw = toRaw(amount, h.decimals);
 
-  useEffect(() => {
-    if (DEMO || !accountId) return setBalance(null);
-    view<string>(token, "ft_balance_of", { account_id: accountId })
-      .then((b) => setBalance(BigInt(b)))
-      .catch(() => setBalance(BigInt(0)));
-  }, [accountId, token, busy]);
-
-  useEffect(() => {
-    setQuote(null);
-    setError(null);
-    if (!raw || raw === BigInt(0)) return;
-    if (DEMO) {
-      if (!tribe) return;
-      const meal = usdValue(raw, h.decimals, tribe.price_e18);
-      const cap = BigInt(tribe.max_meal_usd);
-      const m = meal > cap ? cap : meal;
-      setQuote({
-        accepted: raw.toString(),
-        refund: "0",
-        meal_usd: m.toString(),
-        consume: ((m * BigInt(snap.stats.current_rate) * BigInt(10) ** BigInt(18)) / BigInt(1_000_000)).toString(),
-        bonus: snap.stats.heaviest_last_epoch === token,
-      });
-      return;
-    }
-    const id = setTimeout(() => {
-      view<MealQuote>(CONSUME_CONTRACT, "quote_meal", { token_id: token, amount: raw.toString() })
-        .then(setQuote)
-        .catch((e) => setError(cleanError(e)));
-    }, 300);
-    return () => clearTimeout(id);
-  }, [amount, token]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bal = useLive(DEMO || !accountId ? null : `${accountId}:${token}:${tick}`, async () =>
+    BigInt(await view<string>(token, "ft_balance_of", { account_id: accountId })),
+  );
+  const credit = useLive(DEMO || !accountId ? null : `${accountId}:credit:${tick}`, async () =>
+    BigInt((await view<string>(CONSUME_CONTRACT, "get_meal_credit", { account_id: accountId })) ?? "0"),
+  );
+  const q = useLive(raw && raw > BigInt(0) ? `${token}:${raw}:${tick}` : null, async () => {
+    if (DEMO) return demoQuote(snap, token, raw!, h.decimals);
+    await sleep(300); // debounce typing; superseded keys are ignored by useLive
+    return view<MealQuote>(CONSUME_CONTRACT, "quote_meal", { token_id: token, amount: raw!.toString() });
+  });
+  const quote = q.data ?? null;
+  const balance = bal.data ?? null;
 
   const faucet = async () => {
     setBusy(true);
     setError(null);
     try {
-      const [hash] = await send([{ receiverId: token, methodName: "faucet", args: {}, gas: TGAS(30) }]);
-      onDone(`The faucet gave you ${Number(h.faucetWhole).toLocaleString("en-US")} test ${h.symbol}.`, hash);
+      const [r] = await send([{ receiverId: token, methodName: "faucet", args: {}, gas: TGAS(30) }]);
+      if (r.failure) throw new Error(r.failure);
+      onDone(`The faucet gave you ${Number(h.faucetWhole).toLocaleString("en-US")} test ${h.symbol}.`, r.hash);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -365,21 +385,46 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
   };
 
   const feed = async () => {
-    if (!raw || !quote) return;
+    if (!raw || !quote || !accountId) return;
     setBusy(true);
     setError(null);
     try {
-      const [hash] = await send([
-        {
-          receiverId: token,
-          methodName: "ft_transfer_call",
-          args: { receiver_id: CONSUME_CONTRACT, amount: raw.toString(), msg: "" },
-          deposit: ONE_YOCTO,
-          gas: TGAS(150),
-        },
-      ]);
+      const calls = [];
+      if ((credit.data ?? BigInt(0)) < CREDIT_LOW) {
+        calls.push({ receiverId: CONSUME_CONTRACT, methodName: "add_meal_credit", args: {}, deposit: CREDIT_TOP_UP, gas: TGAS(10) });
+      }
+      // refuse to be paid less than 99% of the quote, or after ten minutes
+      const msg = JSON.stringify({
+        min_consume: ((BigInt(quote.consume) * BigInt(99)) / BigInt(100)).toString(),
+        deadline_ns: (BigInt(Date.now() + 10 * 60_000) * BigInt(1_000_000)).toString(),
+      });
+      calls.push({
+        receiverId: token,
+        methodName: "ft_transfer_call",
+        args: { receiver_id: CONSUME_CONTRACT, amount: raw.toString(), msg },
+        deposit: ONE_YOCTO,
+        gas: TGAS(150),
+      });
+      const results = await send(calls);
+      const last = results[results.length - 1];
+      if (!hasEvent(results, "meal")) {
+        throw new Error(`It refused the feeding and your ${h.symbol} was returned${last.failure ? `: ${last.failure}` : "."}`);
+      }
       setAmount("");
-      onDone(`Fed ${fromRaw(quote.accepted, h.decimals)} ${h.symbol} to the Crucible. Your Writ is minted.`, hash);
+      onDone(`Fed ${fromRaw(quote.accepted, h.decimals)} ${h.symbol} to the Stomach. Your Indulgence is minted.`, last.hash);
+    } catch (e) {
+      setError(cleanError(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const withdrawCredit = async () => {
+    setBusy(true);
+    try {
+      const [r] = await send([{ receiverId: CONSUME_CONTRACT, methodName: "withdraw_meal_credit", args: {}, gas: TGAS(20) }]);
+      if (r.failure) throw new Error(r.failure);
+      onDone("Your unused storage credit was returned.", r.hash);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -388,6 +433,7 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
   };
 
   const over = balance !== null && raw !== null && raw > balance;
+  const shownError = error ?? q.error ?? null;
 
   return (
     <div className="leaf offering">
@@ -406,6 +452,7 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
                 onChange={() => {
                   setSymbol(x.symbol);
                   setAmount("");
+                  setError(null);
                 }}
               />
               <Coin symbol={x.symbol} size={34} />
@@ -427,7 +474,10 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
               autoComplete="off"
               placeholder="0"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setError(null);
+              }}
               aria-describedby="amount-help"
             />
             <button
@@ -446,17 +496,19 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
         </div>
 
         <div className="verdict" aria-live="polite">
-          {error ? (
-            <p className="error">{error}</p>
+          {shownError ? (
+            <p className="error">{shownError}</p>
           ) : quote ? (
             <p>
-              It will eat {fromRaw(quote.accepted, h.decimals)} {h.symbol}, worth {usd(quote.meal_usd)}, and grant a Writ for{" "}
+              It will eat {fromRaw(quote.accepted, h.decimals)} {h.symbol}, worth {usd(quote.meal_usd)}, and grant an Indulgence for{" "}
               {fromRaw(quote.consume, CONSUME_DEC, 0)} $CONSUME
               {quote.bonus ? `, including the feast bonus` : ""}.
               {BigInt(quote.refund) > BigInt(0) ? ` ${fromRaw(quote.refund, h.decimals)} ${h.symbol} comes back to you.` : ""}
             </p>
           ) : over ? (
             <p className="error">That is more {h.symbol} than you hold.</p>
+          ) : q.loading ? (
+            <p className="hint">Asking what it pays…</p>
           ) : (
             <p className="hint">Enter an amount to see what it pays.</p>
           )}
@@ -465,7 +517,7 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
         <div className="actions">
           {accountId ? (
             <button className="press" disabled={DEMO || busy || !quote || over} onClick={feed}>
-              {busy ? "Waiting for the wallet" : "Feed the Crucible"}
+              {busy ? "Waiting for the wallet" : "Feed the Stomach"}
             </button>
           ) : (
             <button className="press" disabled={DEMO} onClick={connect}>
@@ -479,39 +531,57 @@ function Feed({ snap, onDone }: { snap: Snapshot; onDone: Done }) {
           )}
         </div>
         <p className="hint" style={{ marginTop: 12 }}>
-          Once fed, the {h.symbol} stays in the Crucible for good. It comes back out only as shares, through Transmute.
+          Once fed, the {h.symbol} stays in the Stomach for good. It comes back out only as shares, when someone redeems $CONSUME. Each
+          Indulgence takes a little NEAR for storage, paid from a refundable credit
+          {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR` : ""}
+          {credit.data !== undefined && credit.data > BigInt(0) ? (
+            <>
+              ,{" "}
+              <button className="link-button" disabled={busy} onClick={withdrawCredit}>
+                take it back
+              </button>
+              )
+            </>
+          ) : credit.data !== undefined ? ")" : ""}
+          . The first feeding adds 0.1 NEAR to it.
         </p>
       </div>
     </div>
   );
 }
 
-// ---------------------------------------------------------------- writs
+// ---------------------------------------------------------------- indulgences
 
-function Writs({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
+async function loadAllVests(accountId: string): Promise<VestView[]> {
+  const out: VestView[] = [];
+  for (let from = 0; ; from += 50) {
+    const page = await view<VestView[]>(CONSUME_CONTRACT, "get_vests_for_owner", { account_id: accountId, from_index: from, limit: 50 });
+    out.push(...page);
+    if (page.length < 50) break;
+  }
+  return out.sort((a, b) => Number(b.token_id) - Number(a.token_id));
+}
+
+function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send } = useWallet();
-  const [vests, setVests] = useState<VestView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmBreak, setConfirmBreak] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (DEMO) return setVests(snap.recent.slice(0, 3));
-    if (!accountId) return setVests(null);
-    view<VestView[]>(CONSUME_CONTRACT, "get_vests_for_owner", { account_id: accountId, limit: 50 })
-      .then((v) => setVests(v.sort((a, b) => Number(b.token_id) - Number(a.token_id))))
-      .catch((e) => setError(cleanError(e)));
-  }, [accountId, tick, snap.recent]);
+  // refreshed every 30 s and on focus, so "Collect" stays current as it vests
+  const live = useLive(DEMO || !accountId ? null : `${accountId}:${tick}`, () => loadAllVests(accountId!), 30_000);
+  const vests = DEMO ? snap.recent.slice(0, 3) : live.data;
 
   const act = async (id: string, method: "claim" | "exit", text: string) => {
     setBusyId(id);
     setError(null);
     try {
-      const [hash] = await send([
+      const [r] = await send([
         { receiverId: CONSUME_CONTRACT, methodName: method, args: { token_id: id }, deposit: method === "exit" ? ONE_YOCTO : "0", gas: TGAS(50) },
       ]);
+      if (r.failure) throw new Error(r.failure);
       setConfirmBreak(null);
-      onDone(text, hash);
+      onDone(text, r.hash);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -519,9 +589,18 @@ function Writs({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
     }
   };
 
-  if (!DEMO && !accountId) return <p className="empty">Connect a wallet to see the Writs you hold.</p>;
-  if (!vests) return <p className="empty">Reading your Writs…</p>;
-  if (vests.length === 0) return <p className="empty">You hold no Writs yet. Feed the Crucible to receive one.</p>;
+  if (!DEMO && !accountId) return <p className="empty">Connect a wallet to see the Indulgences you hold.</p>;
+  if (!DEMO && live.error)
+    return (
+      <p className="empty">
+        Could not read your Indulgences ({cleanError(live.error)}).{" "}
+        <button className="link-button" onClick={live.reload}>
+          Try again
+        </button>
+      </p>
+    );
+  if (!vests) return <p className="empty">Reading your Indulgences…</p>;
+  if (vests.length === 0) return <p className="empty">You hold no Indulgences yet. Feed the Stomach to receive one.</p>;
 
   return (
     <>
@@ -536,22 +615,27 @@ function Writs({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
           const forfeit = locked - (BigInt(v.exit_payout) - claimable);
           return (
             <article key={v.token_id} className={v.vest.exited ? "writ broken" : "writ"}>
-              <Seal className="seal" />
-              <h3>Writ #{v.token_id}</h3>
-              <p>
-                For {h ? fromRaw(v.vest.eaten, h.decimals) : v.vest.eaten} {h?.symbol} fed, worth {usd(v.vest.meal_usd)}. It releases{" "}
-                {fromRaw(v.vest.total, CONSUME_DEC, 0)} $CONSUME{v.vest.bonus ? ", feast bonus included" : ""}.
-              </p>
+              {/* the NFT's own image, exactly as wallets and marketplaces show it */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="writ-card"
+                src={`/indulgence/${v.token_id}.svg?v=${tick}`}
+                width={600}
+                height={900}
+                alt={`Indulgence ${v.token_id}: ${h ? fromRaw(v.vest.eaten, h.decimals) : v.vest.eaten} ${h?.symbol ?? ""} fed, worth ${usd(
+                  v.vest.meal_usd,
+                )}, releasing ${fromRaw(v.vest.total, CONSUME_DEC, 0)} $CONSUME${v.vest.exited ? ", seal broken" : ""}`}
+              />
               {v.vest.exited ? (
                 <p>Seal broken. Its holder took the early payout and forfeited the rest.</p>
               ) : (
                 <>
-                  <div className="sand" role="progressbar" aria-valuenow={Math.round(frac * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Released so far">
-                    <span style={{ width: `${frac * 100}%` }} />
+                  <div className="sand" suppressHydrationWarning role="progressbar" aria-valuenow={Math.round(frac * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Released so far">
+                    <span style={{ width: `${frac * 100}%` }} suppressHydrationWarning />
                   </div>
                   <div className="sand-label">
-                    <span>{Math.round(frac * 100)}% released</span>
-                    <span>{left > 0 ? `${left.toFixed(1)} days left` : "fully released"}</span>
+                    <span suppressHydrationWarning>{Math.round(frac * 100)}% released</span>
+                    <span suppressHydrationWarning>{left > 0 ? `${left.toFixed(1)} days left` : "fully released"}</span>
                   </div>
                   <div className="actions">
                     <button
@@ -586,38 +670,32 @@ function Writs({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
   );
 }
 
-// ---------------------------------------------------------------- transmute
+// ---------------------------------------------------------------- redeem
 
-function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
+function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send } = useWallet();
-  const [balance, setBalance] = useState<bigint | null>(null);
   const [amount, setAmount] = useState("");
-  const [quote, setQuote] = useState<RedeemQuote | null>(null);
-  const [owed, setOwed] = useState<[string, string][]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const raw = toRaw(amount, CONSUME_DEC);
 
-  useEffect(() => {
-    if (DEMO || !accountId) return;
-    view<string>(CONSUME_CONTRACT, "ft_balance_of", { account_id: accountId }).then((b) => setBalance(BigInt(b))).catch(() => setBalance(BigInt(0)));
-    view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }).then(setOwed).catch(() => setOwed([]));
-  }, [accountId, tick]);
-
-  useEffect(() => {
-    setQuote(null);
-    setError(null);
-    if (!raw || raw === BigInt(0)) return;
+  const bal = useLive(DEMO || !accountId ? null : `${accountId}:consume:${tick}`, async () =>
+    BigInt(await view<string>(CONSUME_CONTRACT, "ft_balance_of", { account_id: accountId })),
+  );
+  const owedLive = useLive(DEMO || !accountId ? null : `${accountId}:owed:${tick}`, () =>
+    view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }),
+  );
+  const q = useLive(raw && raw > BigInt(0) ? `redeem:${raw}:${tick}` : null, async () => {
     if (DEMO) {
       const d = BigInt(snap.stats.consume_supply) + BigInt(snap.stats.total_unvested);
-      setQuote({ shares: snap.tribes.map(([k, t]) => [k, ((BigInt(t.reliquary) * raw) / d).toString()]), denominator: d.toString() });
-      return;
+      return { shares: snap.tribes.map(([k, t]) => [k, ((BigInt(t.stomach) * raw!) / d).toString()] as [string, string]), denominator: d.toString() };
     }
-    const id = setTimeout(() => {
-      view<RedeemQuote>(CONSUME_CONTRACT, "quote_redeem", { amount: raw.toString() }).then(setQuote).catch((e) => setError(cleanError(e)));
-    }, 300);
-    return () => clearTimeout(id);
-  }, [amount]); // eslint-disable-line react-hooks/exhaustive-deps
+    await sleep(300);
+    return view<RedeemQuote>(CONSUME_CONTRACT, "quote_redeem", { amount: raw!.toString() });
+  });
+  const quote = q.data ?? null;
+  const balance = bal.data ?? null;
+  const owed = owedLive.data ?? [];
 
   const totalMicro =
     quote?.shares.reduce((a, [k, v]) => {
@@ -625,35 +703,30 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
       return t ? a + usdValue(v, t.decimals, t.price_e18) : a;
     }, BigInt(0)) ?? BigInt(0);
 
-  const transmute = async () => {
+  const afterPayout = async (results: TxResult[], doneText: string) => {
+    const left = await view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }).catch(() => []);
+    const last = results[results.length - 1];
+    onDone(
+      left.length > 0
+        ? `${doneText} ${left.length} ${left.length === 1 ? "share is" : "shares are"} still unpaid; use Retry.`
+        : doneText,
+      last.hash,
+    );
+  };
+
+  const redeem = async () => {
     if (!raw || !quote || !accountId) return;
     setBusy(true);
     setError(null);
     try {
-      // The holder must be registered on each meme token to receive it.
-      const needed: string[] = [];
-      for (const [token, share] of quote.shares) {
-        if (BigInt(share) === BigInt(0)) continue;
-        const reg = await view<unknown>(token, "storage_balance_of", { account_id: accountId }).catch(() => null);
-        if (!reg) needed.push(token);
-      }
-      const registrations = needed.map((token) =>
-        NETWORK === "testnet"
-          ? { receiverId: token, methodName: "register", args: { account_id: accountId }, gas: TGAS(10) }
-          : {
-              receiverId: token,
-              methodName: "storage_deposit",
-              args: { account_id: accountId, registration_only: true },
-              deposit: "1250000000000000000000",
-              gas: TGAS(10),
-            },
-      );
-      const hashes = await send([
-        ...registrations,
+      const tokens = quote.shares.filter(([, v]) => BigInt(v) > BigInt(0)).map(([k]) => k);
+      const results = await send([
+        ...(await registrationCalls(tokens, accountId)),
         { receiverId: CONSUME_CONTRACT, methodName: "redeem", args: { amount: raw.toString() }, deposit: ONE_YOCTO, gas: TGAS(300) },
       ]);
+      if (!hasEvent(results, "redeem")) throw new Error(results[results.length - 1].failure ?? "The redemption did not go through.");
       setAmount("");
-      onDone(`Transmuted ${fromRaw(raw, CONSUME_DEC, 0)} $CONSUME into ${usd(totalMicro)} of memes.`, hashes[hashes.length - 1]);
+      await afterPayout(results, `Redeemed ${fromRaw(raw, CONSUME_DEC, 0)} $CONSUME for ${usd(totalMicro)} of memes.`);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -662,10 +735,17 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
   };
 
   const retry = async () => {
+    if (!accountId) return;
     setBusy(true);
+    setError(null);
     try {
-      const [hash] = await send([{ receiverId: CONSUME_CONTRACT, methodName: "withdraw_owed", args: {}, gas: TGAS(200) }]);
-      onDone("Sent what was owed to you.", hash);
+      const results = await send([
+        ...(await registrationCalls(owed.map(([k]) => k), accountId)),
+        { receiverId: CONSUME_CONTRACT, methodName: "withdraw_owed", args: {}, gas: TGAS(200) },
+      ]);
+      const last = results[results.length - 1];
+      if (last.failure) throw new Error(last.failure);
+      await afterPayout(results, "Paid out what was owed to you.");
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -674,13 +754,24 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
   };
 
   const over = balance !== null && raw !== null && raw > balance;
+  const shownError = error ?? q.error ?? null;
 
   return (
     <div className="leaf transmute">
       <div className="field">
         <label htmlFor="burn-amount">$CONSUME to burn</label>
         <div className="field-row">
-          <input id="burn-amount" inputMode="decimal" autoComplete="off" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input
+            id="burn-amount"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setError(null);
+            }}
+          />
           <button
             className="small-button"
             type="button"
@@ -691,13 +782,13 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
           </button>
         </div>
         <span className="hint">
-          {accountId && balance !== null ? `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME.` : "Collect $CONSUME from your Writs first, then burn it here."}
+          {accountId && balance !== null ? `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME.` : "Collect $CONSUME from your Indulgences first, then burn it here."}
         </span>
       </div>
 
       <div className="verdict" aria-live="polite">
-        {error ? (
-          <p className="error">{error}</p>
+        {shownError ? (
+          <p className="error">{shownError}</p>
         ) : over ? (
           <p className="error">That is more $CONSUME than you hold.</p>
         ) : quote ? (
@@ -718,13 +809,13 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
             </ul>
           </>
         ) : (
-          <p className="hint">Enter an amount to see your share of the Crucible.</p>
+          <p className="hint">Enter an amount to see your share of the Stomach.</p>
         )}
       </div>
 
       <div className="actions">
-        <button className="press" disabled={DEMO || busy || !quote || over || !accountId} onClick={transmute}>
-          {busy ? "Waiting for the wallet" : "Burn and transmute"}
+        <button className="press" disabled={DEMO || busy || !quote || over || !accountId} onClick={redeem}>
+          {busy ? "Waiting for the wallet" : "Burn and redeem"}
         </button>
         {owed.length > 0 && (
           <button className="small-button" disabled={busy} onClick={retry}>
@@ -733,7 +824,8 @@ function Transmute({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDon
         )}
       </div>
       <p className="hint" style={{ marginTop: 12 }}>
-        Your share counts $CONSUME still locked in Writs, so nobody can empty the Crucible before others are paid.
+        Your share counts $CONSUME still locked in Indulgences, so nobody can empty the Stomach before others are paid. If a token cannot
+        pay you yet, your share stays owed and Retry registers you and pays it.
       </p>
     </div>
   );
@@ -790,32 +882,40 @@ function Rule({ snap }: { snap: Snapshot }) {
         </p>
       </div>
       <div>
-        <h3>Writs</h3>
+        <h3>Indulgences</h3>
         <p>
-          Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Sell or give the Writ and the rest goes with it. Break the
+          Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Sell or give the Indulgence and the rest goes with it. Break the
           seal early and you take what has been released plus half the rest; the other {haircut}% is never minted, which raises everyone
           else&apos;s share.
         </p>
       </div>
       <div>
-        <h3>The Crucible</h3>
+        <h3>The Stomach</h3>
         <p>
-          Fed memes never leave except through Transmute. Burning $CONSUME pays your share of every meme inside, measured against all $CONSUME
-          including what is still locked in Writs.
+          Fed memes never leave except through redemption. Burning $CONSUME pays your share of every meme inside, measured against all $CONSUME
+          including what is still locked in Indulgences.
         </p>
       </div>
       <div>
         <h3>Feasts and limits</h3>
         <p>
           The meme fed most in a week pays {c.heaviest_bonus_bps / 100}% the next week. Each meme has a largest feeding and a daily limit; thin
-          markets get small ones so a bad price cannot be used to empty the Crucible.
+          markets get small ones so a bad price cannot be used to empty the Stomach.
         </p>
       </div>
       <div>
         <h3>The Assayer</h3>
         <p>
           Prices come from one price-feeder account, the Assayer, which reads NEAR Intents quotes. Feedings are refused when its price is more
-          than 15 minutes old. It is the one account you have to trust: it can set prices, but it can never move what is in the Crucible.
+          than 15 minutes old. A wrong price can overpay feedings up to the daily limits, but it can never move what is in the Stomach.
+        </p>
+      </div>
+      <div>
+        <h3>Who you trust</h3>
+        <p>
+          The owner can add memes, change limits, seal a meme and replace the Assayer, but has no way to withdraw from the Stomach. A bad
+          owner could still list a fake token or appoint a dishonest Assayer, so the owner role is meant to pass to a DAO, and the contract
+          account&apos;s keys to be deleted once it is set up.
         </p>
       </div>
     </div>

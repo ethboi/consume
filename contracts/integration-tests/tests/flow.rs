@@ -89,6 +89,27 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     let bob = root.create_subaccount("bob").initial_balance(NearToken::from_near(10)).transact().await?.into_result()?;
     alice.call(pepe.id(), "faucet").transact().await?.into_result()?;
     bob.call(doge.id(), "faucet").transact().await?.into_result()?;
+    // feeders prepay the storage their Indulgences use
+    for who in [&alice, &bob] {
+        who.call(consume.id(), "add_meal_credit")
+            .args_json(json!({}))
+            .deposit(NearToken::from_millinear(100))
+            .transact()
+            .await?
+            .into_result()?;
+    }
+
+    // a feeding with no storage credit is refunded in full
+    let carol = root.create_subaccount("carol").initial_balance(NearToken::from_near(10)).transact().await?.into_result()?;
+    carol.call(pepe.id(), "faucet").transact().await?.into_result()?;
+    carol
+        .call(pepe.id(), "ft_transfer_call")
+        .args_json(json!({ "receiver_id": consume.id(), "amount": e(20_000_000, 18).to_string(), "msg": "" }))
+        .deposit(ONE_YOCTO)
+        .max_gas()
+        .transact()
+        .await?;
+    assert_eq!(balance(&pepe, &carol).await?, e(50_000_000, 18), "refused feeding must be refunded");
 
     // Alice offers $100 of PEPE.
     alice
@@ -126,6 +147,18 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     // Alice redeems everything. She is registered on PEPE but not on DOGE,
     // so her DOGE share must stay owed rather than vanish.
     let pepe_before = balance(&pepe, &alice).await?;
+    let quote = view(&consume, "quote_redeem", json!({ "amount": alice_consume.to_string() })).await?;
+    let share_of = |token: &Contract| -> u128 {
+        quote["shares"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p[0] == token.id().to_string())
+            .map(|p| p[1].as_str().unwrap().parse().unwrap())
+            .unwrap_or(0)
+    };
+    let (pepe_share, doge_share) = (share_of(&pepe), share_of(&doge));
+    assert!(pepe_share > 0 && doge_share > 0);
     alice
         .call(consume.id(), "redeem")
         .args_json(json!({ "amount": alice_consume.to_string() }))
@@ -134,7 +167,7 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
         .transact()
         .await?
         .into_result()?;
-    assert!(balance(&pepe, &alice).await? > pepe_before, "PEPE share paid out");
+    assert_eq!(balance(&pepe, &alice).await? - pepe_before, pepe_share, "exact PEPE share paid out");
     let owed = view(&consume, "get_owed", json!({ "account_id": alice.id() })).await?;
     assert_eq!(owed.as_array().unwrap().len(), 1, "DOGE share kept as owed: {owed}");
     assert_eq!(balance(&consume, &alice).await?, 0);
@@ -142,7 +175,7 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     // After registering on DOGE, the retry pays out.
     alice.call(doge.id(), "register").args_json(json!({ "account_id": alice.id() })).transact().await?.into_result()?;
     alice.call(consume.id(), "withdraw_owed").max_gas().transact().await?.into_result()?;
-    assert!(balance(&doge, &alice).await? > 0);
+    assert_eq!(balance(&doge, &alice).await?, doge_share, "exact DOGE share paid on retry");
     let owed = view(&consume, "get_owed", json!({ "account_id": alice.id() })).await?;
     assert!(owed.as_array().unwrap().is_empty());
 

@@ -10,7 +10,7 @@ const fellSc = IM_Fell_English_SC({ weight: "400", subsets: ["latin"], variable:
 export const metadata: Metadata = {
   title: "CONSUME",
   description:
-    "A memecoin that eats other memecoins. Feed the Crucible DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays inside, and every $CONSUME is a claim on it. Built on NEAR.",
+    "A memecoin that eats other memecoins. Feed it DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach, and every $CONSUME is a claim on it. Built on NEAR.",
   icons: { icon: "/icon.svg" },
 };
 

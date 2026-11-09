@@ -179,7 +179,8 @@ const EDGE = (() => {
 
 const BEADS = Array.from({ length: 40 }, (_, i) => {
   const a = (i / 40) * Math.PI * 2;
-  return [50 + 43.5 * Math.cos(a), 50 + 43.5 * Math.sin(a)] as const;
+  // rounded so server and browser render identical numbers (no hydration mismatch)
+  return [+(50 + 43.5 * Math.cos(a)).toFixed(2), +(50 + 43.5 * Math.sin(a)).toFixed(2)] as const;
 });
 
 type Props = { symbol: string; chain?: string; size?: number; className?: string };

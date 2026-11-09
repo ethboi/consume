@@ -18,7 +18,7 @@ const PRICE_E18: Record<string, string> = {
   NearKat: "88220000000000",
 };
 
-// USD sitting in the reliquary per heresy (sample)
+// USD sitting in the stomach per heresy (sample)
 const HELD_USD: Record<string, number> = {
   DOGE: 3120, PEPE: 2860, SHIB: 1740, PENGU: 1210, SPX: 980, TURBO: 640, BOME: 455, BLACKDRAGON: 210, SHITZU: 165, NearKat: 60,
 };
@@ -42,7 +42,7 @@ const tribes: [string, Tribe][] = HERESIES.map((h) => [
     max_meal_usd: String(h.maxMealUsd * 1e6),
     daily_cap_usd: String(h.dailyCapUsd * 1e6),
     open: h.symbol !== "NearKat",
-    reliquary: rawFor(HELD_USD[h.symbol], h.decimals, PRICE_E18[h.symbol]),
+    stomach: rawFor(HELD_USD[h.symbol], h.decimals, PRICE_E18[h.symbol]),
     eaten_usd: String(Math.round(HELD_USD[h.symbol] * 1.08 * 1e6)),
   },
 ]);
@@ -93,7 +93,7 @@ export const DEMO_SNAPSHOT: Snapshot = {
     total_forfeited: (BigInt(212_000) * pow10(18)).toString(),
     total_redeemed: (BigInt(480_000) * pow10(18)).toString(),
     vests_minted: "214",
-    current_rate: "500",
+    current_rate: (BigInt(500) * pow10(18)).toString(),
     next_halving_at_usd: String(20_000 * 1e6),
     epoch: "2966",
     heaviest_last_epoch: DEMO_TOKEN("PEPE"),

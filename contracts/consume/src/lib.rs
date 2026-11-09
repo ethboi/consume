@@ -1,13 +1,13 @@
 //! CONSUME: a memecoin that eats other memecoins.
 //!
 //! Feed it a whitelisted memecoin (PEPE, DOGE, SHIB ...) with `ft_transfer_call`.
-//! The meme goes into the reliquary for good. You get a Vest NFT that releases
+//! The meme goes into the stomach for good. You get a Vest NFT that releases
 //! $CONSUME to whoever holds it, linearly over the vesting period.
-//! Burn $CONSUME with `redeem` to take your share of everything in the reliquary.
+//! Burn $CONSUME with `redeem` to take your share of everything in the stomach.
 //!
 //! One contract holds the $CONSUME token (NEP-141), the Vest NFTs (NEP-171)
-//! and the reliquary, so minting, vesting and redemption never need a
-//! cross-contract call except for paying out reliquary shares.
+//! and the stomach, so minting, vesting and redemption never need a
+//! cross-contract call except for paying out stomach shares.
 
 mod math;
 mod meal;
@@ -21,8 +21,8 @@ mod tests;
 use near_contract_standards::fungible_token::FungibleToken;
 use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_sdk::json_types::{U128, U64};
-use near_sdk::store::{IterableMap, LookupMap};
-use near_sdk::{env, near, require, AccountId, BorshStorageKey, PanicOnDefault};
+use near_sdk::store::{IterableMap, LookupMap, LookupSet};
+use near_sdk::{env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault, Promise};
 
 pub const NANOS_PER_DAY: u64 = 86_400_000_000_000;
 /// USD amounts are stored in micro-dollars (6 decimals).
@@ -31,6 +31,10 @@ pub const MICRO_USD: u128 = 1_000_000;
 pub const CONSUME_DECIMALS: u8 = 18;
 pub const ONE_CONSUME: u128 = 1_000_000_000_000_000_000;
 pub const BPS: u128 = 10_000;
+/// Largest start rate accepted (whole $CONSUME per USD), so rate * 1e18 fits in u128.
+pub const MAX_START_RATE: u128 = 1_000_000_000;
+/// Largest token decimals accepted for a tribe.
+pub const MAX_DECIMALS: u8 = 30;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -45,6 +49,9 @@ pub(crate) enum StorageKey {
     DailyFed,
     EpochFed,
     Owed,
+    Sponsored,
+    InFlight,
+    MealCredit,
 }
 
 /// A memecoin CONSUME is willing to eat.
@@ -64,10 +71,10 @@ pub struct Tribe {
     /// Most this tribe can be fed per UTC day, in micro-USD.
     pub daily_cap_usd: U128,
     /// Closed tribes are not eaten (e.g. when the Intents route has no liquidity),
-    /// but what is already in the reliquary stays there and stays redeemable.
+    /// but what is already in the stomach stays there and stays redeemable.
     pub open: bool,
-    /// Raw token units currently in the reliquary.
-    pub reliquary: U128,
+    /// Raw token units currently in the stomach.
+    pub stomach: U128,
     /// Lifetime USD value eaten from this tribe, in micro-USD.
     pub eaten_usd: U128,
 }
@@ -100,7 +107,7 @@ pub struct Config {
     pub owner_id: AccountId,
     /// The only account allowed to post tribe prices.
     pub price_feeder_id: AccountId,
-    /// Whole $CONSUME paid per 1 USD eaten, before any halving.
+    /// Whole $CONSUME paid per 1 USD eaten, before any halving (at most MAX_START_RATE).
     pub start_rate: U128,
     /// The rate halves every time this much USD (micro-USD) has been eaten in total.
     pub halving_usd: U128,
@@ -142,6 +149,15 @@ pub struct Contract {
     pub(crate) total_forfeited: u128,
     /// $CONSUME burned through redeem.
     pub(crate) total_redeemed: u128,
+    /// Accounts whose $CONSUME registration the contract paid for. They cannot
+    /// unregister, so the sponsored deposit can never be cashed out.
+    pub(crate) sponsored: LookupSet<AccountId>,
+    /// Indulgences inside an unresolved nft_transfer_call. They cannot be
+    /// claimed or exited until the transfer resolves (blocks a receiver from
+    /// draining an Indulgence and then rejecting it).
+    pub(crate) in_flight: LookupSet<String>,
+    /// NEAR each account has prepaid for the storage its feedings create.
+    pub(crate) meal_credit: LookupMap<AccountId, u128>,
 }
 
 #[near]
@@ -149,6 +165,7 @@ impl Contract {
     #[init]
     pub fn new(config: Config) -> Self {
         require!(config.start_rate.0 > 0, "start_rate must be positive");
+        require!(config.start_rate.0 <= MAX_START_RATE, "start_rate too large");
         require!(config.halving_usd.0 > 0, "halving_usd must be positive");
         require!(config.vest_duration_ns.0 > 0, "vest_duration_ns must be positive");
         require!(config.epoch_ns.0 > 0, "epoch_ns must be positive");
@@ -174,6 +191,9 @@ impl Contract {
             total_unvested: 0,
             total_forfeited: 0,
             total_redeemed: 0,
+            sponsored: LookupSet::new(StorageKey::Sponsored),
+            in_flight: LookupSet::new(StorageKey::InFlight),
+            meal_credit: LookupMap::new(StorageKey::MealCredit),
         }
     }
 
@@ -183,7 +203,8 @@ impl Contract {
         require!(env::predecessor_account_id() == self.config.owner_id, "Only the owner");
     }
 
-    /// Add a tribe, or update its caps and symbol. Never touches the reliquary.
+    /// Add a tribe, or update its caps and symbol. Never touches the stomach.
+    /// A tribe's decimals are fixed once it is added.
     pub fn set_tribe(
         &mut self,
         token_id: AccountId,
@@ -194,8 +215,12 @@ impl Contract {
         open: bool,
     ) {
         self.assert_owner();
+        require!(decimals <= MAX_DECIMALS, "decimals too large");
         let tribe = match self.tribes.get(&token_id) {
-            Some(t) => Tribe { symbol, decimals, max_meal_usd, daily_cap_usd, open, ..t.clone() },
+            Some(t) => {
+                require!(t.decimals == decimals, "A tribe's decimals cannot change");
+                Tribe { symbol, decimals, max_meal_usd, daily_cap_usd, open, ..t.clone() }
+            }
             None => Tribe {
                 symbol,
                 decimals,
@@ -204,7 +229,7 @@ impl Contract {
                 max_meal_usd,
                 daily_cap_usd,
                 open,
-                reliquary: U128(0),
+                stomach: U128(0),
                 eaten_usd: U128(0),
             },
         };
@@ -248,6 +273,35 @@ impl Contract {
                 tribe.price_updated_ns = U64(now);
             }
         }
+    }
+
+    // ---------- storage credit for feedings ----------
+
+    /// Prepay NEAR for the storage your feedings create (each Indulgence NFT
+    /// and its records). A feeding is refused if its storage cost exceeds the
+    /// feeder's credit.
+    #[payable]
+    pub fn add_meal_credit(&mut self, account_id: Option<AccountId>) -> U128 {
+        let account = account_id.unwrap_or_else(env::predecessor_account_id);
+        let amount = env::attached_deposit().as_yoctonear();
+        require!(amount > 0, "Attach NEAR to add credit");
+        let credit = self.meal_credit.entry(account).or_insert(0);
+        *credit += amount;
+        U128(*credit)
+    }
+
+    /// Take back unused storage credit.
+    pub fn withdraw_meal_credit(&mut self, amount: Option<U128>) -> Promise {
+        let account = env::predecessor_account_id();
+        let credit = *self.meal_credit.get(&account).unwrap_or(&0);
+        let amount = amount.map(|a| a.0).unwrap_or(credit);
+        require!(amount > 0 && amount <= credit, "Not enough credit");
+        self.meal_credit.insert(account.clone(), credit - amount);
+        Promise::new(account).transfer(NearToken::from_yoctonear(amount))
+    }
+
+    pub fn get_meal_credit(&self, account_id: AccountId) -> U128 {
+        U128(*self.meal_credit.get(&account_id).unwrap_or(&0))
     }
 
     // ---------- views ----------

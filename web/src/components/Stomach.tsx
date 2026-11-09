@@ -1,4 +1,4 @@
-// The Crucible's holdings drawn as an apothecary shelf: ten jars, each labelled
+// The stomach's contents drawn as an apothecary shelf: ten jars, each labelled
 // with its meme and hatched full in proportion to the USD it holds (relative to
 // the fullest jar), in the manner of a woodcut.
 
@@ -55,11 +55,11 @@ const ROWS: [string[], number][] = [
 const SLOT = 104;
 const LEFT = 72;
 
-export function Crucible({ jars }: { jars: Jar[] }) {
+export function Stomach({ jars }: { jars: Jar[] }) {
   const max = Math.max(1, ...jars.map((j) => j.usd));
   return (
     <svg viewBox="0 0 560 520" className="crucible" role="img" aria-labelledby="cr-title cr-desc">
-      <title id="cr-title">The Crucible&apos;s shelf</title>
+      <title id="cr-title">What is in its stomach</title>
       <desc id="cr-desc">
         {jars.map((j) => `${j.symbol} jar ${Math.round((j.usd / max) * 100)} percent as full as the fullest${j.open ? "" : ", sealed"}`).join(". ")}
       </desc>

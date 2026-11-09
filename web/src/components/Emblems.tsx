@@ -12,17 +12,24 @@ const common = {
   "aria-hidden": true,
 };
 
-/** A crucible on a tripod over flames. */
-export function CrucibleEmblem() {
+/** A stomach, as in an old anatomy woodcut, with a coin inside it. */
+export function StomachEmblem() {
   return (
     <svg {...common}>
-      <path d="M16,14 L48,14 L44,36 Q32,42 20,36 Z" fill="var(--paper)" />
-      <path d="M20,22 L45,22 M21,28 L44,28" strokeWidth={1} />
-      <path d="M24,18 l3,14 M32,18 l0,16 M40,18 l-3,14" strokeWidth={0.9} />
-      <path d="M14,14 L50,14" strokeWidth={2.6} />
-      <path d="M22,38 L14,58 M42,38 L50,58 M32,40 L32,58" />
-      <path d="M26,58 q2,-10 6,-12 q-1,6 3,8 q1,-6 4,-8 q2,6 -1,12 Z" fill="var(--rubric)" stroke="var(--ink)" strokeWidth={1.4} />
-      <path d="M10,58 L54,58" strokeWidth={2.4} />
+      {/* gullet coming down into the bag */}
+      <path d="M22,4 L22,16 C22,20 25,23 30,22 M29,4 L29,15" />
+      {/* the J-shaped bag, ending in the gut on the left */}
+      <path
+        d="M29,15 C31,18 36,17 42,16 C53,15 60,24 59,36 C58,50 46,60 32,58 C23,57 18,52 18,47 L8,47 L8,53 L18,53 C18,53 18,47 18,47 C18,42 22,40 27,42 C31,43 34,40 33,36 C32,31 25,29 22,24 C21,21 22,18 22,16"
+        fill="var(--paper)"
+      />
+      {/* hatching on the shadowed underside */}
+      <path d="M30,52 q10,1 18,-6 M28,48 q12,1 20,-7 M50,46 q4,-5 5,-12 M46,49 q6,-6 7,-14" strokeWidth={1} />
+      {/* folds of the lining */}
+      <path d="M37,22 q5,3 10,1 M48,24 q4,4 5,9" strokeWidth={1} />
+      {/* a coin it has eaten */}
+      <circle cx={42} cy={36} r={6.5} fill="var(--rubric)" strokeWidth={1.6} />
+      <circle cx={42} cy={36} r={3.8} strokeWidth={0.9} />
     </svg>
   );
 }

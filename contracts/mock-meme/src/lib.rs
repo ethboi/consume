@@ -123,9 +123,12 @@ impl StorageManagement for Contract {
         self.token.storage_withdraw(amount)
     }
 
+    /// Disabled: registrations here are free (faucet and `register`), so
+    /// refunding a storage deposit on unregister would let anyone drain the
+    /// contract's NEAR by registering and unregistering in a loop.
     #[payable]
-    fn storage_unregister(&mut self, force: Option<bool>) -> bool {
-        self.token.internal_storage_unregister(force).is_some()
+    fn storage_unregister(&mut self, _force: Option<bool>) -> bool {
+        near_sdk::env::panic_str("Unregistering is disabled on this testnet stand-in")
     }
 
     fn storage_balance_bounds(&self) -> StorageBalanceBounds {

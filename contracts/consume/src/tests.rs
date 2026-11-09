@@ -71,7 +71,21 @@ fn doge(whole: u128) -> u128 {
     whole * 10u128.pow(8)
 }
 
+fn credit(c: &mut Contract, who: &str, now: u64) {
+    let mut b = VMContextBuilder::new();
+    b.current_account_id(acc("consume.testnet"))
+        .predecessor_account_id(acc(who))
+        .block_timestamp(now)
+        .attached_deposit(NearToken::from_near(1))
+        .account_balance(NearToken::from_near(100));
+    testing_env!(b.build());
+    c.add_meal_credit(None);
+}
+
 fn feed(c: &mut Contract, token: &str, from: &str, amount: u128, now: u64) -> u128 {
+    if c.get_meal_credit(acc(from)).0 < NearToken::from_millinear(100).as_yoctonear() {
+        credit(c, from, now);
+    }
     ctx(token, now);
     match c.ft_on_transfer(acc(from), U128(amount), String::new()) {
         near_sdk::PromiseOrValue::Value(r) => r.0,
@@ -93,7 +107,9 @@ fn halving_splits_a_meal() {
     // $15,000 meal from zero: $10,000 at 1000/USD + $5,000 at 500/USD = 12.5M CONSUME
     let minted = math::consume_for_meal(1000, 10_000 * USD, 0, 15_000 * USD);
     assert_eq!(minted, 12_500_000 * ONE_CONSUME);
-    assert_eq!(math::rate_at(1000, 10_000 * USD, 25_000 * USD), 250);
+    assert_eq!(math::rate_at(1000, 10_000 * USD, 25_000 * USD), 250 * ONE_CONSUME);
+    // halvings stay exact: 1000 -> ... -> 125 -> 62.5
+    assert_eq!(math::rate_at(1000, 10_000 * USD, 40_000 * USD), 125 * ONE_CONSUME / 2);
 }
 
 #[test]
@@ -105,7 +121,7 @@ fn a_meal_mints_a_vest_nft() {
     assert_eq!(v.owner_id, acc("alice.testnet"));
     assert_eq!(v.vest.meal_usd.0, 100 * USD);
     assert_eq!(v.vest.total.0, 100_000 * ONE_CONSUME);
-    assert_eq!(c.get_tribe(acc("pepe.testnet")).unwrap().reliquary.0, pepe(20_000_000));
+    assert_eq!(c.get_tribe(acc("pepe.testnet")).unwrap().stomach.0, pepe(20_000_000));
     assert_eq!(c.total_unvested, 100_000 * ONE_CONSUME);
     assert_eq!(c.nft_token("1".into()).unwrap().owner_id, acc("alice.testnet"));
 }
@@ -193,16 +209,16 @@ fn redeem_pays_a_fair_share_counting_unvested() {
     // Alice redeems all of hers: she owns ~half of (supply + unvested)
     let q = c.quote_redeem(U128(alice));
     let pepe_share = q.shares.iter().find(|(k, _)| k == &acc("pepe.testnet")).unwrap().1 .0;
-    let reliquary_pepe = c.get_tribe(acc("pepe.testnet")).unwrap().reliquary.0;
-    let ratio = pepe_share as f64 / reliquary_pepe as f64;
+    let stomach_pepe = c.get_tribe(acc("pepe.testnet")).unwrap().stomach.0;
+    let ratio = pepe_share as f64 / stomach_pepe as f64;
     assert!((ratio - 0.5).abs() < 0.01, "ratio {ratio}");
     ctx_yocto("alice.testnet", 40 * DAY);
     c.redeem(U128(alice));
     assert_eq!(c.ft_balance_of(acc("alice.testnet")).0, 0);
     assert_eq!(c.total_redeemed, alice);
-    // Bob's later claim still has about half the reliquary behind it
-    let left = c.get_tribe(acc("pepe.testnet")).unwrap().reliquary.0;
-    assert!(left as f64 / reliquary_pepe as f64 > 0.49);
+    // Bob's later claim still has about half the stomach behind it
+    let left = c.get_tribe(acc("pepe.testnet")).unwrap().stomach.0;
+    assert!(left as f64 / stomach_pepe as f64 > 0.49);
 }
 
 #[test]
@@ -227,4 +243,92 @@ fn format_units_reads_well() {
     assert_eq!(meal::format_units(pepe(20_000_000), 18), "20000000");
     assert_eq!(meal::format_units(1_234_567, 6), "1.2345");
     assert_eq!(meal::format_units(1_500_000, 6), "1.5");
+}
+
+
+// ---------------- regressions for the security review ----------------
+
+#[test]
+#[should_panic(expected = "Add storage credit first")]
+fn feeding_without_storage_credit_is_refused() {
+    let mut c = setup(DAY);
+    ctx("pepe.testnet", DAY);
+    let _ = c.ft_on_transfer(acc("nocredit.testnet"), U128(pepe(20_000_000)), String::new());
+}
+
+#[test]
+fn feeding_charges_storage_to_the_feeder() {
+    let mut c = setup(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    let before = c.get_meal_credit(acc("alice.testnet")).0;
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    let after = c.get_meal_credit(acc("alice.testnet")).0;
+    assert!(after < before, "storage must be paid from the feeder's credit");
+}
+
+#[test]
+#[should_panic(expected = "sponsored and cannot be refunded")]
+fn sponsored_account_cannot_unregister() {
+    use near_contract_standards::storage_management::StorageManagement;
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    ctx("alice.testnet", 40 * DAY);
+    c.claim("1".into());
+    ctx_yocto("alice.testnet", 40 * DAY);
+    c.storage_unregister(None);
+}
+
+#[test]
+#[should_panic(expected = "mid-transfer")]
+fn indulgence_in_flight_cannot_be_claimed() {
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    c.in_flight.insert("1".to_string()); // as nft_transfer_call does before calling the receiver
+    ctx("alice.testnet", 20 * DAY);
+    c.claim("1".into());
+}
+
+#[test]
+#[should_panic(expected = "Pays less than your minimum")]
+fn min_consume_is_enforced() {
+    let mut c = setup(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    ctx("pepe.testnet", DAY);
+    let msg = format!(r#"{{"min_consume":"{}"}}"#, 200_000u128 * ONE_CONSUME);
+    let _ = c.ft_on_transfer(acc("alice.testnet"), U128(pepe(20_000_000)), msg); // pays 100k
+}
+
+#[test]
+#[should_panic(expected = "after its deadline")]
+fn deadline_is_enforced() {
+    let mut c = setup(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    ctx("pepe.testnet", DAY);
+    let msg = format!(r#"{{"deadline_ns":"{}"}}"#, DAY - 1);
+    let _ = c.ft_on_transfer(acc("alice.testnet"), U128(pepe(20_000_000)), msg);
+}
+
+#[test]
+fn json_msg_can_name_a_recipient() {
+    let mut c = setup(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    ctx("pepe.testnet", DAY);
+    let _ = c.ft_on_transfer(acc("alice.testnet"), U128(pepe(20_000_000)), r#"{"recipient":"carol.testnet"}"#.into());
+    assert_eq!(c.get_vest("1".into()).unwrap().owner_id, acc("carol.testnet"));
+}
+
+#[test]
+#[should_panic(expected = "decimals cannot change")]
+fn tribe_decimals_are_frozen() {
+    let mut c = setup(DAY);
+    ctx("owner.testnet", DAY);
+    c.set_tribe(acc("pepe.testnet"), "PEPE".into(), 6, U128(1_000 * USD), U128(5_000 * USD), true);
+}
+
+#[test]
+fn rate_never_rounds_a_meal_down_to_zero_early() {
+    // after 10 halvings the old integer rate was 0; raw units keep paying
+    let minted = math::consume_for_meal(1000, 10_000 * USD, 100_000 * USD, 100 * USD);
+    assert!(minted > 0);
+    assert_eq!(minted, 100 * (1000 * ONE_CONSUME >> 10));
 }

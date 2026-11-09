@@ -57,6 +57,9 @@ impl FungibleTokenCore for Contract {
 impl FungibleTokenResolver for Contract {
     #[private]
     fn ft_resolve_transfer(&mut self, sender_id: AccountId, receiver_id: AccountId, amount: U128) -> U128 {
+        // If the sender unregistered mid-transfer the refund is burned; the
+        // standard already removes it from total supply, which only raises
+        // every remaining holder's share of the stomach.
         let (used, _burned) = self.token.internal_ft_resolve_transfer(&sender_id, receiver_id, amount);
         used.into()
     }
@@ -76,10 +79,14 @@ impl StorageManagement for Contract {
 
     #[payable]
     fn storage_unregister(&mut self, force: Option<bool>) -> bool {
-        // Unregistering would let a holder burn $CONSUME outside `redeem`,
-        // which would skew the reliquary accounting. Only empty accounts may leave.
-        if let Some(account) = self.token.accounts.get(&near_sdk::env::predecessor_account_id()) {
-            near_sdk::require!(account == 0 || force != Some(true), "Redeem or transfer your $CONSUME first");
+        let who = near_sdk::env::predecessor_account_id();
+        // The contract paid this registration; refunding it would let anyone cash
+        // out the sponsorship again and again.
+        near_sdk::require!(!self.sponsored.contains(&who), "This registration was sponsored and cannot be refunded");
+        // Only empty accounts may leave: a forced unregister would burn $CONSUME
+        // outside `redeem`.
+        if let Some(balance) = self.token.accounts.get(&who) {
+            near_sdk::require!(balance == 0 || force != Some(true), "Redeem or transfer your $CONSUME first");
         }
         self.token.internal_storage_unregister(force).is_some()
     }
@@ -126,6 +133,9 @@ impl NonFungibleTokenCore for Contract {
         memo: Option<String>,
         msg: String,
     ) -> PromiseOrValue<bool> {
+        // lock until nft_resolve_transfer: the receiver must not claim or exit
+        // and then hand the Indulgence back
+        self.in_flight.insert(token_id.clone());
         self.nft.nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
     }
 
@@ -144,6 +154,7 @@ impl NonFungibleTokenResolver for Contract {
         token_id: TokenId,
         approved_account_ids: Option<HashMap<AccountId, u64>>,
     ) -> bool {
+        self.in_flight.remove(&token_id);
         self.nft.nft_resolve_transfer(previous_owner_id, receiver_id, token_id, approved_account_ids)
     }
 }
@@ -194,8 +205,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
-            name: "CONSUME Writs".to_string(),
-            symbol: "WRIT".to_string(),
+            name: "CONSUME Indulgences".to_string(),
+            symbol: "INDULGENCE".to_string(),
             icon: Some(ICON.to_string()),
             base_uri: None,
             reference: None,

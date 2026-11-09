@@ -1,10 +1,11 @@
 //! Eating: a whitelisted meme arrives through `ft_transfer_call`, goes into the
-//! reliquary for good, and the sender gets a Vest NFT that releases $CONSUME.
+//! stomach for good, and the sender gets a Vest NFT that releases $CONSUME.
 
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 use near_sdk::json_types::{U128, U64};
 use near_sdk::{env, near, require, AccountId, PromiseOrValue};
+use near_sdk::serde::Deserialize;
 
 use crate::math;
 use crate::{emit_event, Contract, ContractExt, Vest, NANOS_PER_DAY};
@@ -61,6 +62,7 @@ impl Contract {
         if bonus {
             consume = math::apply_bps(consume, self.config.heaviest_bonus_bps as u128);
         }
+        require!(consume > 0, "This feeding would mint no $CONSUME");
 
         MealQuote {
             accepted: U128(accepted),
@@ -71,15 +73,17 @@ impl Contract {
         }
     }
 
-    fn eat(&mut self, token_id: AccountId, eater: AccountId, amount: u128) -> u128 {
+    fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, min_consume: u128) -> u128 {
+        let storage_before = env::storage_usage();
         let q = self.plan_meal(&token_id, amount);
+        require!(q.consume.0 >= min_consume, "Pays less than your minimum, refunded");
         let now = env::block_timestamp();
         let day = now / NANOS_PER_DAY;
         let epoch = now / self.config.epoch_ns.0;
 
-        // reliquary and counters
+        // stomach and counters
         let tribe = self.tribes.get_mut(&token_id).unwrap();
-        tribe.reliquary = U128(tribe.reliquary.0 + q.accepted.0);
+        tribe.stomach = U128(tribe.stomach.0 + q.accepted.0);
         tribe.eaten_usd = U128(tribe.eaten_usd.0 + q.meal_usd.0);
         let symbol = tribe.symbol.clone();
         let decimals = tribe.decimals;
@@ -104,9 +108,9 @@ impl Contract {
         };
         self.vests.insert(vest_id.clone(), vest);
         let metadata = TokenMetadata {
-            title: Some(format!("Writ #{}: {} {}", vest_id, format_units(q.accepted.0, decimals), symbol)),
+            title: Some(format!("Indulgence #{}: {} {}", vest_id, format_units(q.accepted.0, decimals), symbol)),
             description: Some(format!(
-                "The Crucible consumed {} {} (${}). This Writ releases {} $CONSUME to whoever holds it, a little each day. Break the seal early and half of what is still locked is forfeit.",
+                "CONSUME ate {} {} (${}). This Indulgence releases {} $CONSUME to whoever holds it, a little each day. Break the seal early and half of what is still locked is forfeit.",
                 format_units(q.accepted.0, decimals),
                 symbol,
                 format_units(q.meal_usd.0, 6),
@@ -144,23 +148,47 @@ impl Contract {
                 "bonus": q.bonus,
             }),
         );
+        // the feeder pays for the storage this feeding created
+        let grown = env::storage_usage().saturating_sub(storage_before) as u128;
+        let cost = grown * env::storage_byte_cost().as_yoctonear();
+        let credit = *self.meal_credit.get(&payer).unwrap_or(&0);
+        require!(credit >= cost, "Add storage credit first (add_meal_credit), refunded");
+        self.meal_credit.insert(payer, credit - cost);
         q.refund.0
     }
+}
+
+/// Optional JSON in the transfer `msg`. An empty msg or a bare account id also work.
+#[derive(Deserialize)]
+#[serde(crate = "near_sdk::serde")]
+struct MealMsg {
+    recipient: Option<AccountId>,
+    min_consume: Option<U128>,
+    deadline_ns: Option<U64>,
 }
 
 #[near]
 impl FungibleTokenReceiver for Contract {
     /// Feed CONSUME: call `ft_transfer_call` on a tribe's token with this contract
-    /// as receiver. `msg` can name another account to receive the Vest NFT;
-    /// empty means the sender. Anything over the caps is refunded.
+    /// as receiver. `msg` is empty, an account id to receive the Indulgence, or
+    /// JSON `{"recipient"?, "min_consume"?, "deadline_ns"?}`. Anything over the
+    /// caps is refunded; a failed check refunds everything.
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         let token_id = env::predecessor_account_id();
-        let eater: AccountId = if msg.trim().is_empty() {
-            sender_id
+        let m = msg.trim();
+        let (eater, min_consume) = if m.is_empty() {
+            (sender_id.clone(), 0)
+        } else if m.starts_with('{') {
+            let parsed: MealMsg =
+                near_sdk::serde_json::from_str(m).unwrap_or_else(|_| env::panic_str("msg is not valid JSON"));
+            if let Some(deadline) = parsed.deadline_ns {
+                require!(env::block_timestamp() <= deadline.0, "Feeding arrived after its deadline, refunded");
+            }
+            (parsed.recipient.unwrap_or_else(|| sender_id.clone()), parsed.min_consume.map(|v| v.0).unwrap_or(0))
         } else {
-            msg.trim().parse().unwrap_or_else(|_| env::panic_str("msg must be empty or an account id"))
+            (m.parse().unwrap_or_else(|_| env::panic_str("msg must be empty, an account id or JSON")), 0)
         };
-        let refund = self.eat(token_id, eater, amount.0);
+        let refund = self.eat(token_id, sender_id, eater, amount.0, min_consume);
         PromiseOrValue::Value(U128(refund))
     }
 }

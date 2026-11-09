@@ -62,9 +62,9 @@ export function Woodblock({ children }: { children: ReactNode }) {
 
 /** Black wedges and fine rays behind the serpent, centred exactly on it. Place it
  *  inside .hero-sigil before the serpent; the woodblock clips it at the edges. */
-export function Glory() {
+export function Glory({ x, y, size }: { x?: number; y?: number; size?: number } = {}) {
   return (
-    <svg className="glory" viewBox="-800 -800 1600 1600" aria-hidden="true">
+    <svg className="glory" viewBox="-800 -800 1600 1600" x={x} y={y} width={size} height={size} aria-hidden="true">
       <path d={WEDGES} fill="var(--ink)" />
       <path d={LINES} stroke="var(--ink)" strokeWidth={1.6} />
       {/* black ring just outside the serpent, the cut edge of the roundel */}

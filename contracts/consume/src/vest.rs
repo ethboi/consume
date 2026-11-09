@@ -58,7 +58,9 @@ impl Contract {
             return;
         }
         if !self.token.accounts.contains_key(to) {
+            // sponsored: the contract pays, so this account may never unregister
             self.token.internal_register_account(to);
+            self.sponsored.insert(to.clone());
         }
         self.token.internal_deposit(to, amount);
         FtMint { owner_id: to, amount: U128(amount), memo: Some(memo) }.emit();
@@ -70,7 +72,8 @@ impl Contract {
     /// Release everything that has vested so far to the NFT's current holder.
     pub fn claim(&mut self, token_id: String) -> U128 {
         let owner = self.vest_owner(&token_id);
-        require!(env::predecessor_account_id() == owner, "Only the Vest NFT holder can claim");
+        require!(env::predecessor_account_id() == owner, "Only the Indulgence holder can claim");
+        require!(!self.in_flight.contains(&token_id), "This Indulgence is mid-transfer");
         let mut vest = self.vests.get(&token_id).unwrap().clone();
         let (claimable, _) = self.split(&vest);
         require!(claimable > 0, "Nothing to claim yet");
@@ -87,12 +90,13 @@ impl Contract {
 
     /// Leave early: take what has vested plus the unlocked share of the rest.
     /// The haircut is never minted, so every remaining holder's share of the
-    /// reliquary grows. The NFT stays, marked as exited. Requires 1 yoctoNEAR.
+    /// stomach grows. The NFT stays, marked as exited. Requires 1 yoctoNEAR.
     #[payable]
     pub fn exit(&mut self, token_id: String) -> U128 {
         assert_one_yocto();
         let owner = self.vest_owner(&token_id);
-        require!(env::predecessor_account_id() == owner, "Only the Vest NFT holder can exit");
+        require!(env::predecessor_account_id() == owner, "Only the Indulgence holder can exit");
+        require!(!self.in_flight.contains(&token_id), "This Indulgence is mid-transfer");
         let mut vest = self.vests.get(&token_id).unwrap().clone();
         require!(!vest.exited, "Already exited");
         let (claimable, locked) = self.split(&vest);

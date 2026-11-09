@@ -1,0 +1,75 @@
+// GET /indulgence/<id>.svg : the Indulgence NFT image, drawn from live contract
+// state (or sample data before deployment). The contract's media_base points here.
+
+import { createElement } from "react";
+import { IndulgenceCard, type CardData } from "@/components/IndulgenceCard";
+import { CARD_FONT_CSS } from "@/lib/card-fonts.generated";
+import { DEMO_SNAPSHOT } from "@/lib/demo";
+import { compact, fromRaw, usd, vestedFraction } from "@/lib/format";
+import { CONSUME_CONTRACT, DEMO, heresyForToken, view, type VestView } from "@/lib/near";
+
+export const dynamic = "force-dynamic";
+
+// Concrete colours: NFT renderers do not all understand CSS variables.
+const COLOURS: [string, string][] = [
+  ["var(--wax, #9b1d18)", "#9b1d18"],
+  ["var(--ink)", "#141110"],
+  ["var(--paper)", "#efe9dc"],
+  ["var(--rubric)", "#b3261e"],
+];
+
+const STYLE =
+  CARD_FONT_CSS +
+  ".bl{font-family:CardBlackletter,serif}.fell{font-family:CardFell,Georgia,serif}.sc{font-family:CardFellSC,Georgia,serif}";
+
+const date = (ns: bigint) =>
+  new Date(Number(ns / BigInt(1_000_000))).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+
+export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const id = (await ctx.params).id.replace(/\.svg$/i, "");
+  if (!/^\d+$/.test(id)) return new Response("Not an Indulgence number", { status: 400 });
+
+  let v: VestView | null = null;
+  if (DEMO) {
+    v = DEMO_SNAPSHOT.recent.find((x) => x.token_id === id) ?? null;
+  } else {
+    v = await view<VestView | null>(CONSUME_CONTRACT, "get_vest", { token_id: id }).catch(() => null);
+  }
+  if (!v) return new Response("No such Indulgence", { status: 404 });
+
+  const h = heresyForToken(v.vest.tribe);
+  if (!h) return new Response("Unknown meme", { status: 404 });
+  const start = BigInt(v.vest.start_ns);
+  const end = start + BigInt(v.vest.duration_ns);
+  const eatenFull = fromRaw(v.vest.eaten, h.decimals, 0);
+  const total = BigInt(v.vest.total);
+
+  const d: CardData = {
+    id,
+    symbol: h.symbol,
+    chain: h.chain,
+    eaten: eatenFull.length > 13 ? compact(v.vest.eaten, h.decimals) : eatenFull,
+    mealUsd: usd(v.vest.meal_usd),
+    consume: fromRaw(v.vest.total, 18, 0),
+    from: date(start),
+    to: date(end),
+    released: v.vest.exited
+      ? total > BigInt(0)
+        ? Number((BigInt(v.vest.released) * BigInt(1000)) / total) / 1000
+        : 0
+      : vestedFraction(v.vest.start_ns, v.vest.duration_ns),
+    days: Number(BigInt(v.vest.duration_ns) / BigInt(1_000_000_000)) / 86_400,
+    exited: v.vest.exited,
+    bonus: v.vest.bonus,
+  };
+
+  // loaded lazily: Next refuses a static react-dom/server import in the app dir
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  let svg = renderToStaticMarkup(createElement(IndulgenceCard, { d }));
+  for (const [from, to] of COLOURS) svg = svg.split(from).join(to);
+  svg = svg.replace(/^<svg([^>]*)>/, `<svg$1><style>${STYLE}</style>`);
+
+  return new Response(svg, {
+    headers: { "Content-Type": "image/svg+xml; charset=utf-8", "Cache-Control": "public, max-age=300" },
+  });
+}
