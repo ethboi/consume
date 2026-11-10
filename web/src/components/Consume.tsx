@@ -36,7 +36,7 @@ import { IntentsWallet } from "./IntentsWallet";
 import { PartySeal, Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
 import { BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, GobletEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
-import { TGAS, eventData, useWallet, type Call, type TxResult } from "./Wallet";
+import { TGAS, eventData, eventsData, useWallet, type Call, type TxResult } from "./Wallet";
 import { Feeding, SWALLOW_MS, type FeedingScene, type Meal } from "./Feeding";
 import { Collecting, type CollectScene } from "./Collecting";
 import { sleep, useLive } from "@/lib/live";
@@ -784,22 +784,31 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
   const feastToken = snap.stats.heaviest_last_epoch;
   const mealUsd = raw && tribe ? Number(usdValue(raw, h.decimals, tribe.price_e18)) / 1e6 : 0;
 
-  // the slider: position 0 is the smallest feeding, the last position the most one feeding takes
-  const canSlide = price > 0 && capUsd > minUsd;
-  const span = canSlide ? Math.log(capUsd / minUsd) : 1;
+  // the slider: position 0 is the smallest feeding, the last position the most one feeding takes,
+  // or everything the feeder holds when that is less, so it can never pick more than they have
+  const heldUsd = balance !== null && tribe ? Number(usdValue(balance, h.decimals, tribe.price_e18)) / 1e6 : null;
+  const allHeld = heldUsd !== null && heldUsd < capUsd;
+  const topUsd = allHeld ? heldUsd : capUsd;
+  const canSlide = price > 0 && topUsd > minUsd;
+  const span = canSlide ? Math.log(topUsd / minUsd) : 1;
   const posOf = (dollars: number) => Math.min(SLIDER_STEPS, Math.max(0, Math.round((SLIDER_STEPS * Math.log(dollars / minUsd)) / span)));
   const usdAt = (pos: number) => {
-    if (pos >= SLIDER_STEPS) return capUsd;
+    if (pos >= SLIDER_STEPS) return topUsd;
     if (pos <= 0) return minUsd;
     const v = minUsd * Math.exp((span * pos) / SLIDER_STEPS);
     // land on round sums: halves under $10, whole dollars under $100, then fives and tens
     const step = v < 10 ? 0.5 : v < 100 ? 1 : v < 250 ? 5 : 10;
-    return Math.min(capUsd, Math.max(minUsd, Math.round(v / step) * step));
+    return Math.min(topUsd, Math.max(minUsd, Math.round(v / step) * step));
   };
   const pos = canSlide && mealUsd > 0 ? posOf(mealUsd) : 0;
-  const marks = canSlide ? [...new Set([minUsd, ...[10, 100, 1000].filter((v) => v > minUsd * 2 && v < capUsd * 0.6), capUsd])] : [];
+  const marks = canSlide
+    ? [...new Set([minUsd, ...[10, 100, 1000].filter((v) => v > minUsd * 2 && v < topUsd * (allHeld ? 0.4 : 0.6)), topUsd])]
+    : [];
   const setDollars = (dollars: number) => {
-    setAmount(amountFor(dollars));
+    const picked = amountFor(dollars);
+    // at the end of a slider that stops at the feeder's holding, feed exactly what they hold
+    const all = allHeld && balance !== null && (dollars >= topUsd || (toRaw(picked, h.decimals) ?? BigInt(0)) > balance);
+    setAmount(all ? fromRaw(balance, h.decimals, h.decimals).replace(/,/g, "") : picked);
     setUsdText(null);
     setError(null);
   };
@@ -994,10 +1003,10 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                       key={v}
                       type="button"
                       style={{ ["--t" as string]: posOf(v) / SLIDER_STEPS }}
-                      aria-label={`Feed ${v} dollars of ${h.symbol}`}
+                      aria-label={allHeld && v === topUsd ? `Feed all your ${h.symbol}` : `Feed ${v} dollars of ${h.symbol}`}
                       onClick={() => setDollars(v)}
                     >
-                      ${v.toLocaleString("en-US")}
+                      {allHeld && v === topUsd && "all, "}${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}
                     </button>
                   ))}
                 </div>
@@ -1041,7 +1050,13 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           ) : q.loading ? (
             <p className="hint">Asking what it pays…</p>
           ) : !quote ? (
-            <p className="hint">Slide the coin toward the jaws, or type an amount.</p>
+            <p className="hint">
+              {balance !== null && balance === BigInt(0)
+                ? `You have no ${h.symbol} to feed yet.`
+                : heldUsd !== null && heldUsd <= minUsd
+                  ? `You hold less than the smallest feeding, $${minUsd.toLocaleString("en-US")} of ${h.symbol}.`
+                  : "Slide the coin toward the jaws, or type an amount."}
+            </p>
           ) : (
             <p className="hint">A feeding cannot be taken back. Memecoins leave the Stomach only when $CONSUME is burned for them.</p>
           )}
@@ -1101,18 +1116,22 @@ async function loadAllVests(accountId: string): Promise<VestView[]> {
 }
 
 type ClaimEvent = { vest_id: string; amount: string };
+/** One transaction holds this many collections: each is given 25 Tgas, which leaves room for the account setup under the 300 Tgas a transaction may carry. */
+const COLLECT_ALL_MOST = 10;
+const COLLECT_ALL_TGAS = 25;
 type ExitEvent = { vest_id: string; payout: string; forfeited: string };
 
 const wholeConsume = (raw: bigint) => Number(raw / BigInt(10) ** BigInt(CONSUME_DEC));
 
-/** ?preview=collect plays the collecting sheet with sample figures; nothing is sent. */
+/** ?preview=collect plays the collecting sheet with sample figures, and ?preview=collect-all the same for several Bonds at once; nothing is sent. */
 function CollectPreview() {
   const [scene, setScene] = useState<CollectScene | null>(null);
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("preview") !== "collect") return;
+    const which = new URLSearchParams(window.location.search).get("preview");
+    if (which !== "collect" && which !== "collect-all") return;
     let alive = true;
     (async () => {
-      const base = { kind: "claim" as const, bond: "1", card: "/bond/1.svg" };
+      const base = { kind: "claim" as const, bond: "1", card: "/bond/1.svg", bonds: which === "collect-all" ? 3 : undefined };
       await sleep(500);
       if (!alive) return;
       setScene({ ...base, stage: "waiting", amount: "4,812" });
@@ -1213,6 +1232,58 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
     setScene(null);
   };
 
+  // A Bond bought or received in a wallet that has never held $CONSUME: the account is
+  // set up first. It goes to the same contract as the payout, so the two travel as one
+  // transaction and the setup is not paid for if the payout is refused.
+  const setup = async (): Promise<Call[]> => {
+    if (await view<unknown>(CONSUME_CONTRACT, "storage_balance_of", { account_id: accountId })) return [];
+    const bounds = await view<{ min: string }>(CONSUME_CONTRACT, "storage_balance_bounds");
+    return [{ receiverId: CONSUME_CONTRACT, methodName: "storage_deposit", args: { registration_only: true }, deposit: bounds.min, gas: TGAS(10) }];
+  };
+  const endOf = (v: VestView) => Number((BigInt(v.vest.start_ns) + BigInt(v.vest.duration_ns)) / BigInt(1_000_000));
+
+  /** Collect from every Bond with something ready, as one transaction. */
+  const collectAll = async (ready: VestView[]) => {
+    const batch = ready.slice(0, COLLECT_ALL_MOST);
+    if (batch.length === 0) return;
+    const expected = batch.reduce((a, v) => a + BigInt(v.claimable), BigInt(0));
+    const locked = batch.reduce((a, v) => a + BigInt(v.locked), BigInt(0));
+    const base = { kind: "claim" as const, bond: batch[0].token_id, bonds: batch.length, card: `/bond/${batch[0].token_id}.svg?v=${tick}` };
+    setBusyId("all");
+    setError(null);
+    watching.current = true;
+    setScene({ ...base, stage: "waiting", amount: fromRaw(expected, CONSUME_DEC, 0) });
+    try {
+      const calls = await setup();
+      for (const v of batch)
+        calls.push({ receiverId: CONSUME_CONTRACT, methodName: "claim", args: { token_id: v.token_id }, deposit: "0", gas: TGAS(COLLECT_ALL_TGAS) });
+      const results = await send(calls);
+      const r = results[0];
+      if (r.failure) throw new Error(r.failure);
+      // what the contract says it paid for each Bond, added up
+      const paid = eventsData<ClaimEvent>(results, "claim").reduce((a, e) => a + BigInt(e.amount), BigInt(0));
+      const got = paid > BigInt(0) ? paid : expected;
+      const amount = fromRaw(got, CONSUME_DEC, 0);
+      const last = new Date(Math.max(...batch.map(endOf)));
+      if (watching.current)
+        setScene({
+          ...base,
+          stage: "received",
+          amount,
+          whole: wholeConsume(got),
+          rest: locked > BigInt(0) ? fromRaw(locked, CONSUME_DEC, 0) : undefined,
+          by: last.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+          href: r.hash ? `${EXPLORER}/txns/${r.hash}` : undefined,
+        });
+      onDone(`Collected ${amount} $CONSUME from ${batch.length} Bonds.`, r.hash, watching.current);
+    } catch (e) {
+      if (watching.current) setScene({ ...base, stage: "refused", reason: cleanError(e) });
+      else setError(cleanError(e));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const act = async (v: VestView, method: "claim" | "exit") => {
     const id = v.token_id;
     const expected = BigInt(method === "exit" ? v.exit_payout : v.claimable);
@@ -1229,20 +1300,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
       forfeit: method === "exit" ? fromRaw(giveUp, CONSUME_DEC, 0) : undefined,
     });
     try {
-      const calls: Call[] = [];
-      // A Bond bought or received in a wallet that has never held $CONSUME: set the
-      // account up first. Both calls go to the one contract, so they travel as one
-      // transaction and the setup is not paid for if the payout is refused.
-      if (!(await view<unknown>(CONSUME_CONTRACT, "storage_balance_of", { account_id: accountId }))) {
-        const bounds = await view<{ min: string }>(CONSUME_CONTRACT, "storage_balance_bounds");
-        calls.push({
-          receiverId: CONSUME_CONTRACT,
-          methodName: "storage_deposit",
-          args: { registration_only: true },
-          deposit: bounds.min,
-          gas: TGAS(10),
-        });
-      }
+      const calls = await setup();
       calls.push({
         receiverId: CONSUME_CONTRACT,
         methodName: method,
@@ -1257,7 +1315,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
       const left = method === "exit" ? eventData<ExitEvent>(results, "exit") : null;
       const got = BigInt((method === "exit" ? left?.payout : eventData<ClaimEvent>(results, "claim")?.amount) ?? expected.toString());
       const amount = fromRaw(got, CONSUME_DEC, 0);
-      const ends = new Date(Number((BigInt(v.vest.start_ns) + BigInt(v.vest.duration_ns)) / BigInt(1_000_000)));
+      const ends = new Date(endOf(v));
       setConfirmBreak(null);
       if (watching.current)
         setScene({
@@ -1292,9 +1350,46 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
   if (!vests) return <p className="empty">Reading your Bonds…</p>;
   if (vests.length === 0) return <p className="empty">You hold no Bonds yet. Feed the Serpent to receive one.</p>;
 
+  // what all of the holder's Bonds come to, and the ones one transaction could collect from now
+  const open = vests.filter((v) => !v.vest.exited);
+  const ready = open.filter((v) => BigInt(v.claimable) > BigInt(0));
+  const sumOf = (list: VestView[], of: (v: VestView) => string) => list.reduce((a, v) => a + BigInt(of(v)), BigInt(0));
+  const readyNow = sumOf(ready, (v) => v.claimable);
+  const inOne = ready.slice(0, COLLECT_ALL_MOST);
+
   return (
     <>
       {error && <p className="demo-note">{error}</p>}
+      {vests.length > 1 && (
+        <div className="ind-all">
+          <dl className="roll-sums ind-sums">
+            <div>
+              <dt>Ready to collect</dt>
+              <dd suppressHydrationWarning>{fromRaw(readyNow, CONSUME_DEC, 0)}</dd>
+            </div>
+            <div>
+              <dt>Still locked</dt>
+              <dd suppressHydrationWarning>{fromRaw(sumOf(open, (v) => v.locked), CONSUME_DEC, 0)}</dd>
+            </div>
+            <div>
+              <dt>Collected so far</dt>
+              <dd suppressHydrationWarning>{fromRaw(sumOf(vests, (v) => v.vest.released), CONSUME_DEC, 0)}</dd>
+            </div>
+          </dl>
+          <div className="ind-all-act">
+            <button className="press" disabled={DEMO || inOne.length === 0 || busyId !== null} onClick={() => collectAll(ready)}>
+              {ready.length > COLLECT_ALL_MOST ? `Collect from ${COLLECT_ALL_MOST} Bonds` : "Collect all"}
+            </button>
+            <p suppressHydrationWarning>
+              {ready.length === 0
+                ? "Nothing is ready yet. Each Bond releases a little more as time passes."
+                : ready.length > COLLECT_ALL_MOST
+                  ? `One transaction collects from ${COLLECT_ALL_MOST} Bonds at a time: ${fromRaw(sumOf(inOne, (v) => v.claimable), CONSUME_DEC, 0)} $CONSUME now, the rest with a second press.`
+                  : `One transaction collects ${fromRaw(readyNow, CONSUME_DEC, 0)} $CONSUME from ${ready.length === 1 ? "the one Bond with something ready" : `${ready.length} Bonds`}.`}
+            </p>
+          </div>
+        </div>
+      )}
       <div className="ind-list">
         {vests.map((v) => {
           const h = heresyForToken(v.vest.tribe);

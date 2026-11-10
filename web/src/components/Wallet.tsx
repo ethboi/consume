@@ -54,20 +54,26 @@ function toResult(o: Outcome): TxResult {
   };
 }
 
-/** What the first CONSUME event with this name said, or null if none was logged. */
-export function eventData<T>(results: TxResult[], event: string): T | null {
+/** What every CONSUME event with this name said, in the order they were logged. */
+export function eventsData<T>(results: TxResult[], event: string): T[] {
+  const out: T[] = [];
   for (const r of results) {
     for (const l of r.logs) {
       if (!l.startsWith("EVENT_JSON:")) continue;
       try {
         const j = JSON.parse(l.slice("EVENT_JSON:".length));
-        if (j.standard === "consume" && j.event === event) return (j.data?.[0] ?? {}) as T;
+        if (j.standard === "consume" && j.event === event) out.push((j.data?.[0] ?? {}) as T);
       } catch {
         // not ours
       }
     }
   }
-  return null;
+  return out;
+}
+
+/** What the first CONSUME event with this name said, or null if none was logged. */
+export function eventData<T>(results: TxResult[], event: string): T | null {
+  return eventsData<T>(results, event)[0] ?? null;
 }
 
 const Ctx = createContext<WalletState | null>(null);

@@ -1,11 +1,14 @@
 // The Bond NFT image, drawn as a woodcut tarot card: a numeral in a box
 // at the top, one tall picture, and the card's title in a box at the foot.
+// The picture is the eaten memecoin's own figure, large, inside the serpent,
+// on a field that belongs to that memecoin alone, so a shelf of Bonds for
+// different memecoins never looks like one card repeated.
 // Rendered to a standalone SVG by app/bond/[id]/route.ts and used as the
 // NFT's media. Everything is drawn here; the route embeds the fonts and swaps
 // CSS variables for colours. BondSquare is the same card on a square mount, for
 // wallets and marketplaces that crop images to a square.
 
-import { Coin } from "./Coin";
+import { CoinDevice } from "./Coin";
 import { Ouroboros } from "./Ouroboros";
 import { Glory } from "./Woodblock";
 
@@ -37,7 +40,11 @@ const CX = W / 2;
 const PIC = { x: 64, y: 138, w: 472, h: 668 };
 const SUN = { x: CX, y: 418 }; // centre of the serpent and the rays
 const SERPENT = 396;
+/** How much larger the memecoin's figure is drawn than on its coin's 100 box: it fills the serpent. */
+const FIGURE = 4.1;
 const GROUND_Y = 718;
+/** Stamps go across the foot of the serpent, clear of the memecoin's figure. */
+const STAMP_Y = 584;
 
 const INK = "var(--ink)";
 const PAPER = "var(--paper)";
@@ -56,6 +63,108 @@ const TITLES: Record<string, string> = {
   SHITZU: "The Lapdog",
   NearKat: "The Cat",
 };
+
+/** How a memecoin's field is cut: the glory of rays, or one of the old heraldic fields. */
+type Field = { kind: "rays" | "paly" | "chequy" | "lozengy" | "bendy" | "wavy" | "scaly" | "starry"; a: string; b: string };
+
+/** Each memecoin's own field: `a` is the ground, `b` what is cut on it. */
+const FIELDS: Record<string, Field> = {
+  DOGE: { kind: "rays", a: RED, b: INK },
+  SHIB: { kind: "paly", a: RED, b: INK },
+  PEPE: { kind: "wavy", a: INK, b: PAPER },
+  PENGU: { kind: "starry", a: INK, b: PAPER },
+  SPX: { kind: "chequy", a: RED, b: INK },
+  TURBO: { kind: "rays", a: PAPER, b: RED },
+  BOME: { kind: "lozengy", a: PAPER, b: INK },
+  BLACKDRAGON: { kind: "scaly", a: RED, b: INK },
+  SHITZU: { kind: "bendy", a: PAPER, b: RED },
+  NearKat: { kind: "rays", a: INK, b: RED },
+};
+const PLAIN: Field = { kind: "rays", a: RED, b: INK };
+
+const STAR = "M0,-12 L2.6,-2.6 L12,0 L2.6,2.6 L0,12 L-2.6,2.6 L-12,0 L-2.6,-2.6 Z";
+const T = PIC.w / 4; // one repeat of a field: four across the picture
+
+/** The repeating cut for a field, laid from the picture's corner so it sits evenly about the serpent. */
+function FieldPattern({ id, f }: { id: string; f: Field }) {
+  const at = { id, x: PIC.x, y: PIC.y, patternUnits: "userSpaceOnUse" as const };
+  const h = T / 2;
+  switch (f.kind) {
+    case "paly":
+      return (
+        <pattern {...at} width={T} height={T}>
+          <rect width={T} height={T} fill={f.a} />
+          <rect width={h} height={T} fill={f.b} />
+          <path d={`M${h + 7},0 V${T} M${T - 7},0 V${T}`} stroke={f.b} strokeWidth={1.6} />
+        </pattern>
+      );
+    case "chequy":
+      return (
+        <pattern {...at} width={T} height={T}>
+          <rect width={T} height={T} fill={f.a} />
+          <rect width={h} height={h} fill={f.b} />
+          <rect x={h} y={h} width={h} height={h} fill={f.b} />
+        </pattern>
+      );
+    case "lozengy":
+      return (
+        <pattern {...at} width={T * (2 / 3)} height={T}>
+          <rect width={T} height={T} fill={f.a} />
+          <path d={`M${T / 3},0 L${T * (2 / 3)},${h} L${T / 3},${T} L0,${h} Z`} fill={f.b} />
+          <path d={`M${T / 3},${h - 16} L${T / 3 + 10},${h} L${T / 3},${h + 16} L${T / 3 - 10},${h} Z`} fill={f.a} />
+        </pattern>
+      );
+    case "bendy":
+      return (
+        <pattern {...at} width={84} height={84} patternTransform={`rotate(45 ${SUN.x} ${SUN.y})`}>
+          <rect width={84} height={84} fill={f.a} />
+          <rect width={42} height={84} fill={f.b} />
+          <path d="M52,0 V84 M74,0 V84" stroke={f.b} strokeWidth={1.6} />
+        </pattern>
+      );
+    case "wavy":
+      return (
+        <pattern {...at} width={T} height={56}>
+          <rect width={T} height={56} fill={f.a} />
+          <path d={`M0,14 Q${T / 4},-2 ${h},14 T${T},14 L${T},42 Q${T * 0.75},58 ${h},42 T0,42 Z`} fill={f.b} />
+        </pattern>
+      );
+    case "scaly": {
+      const s = T * (2 / 3);
+      const r = s / 2;
+      const arc = `a${r},${r} 0 0,0 ${s},0`;
+      return (
+        <pattern {...at} width={s} height={s}>
+          <rect width={s} height={s} fill={f.a} />
+          <path d={`M0,0 ${arc} M${-r},${r} ${arc} ${arc} M0,${s} ${arc}`} fill="none" stroke={f.b} strokeWidth={9} />
+          <path d={`M${r},10 V${r - 14} M0,${r + 10} V${s - 14} M${s},${r + 10} V${s - 14}`} stroke={f.b} strokeWidth={3} strokeLinecap="round" />
+        </pattern>
+      );
+    }
+    case "starry":
+      return (
+        <pattern {...at} width={T} height={T}>
+          <rect width={T} height={T} fill={f.a} />
+          <path d={STAR} transform={`translate(${T / 4} ${T / 4}) scale(1.5)`} fill={f.b} />
+          <path d={STAR} transform={`translate(${T * 0.75} ${T * 0.75}) scale(0.9)`} fill={f.b} />
+          <circle cx={T * 0.75} cy={T / 4} r={2.2} fill={f.b} />
+          <circle cx={T / 4} cy={T * 0.75} r={2.2} fill={f.b} />
+        </pattern>
+      );
+    default:
+      return null;
+  }
+}
+
+/** A field painted over a rectangle; the rays spread from (cx, cy). */
+function FieldArt({ id, f, x, y, w, h, cx, cy, spread }: { id: string; f: Field; x: number; y: number; w: number; h: number; cx: number; cy: number; spread: number }) {
+  return (
+    <>
+      <rect x={x} y={y} width={w} height={h} fill={f.kind === "rays" ? f.a : `url(#${id})`} />
+      {f.kind === "rays" && <Glory x={cx - spread / 2} y={cy - spread / 2} size={spread} colour={f.b} />}
+    </>
+  );
+}
 
 /** Roman numerals up to 3999; larger numbers stay Arabic. */
 export function roman(n: number): string {
@@ -78,7 +187,7 @@ function Star({ x, y, s = 1, fill = RED }: { x: number; y: number; s?: number; f
   return (
     <path
       transform={`translate(${x} ${y}) scale(${s})`}
-      d="M0,-12 L2.6,-2.6 L12,0 L2.6,2.6 L0,12 L-2.6,2.6 L-12,0 L-2.6,-2.6 Z"
+      d={STAR}
       fill={fill}
     />
   );
@@ -160,6 +269,10 @@ function CardFace({ d }: { d: CardData }) {
   const title = TITLES[d.symbol] ?? d.symbol;
   const heading = `Bond ${roman(Number(d.id))}`;
   const headSize = Math.min(44, 350 / (heading.length * 0.8));
+  const field = FIELDS[d.symbol] ?? PLAIN;
+  const fieldId = `field-${d.symbol}`;
+  // what shows against the field's ground
+  const onField = field.a === PAPER ? INK : PAPER;
 
   return (
     <>
@@ -171,6 +284,7 @@ function CardFace({ d }: { d: CardData }) {
         <clipPath id="pic">
           <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} />
         </clipPath>
+        <FieldPattern id={fieldId} f={field} />
       </defs>
 
       {/* the card: black edge with rounded corners, a hatched border, a paper face */}
@@ -187,22 +301,27 @@ function CardFace({ d }: { d: CardData }) {
         {heading}
       </text>
 
-      {/* the picture: red ground, black rays, the serpent around the memecoin */}
+      {/* the picture: the memecoin's field, and the serpent around its figure */}
       <g clipPath="url(#pic)">
-        <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} fill={RED} />
-        <Glory x={SUN.x - 700} y={SUN.y - 700} size={1400} />
+        <FieldArt id={fieldId} f={field} x={PIC.x} y={PIC.y} w={PIC.w} h={PIC.h} cx={SUN.x} cy={SUN.y} spread={1400} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 180) / 400} fill={field.a} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 180) / 400} fill="none" stroke={onField} strokeWidth={3} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 172) / 400} fill="none" stroke={field.a === INK ? RED : INK} strokeWidth={8} />
         <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 140) / 400} fill={PAPER} />
-        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 172) / 400} fill="none" stroke={INK} strokeWidth={8} />
         <g transform={`translate(${SUN.x - SERPENT / 2} ${SUN.y - SERPENT / 2})`} color={INK}>
           <Ouroboros size={SERPENT} title="" />
         </g>
-        <g transform={`translate(${SUN.x - 94} ${SUN.y - 92})`}>
-          <Coin symbol={d.symbol} chain={d.chain} size={188} />
+        <g transform={`translate(${SUN.x - 50 * FIGURE} ${SUN.y - 50 * FIGURE}) scale(${FIGURE})`}>
+          <CoinDevice symbol={d.symbol} />
         </g>
         {/* stars in the sky */}
-        <Star x={PIC.x + 38} y={PIC.y + 40} s={0.9} fill={PAPER} />
-        <Star x={PIC.x + 82} y={PIC.y + 92} s={0.45} fill={PAPER} />
-        <Star x={PIC.x + PIC.w - 120} y={PIC.y + 30} s={0.4} fill={PAPER} />
+        {field.kind === "rays" && (
+          <>
+            <Star x={PIC.x + 38} y={PIC.y + 40} s={0.9} fill={onField} />
+            <Star x={PIC.x + 82} y={PIC.y + 92} s={0.45} fill={onField} />
+            <Star x={PIC.x + PIC.w - 120} y={PIC.y + 30} s={0.4} fill={onField} />
+          </>
+        )}
 
         {/* the ground, with one cell for each day of the payout */}
         <path
@@ -265,7 +384,7 @@ function CardFace({ d }: { d: CardData }) {
 
       {/* stamps across the picture */}
       {d.exited && (
-        <g transform={`translate(${CX} ${SUN.y + 40}) rotate(-14)`} opacity={0.94}>
+        <g transform={`translate(${CX} ${STAMP_Y}) rotate(-6) scale(0.74)`}>
           <rect x={-190} y={-42} width={380} height={84} fill={PAPER} stroke={RED} strokeWidth={7} />
           <text x={0} y={22} textAnchor="middle" className="bl" fontSize={60} fill={RED}>
             Seal broken
@@ -273,7 +392,7 @@ function CardFace({ d }: { d: CardData }) {
         </g>
       )}
       {done && (
-        <g transform={`translate(${CX} ${SUN.y + 40}) rotate(-10)`} opacity={0.94}>
+        <g transform={`translate(${CX} ${STAMP_Y}) rotate(-6) scale(0.74)`}>
           <rect x={-196} y={-40} width={392} height={80} fill={PAPER} stroke={INK} strokeWidth={6} />
           <text x={0} y={21} textAnchor="middle" className="bl" fontSize={54} fill={INK}>
             Fully released
@@ -299,10 +418,13 @@ export function BondSquare({ d }: { d: CardData }) {
   const Q = SQUARE;
   const x = (Q - W * MOUNT_K) / 2;
   const y = (Q - H * MOUNT_K) / 2;
+  const field = FIELDS[d.symbol] ?? PLAIN;
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${Q} ${Q}`} width={Q} height={Q}>
-      <rect width={Q} height={Q} fill={RED} />
-      <Glory x={Q / 2 - 900} y={y + SUN.y * MOUNT_K - 900} size={1800} />
+      <defs>
+        <FieldPattern id={`field-${d.symbol}`} f={field} />
+      </defs>
+      <FieldArt id={`field-${d.symbol}`} f={field} x={0} y={0} w={Q} h={Q} cx={Q / 2} cy={y + SUN.y * MOUNT_K} spread={1800} />
       <rect x={9} y={9} width={Q - 18} height={Q - 18} fill="none" stroke={INK} strokeWidth={18} />
       <rect x={27} y={27} width={Q - 54} height={Q - 54} fill="none" stroke={PAPER} strokeWidth={3} />
       {/* the card's hard shadow, then the card */}

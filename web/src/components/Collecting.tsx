@@ -9,7 +9,8 @@ import { CARD_H, CARD_W } from "./BondCard";
 import { ConsumeCoin } from "./Coin";
 import { coins, play } from "@/lib/sound";
 
-type Base = { kind: "claim" | "exit"; bond: string; card: string };
+/** `bonds` is set when one transaction collects from several Bonds; `bond` and `card` are then the first of them. */
+type Base = { kind: "claim" | "exit"; bond: string; card: string; bonds?: number };
 
 export type CollectScene =
   | (Base & { stage: "waiting"; amount: string; forfeit?: string })
@@ -98,6 +99,8 @@ export function Collecting({ scene, onClose }: { scene: CollectScene; onClose: (
   const count = useCount(received ? received.whole : null);
   const counting = received !== null && count !== null && count < received.whole;
   const exit = scene.kind === "exit";
+  const several = !exit && (scene.bonds ?? 1) > 1;
+  const from = several ? `Your ${scene.bonds} Bonds` : `Bond № ${scene.bond}`;
 
   return (
     <dialog
@@ -135,7 +138,7 @@ export function Collecting({ scene, onClose }: { scene: CollectScene; onClose: (
               Approve it in your wallet.{" "}
               {exit
                 ? `You take ${scene.amount} $CONSUME now${scene.forfeit ? ` and give up ${scene.forfeit}` : ""}.`
-                : `Bond № ${scene.bond} pays you ${scene.amount} $CONSUME.`}
+                : `${from} ${several ? "pay" : "pays"} you ${scene.amount} $CONSUME${several ? ", in one transaction" : ""}.`}
             </p>
           </div>
         )}
@@ -159,8 +162,8 @@ export function Collecting({ scene, onClose }: { scene: CollectScene; onClose: (
                     ? `You gave up ${received.forfeited} that was still locked. It will never be minted.`
                     : ""
                   : received.rest
-                    ? `Bond № ${scene.bond} holds about ${received.rest} more${received.by ? `, the last of it released on ${received.by}` : ""}.`
-                    : `Bond № ${scene.bond} has paid out in full.`}
+                    ? `${from} ${several ? "hold" : "holds"} about ${received.rest} more${received.by ? `, the last of it released on ${received.by}` : ""}.`
+                    : `${from} ${several ? "have" : "has"} paid out in full.`}
               </p>
               <div className="actions">
                 <button className="press big" type="button" onClick={onClose}>

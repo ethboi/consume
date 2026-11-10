@@ -184,6 +184,18 @@ const BEADS = Array.from({ length: 40 }, (_, i) => {
   return [+(50 + 43.5 * Math.cos(a)).toFixed(2), +(50 + 43.5 * Math.sin(a)).toFixed(2)] as const;
 });
 
+/** A memecoin's figure alone, in its 100 by 100 box, for drawing large (the Bond card). */
+export function CoinDevice({ symbol }: { symbol: string }) {
+  const Device = DEVICES[symbol];
+  return Device ? (
+    <Device />
+  ) : (
+    <text x={50} y={58} textAnchor="middle" fontSize={24}>
+      {symbol[0]}
+    </text>
+  );
+}
+
 type Props = { symbol: string; chain?: string; size?: number; className?: string };
 
 export function Coin({ symbol, chain, size = 40, className }: Props) {
