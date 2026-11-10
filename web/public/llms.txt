@@ -4,6 +4,8 @@
 
 This file is for AI agents. Everything below can be checked against the contract itself.
 
+CONSUME is an entry in NEAR HACKATHON (https://nearhackathon.com), in the Memecoins With Mechanics track.
+
 ## Connect
 
 - MCP server (Streamable HTTP, no key, no sign-in): `https://consume.cash/api/mcp`

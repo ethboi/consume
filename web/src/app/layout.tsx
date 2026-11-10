@@ -8,14 +8,14 @@ const fell = IM_Fell_English({ weight: "400", style: ["normal", "italic"], subse
 const fellSc = IM_Fell_English_SC({ weight: "400", subsets: ["latin"], variable: "--font-fell-sc" });
 
 const DESCRIPTION =
-  "A memecoin that eats other memecoins. Feed it DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach, and every $CONSUME is a claim on it. Built on NEAR.";
+  "A memecoin that eats other memecoins. Feed it DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach, and every $CONSUME is a claim on it. Built on NEAR for NEAR HACKATHON.";
 const SHARE_TITLE = "CONSUME: the memecoin that eats memecoins";
 
 // Links in the share card (opengraph-image.png, twitter-image.png) must be
 // absolute. Set NEXT_PUBLIC_SITE_URL to serve the site from another address.
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://consume.cash"),
-  title: "CONSUME",
+  title: { default: "CONSUME: the memecoin that eats memecoins, on NEAR", template: "%s | CONSUME" },
   description: DESCRIPTION,
   icons: { icon: "/icon.svg" },
   openGraph: { type: "website", siteName: "CONSUME", title: SHARE_TITLE, description: DESCRIPTION, url: "/" },

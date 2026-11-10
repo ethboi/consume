@@ -2,7 +2,7 @@
 import { Coin } from "@/components/Coin";
 import { HERESIES } from "@/lib/heresies";
 
-export const metadata = { title: "CONSUME coins", robots: { index: false } };
+export const metadata = { title: "Coins", robots: { index: false } };
 
 export default function Coins() {
   return (

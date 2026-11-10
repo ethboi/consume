@@ -10,7 +10,7 @@ import { Glory } from "@/components/Woodblock";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
 import "./card.css";
 
-export const metadata: Metadata = { title: "CONSUME share card", robots: { index: false } };
+export const metadata: Metadata = { title: "Share card", robots: { index: false } };
 
 const ORBIT = Array.from({ length: 10 }, (_, i) => (270 + i * 36) % 360);
 
@@ -43,7 +43,7 @@ export default function ShareCard() {
         <p>Feed it yours, earn $CONSUME, and burn it any time for your share of the Stomach.</p>
         <p className="share-where">
           <span>consume.cash</span>
-          <span>on NEAR</span>
+          <span>NEAR Hackathon</span>
         </p>
       </div>
     </main>

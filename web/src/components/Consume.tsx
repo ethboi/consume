@@ -47,6 +47,7 @@ import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
 const ONE_YOCTO = "1";
 const CONSUME_DEC = 18;
 const REPO_URL = (process.env.NEXT_PUBLIC_REPO_URL ?? "").trim();
+const HACKATHON_URL = "https://nearhackathon.com";
 // where the ten coins hang around the serpent (degrees, 0 = right, clockwise),
 // clear of the head at the top and the banner below
 // ten coins evenly spaced (36° apart), one above the serpent's head and one
@@ -180,6 +181,12 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 <span aria-hidden="true">☞</span> How it works
               </a>
             </div>
+            <p className="hero-entry">
+              An entry in{" "}
+              <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
+                NEAR HACKATHON
+              </a>
+            </p>
           </div>
           <div className="hero-art">
             <Woodblock>
@@ -367,6 +374,36 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
           <p>All enforced by the contract.</p>
         </header>
         <Rule snap={snap} />
+      </section>
+
+      <section className="entry" aria-labelledby="entry-h">
+        <div className="entry-head">
+          <h2 id="entry-h">Made for NEAR HACKATHON</h2>
+          <p>
+            CONSUME is entered in the Memecoins With Mechanics track at{" "}
+            <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
+              nearhackathon.com
+            </a>
+            . The track asks for three things, and each one is here.
+          </p>
+        </div>
+        <ul className="entry-asks">
+          <li>
+            <b>The mechanic in the contract</b>
+            <span>Every rule on this page is contract code, and each has a test of its own.</span>
+            <a href="#rule">Read the Rule</a>
+          </li>
+          <li>
+            <b>Sixty days simulated first</b>
+            <span>Four scenarios run through the contract&apos;s own arithmetic: steady feeding, a rush, a run for the exit and a 70% fall.</span>
+            {REPO_URL && <a href={`${REPO_URL}/tree/main/sim`}>See the simulation</a>}
+          </li>
+          <li>
+            <b>A log of every mint and burn</b>
+            <span>Read from the contract&apos;s event logs and checked against the totals it keeps.</span>
+            <a href="#ledger">Open the Ledger</a>
+          </li>
+        </ul>
       </section>
 
       <footer className="colophon invert">

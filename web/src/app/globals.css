@@ -5638,3 +5638,103 @@ section[inert] > :not(header) {
   border-color: var(--paper);
   color: var(--ink);
 }
+
+/* the entry line under the hero's buttons */
+.folio .hero-entry {
+  margin: 18px 0 0;
+  max-width: none;
+  font-family: var(--font-sc);
+  font-size: 1.02rem;
+  letter-spacing: 0.02em;
+  color: var(--faded);
+}
+.folio .hero-entry a {
+  color: var(--rubric);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+/* the entry: what the hackathon track asks for, and where each one is */
+.folio .entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr);
+  gap: 28px clamp(28px, 5vw, 72px);
+  align-items: start;
+  padding: 56px var(--side) 44px;
+}
+.folio .entry h2 {
+  margin: 0 0 12px;
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+.folio .entry h2::first-letter {
+  color: var(--rubric);
+}
+.folio .entry-head p {
+  margin: 0;
+  max-width: 34ch;
+}
+.folio .entry-asks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 2px solid var(--ink);
+}
+.folio .entry-asks li {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 22px 4px;
+  border-left: 1px solid var(--ink);
+}
+.folio .entry-asks li:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.folio .entry-asks b {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+.folio .entry-asks span {
+  font-size: var(--t-sm);
+  color: var(--faded);
+}
+.folio .entry-asks a {
+  margin-top: auto;
+  padding-top: 4px;
+  color: var(--rubric);
+  font-style: italic;
+}
+@media (max-width: 900px) {
+  .folio .entry {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 44px;
+  }
+  .folio .entry-head p {
+    max-width: none;
+  }
+}
+@media (max-width: 600px) {
+  .folio .entry-asks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .folio .entry-asks li {
+    padding: 14px 0;
+    border-left: 0;
+    border-top: 1px solid var(--ink);
+  }
+  .folio .entry-asks li:first-child {
+    border-top: 0;
+  }
+  .folio .hero-entry {
+    margin-top: 14px;
+    font-size: 0.95rem;
+  }
+}

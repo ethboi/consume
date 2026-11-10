@@ -73,7 +73,9 @@ nextjs-portal {
   padding-top: 14px;
   border-top: 2px solid var(--ink);
   font-family: var(--font-sc);
-  font-size: 30px;
+  font-size: 26px;
+  white-space: nowrap;
+  align-items: baseline;
 }
 .share-copy .share-where span:first-child {
   color: var(--rubric);
