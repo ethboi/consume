@@ -28,6 +28,8 @@ function rawFor(usdWhole: number, decimals: number, priceE18: string): string {
 }
 
 const nowNs = BigInt(Date.UTC(2026, 10, 9, 20, 0)) * BigInt(1_000_000);
+/** The sample's own clock. The sample amounts are fixed, so its Bonds are read at this moment, not at the real time. */
+export const DEMO_NOW_MS = Date.UTC(2026, 10, 9, 20, 0);
 const DAY = BigInt(86_400) * BigInt(1_000_000_000);
 
 export const DEMO_TOKEN = (symbol: string) => `${symbol.toLowerCase()}.sample`;

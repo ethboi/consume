@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
-import { DEMO_MINE } from "@/lib/demo";
+import { DEMO_MINE, DEMO_NOW_MS } from "@/lib/demo";
 import {
   CONSUME_CONTRACT,
   DEMO,
@@ -161,7 +161,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                   </span>
                 ))}
                 <p className="wordmark" aria-hidden="true">
-                  Consume
+                  <b>C</b>onsume
                 </p>
               </div>
             </Woodblock>
@@ -358,7 +358,7 @@ function Masthead() {
   return (
     <header className="masthead">
       <a className="masthead-mark" href="#mark" aria-label="CONSUME, back to top">
-        <Ouroboros size={40} detailed={false} title="" />
+        <Ouroboros size={40} solid title="" />
         <span>
           <b>C</b>onsume
         </span>
@@ -394,12 +394,14 @@ function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number)
   const meal = usdValue(raw, decimals, tribe.price_e18);
   const cap = BigInt(tribe.max_meal_usd);
   const m = meal > cap ? cap : meal;
+  // over the feeding limit the contract takes what fits and sends the rest back
+  const accepted = meal > cap ? (raw * cap) / meal : raw;
   const bonus = snap.stats.heaviest_last_epoch === token;
   // as the contract does it (meal.rs): the feast pays no tithe, the rest mints at the backing
   const tithe = bonus ? BigInt(0) : (m * BigInt(snap.stats.tithe_bps)) / BigInt(10_000);
   return {
-    accepted: raw.toString(),
-    refund: "0",
+    accepted: accepted.toString(),
+    refund: (raw - accepted).toString(),
     meal_usd: m.toString(),
     tithe_usd: tithe.toString(),
     consume: (((m - tithe) * BigInt(snap.stats.current_rate)) / BigInt(1_000_000)).toString(),
@@ -799,8 +801,9 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
       <div className="ind-list">
         {vests.map((v) => {
           const h = heresyForToken(v.vest.tribe);
-          const frac = vestedFraction(v.vest.start_ns, v.vest.duration_ns);
-          const left = daysLeft(v.vest.start_ns, v.vest.duration_ns);
+          const nowMs = DEMO ? DEMO_NOW_MS : undefined; // undefined: the real clock
+          const frac = vestedFraction(v.vest.start_ns, v.vest.duration_ns, nowMs);
+          const left = daysLeft(v.vest.start_ns, v.vest.duration_ns, nowMs);
           const claimable = BigInt(v.claimable);
           const locked = BigInt(v.locked);
           const forfeit = locked - (BigInt(v.exit_payout) - claimable);

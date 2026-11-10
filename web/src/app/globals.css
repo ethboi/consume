@@ -3191,3 +3191,29 @@ details.all-rules summary {
 /* ================= the feeding serpent heads its chapter, larger than the other emblems ================= */
 .band > header .emblem.emblem-feed { width: 104px; height: 104px; stroke: var(--ink); margin: -14px 0 -10px; }
 @media (max-width: 600px) { .band > header .emblem.emblem-feed { width: 76px; height: 76px; margin: -6px 0; } }
+
+/* ---- the mark, redrawn: the wordmark sits whole inside the serpent ---- */
+/* a black roundel inside the serpent, so the paper body reads as one bold ring */
+.hero-art .hero-sigil {
+  background: radial-gradient(circle closest-side, var(--ink) 0 70%, transparent 70.5%);
+}
+.hero-sigil .wordmark {
+  font-size: 14.6cqw;
+  transform: translateY(0.6cqw);
+  color: var(--paper);
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  letter-spacing: 0.02em;
+}
+.hero-sigil .wordmark b {
+  font-weight: inherit;
+  color: #e2533f;
+}
+/* top bar: the same serpent as a paper silhouette around a vermilion disc */
+.masthead-mark svg {
+  --eye: var(--ink);
+  background: radial-gradient(circle closest-side, var(--rubric) 0 60%, transparent 61%);
+}
+.masthead-mark svg path {
+  stroke-width: 2px;
+}

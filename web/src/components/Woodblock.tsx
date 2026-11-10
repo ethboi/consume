@@ -25,7 +25,7 @@ function lines() {
   const out: string[] = [];
   for (let i = 0; i < 40; i++) {
     const a = i * 9 + 4.5;
-    out.push(`M${at(a, 170)} L${at(a, i % 2 ? 420 : 800)}`);
+    out.push(`M${at(a, 178)} L${at(a, i % 2 ? 420 : 800)}`);
   }
   return out.join(" ");
 }
@@ -69,7 +69,7 @@ export function Glory({ x, y, size }: { x?: number; y?: number; size?: number } 
       <path d={WEDGES} fill="var(--ink)" />
       <path d={LINES} stroke="var(--ink)" strokeWidth={1.6} />
       {/* black ring just outside the serpent, the cut edge of the roundel */}
-      <circle r={166} fill="none" stroke="var(--ink)" strokeWidth={9} />
+      <circle r={171} fill="none" stroke="var(--ink)" strokeWidth={9} />
     </svg>
   );
 }

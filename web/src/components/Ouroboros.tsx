@@ -3,12 +3,13 @@
 // whose open jaws close on the tapering tail. Everything is computed here so the
 // mark scales cleanly from a 24px favicon to the hero.
 
-type Props = { size?: number; className?: string; detailed?: boolean; animate?: boolean; title?: string };
+type Props = { size?: number; className?: string; detailed?: boolean; solid?: boolean; animate?: boolean; title?: string };
 
 const CX = 200;
 const CY = 200;
 const R = 140; // spine radius
-const W = 36; // body width at the neck
+const W = 44; // body width at the neck
+const BELLY = 0.42; // the belly ends this far (in half-widths) inside the spine
 const NECK = -82; // degrees, where the body leaves the head
 const TIP = 258; // degrees, where the tail ends inside the mouth
 const TAPER = 80; // degrees over which the tail narrows
@@ -37,17 +38,27 @@ function bodyPath() {
   return `M${outer.join(" L")} Q${f(tx)},${f(ty)} ${inner.join(" L")} Z`;
 }
 
-/** Hatching on the inner (shadowed) half of the body, like gouged woodcut lines. */
+/** Belly plates: close, even cuts across the inner edge, the way a woodcut
+ *  shows a snake's underside. Even spacing keeps them from reading as bristles. */
 function hatch() {
   const lines: string[] = [];
-  for (let d = NECK + 3; d < TIP - 6; d += 3.2) {
+  for (let d = NECK + 2; d < TIP - 9; d += 2.9) {
     const w = width(d) / 2;
-    const len = w * (0.55 + 0.25 * Math.sin(d * 0.37));
-    const [ax, ay] = pt(d, R - w + 1.5);
-    const [bx, by] = pt(d + 1.2, R - w + len);
+    const [ax, ay] = pt(d, R - w);
+    const [bx, by] = pt(d, R - w * BELLY);
     lines.push(`M${f(ax)},${f(ay)} L${f(bx)},${f(by)}`);
   }
   return lines.join(" ");
+}
+
+/** The line where the belly meets the back. */
+function lateral() {
+  const out: string[] = [];
+  for (let d = NECK; d < TIP - 8; d += 2) {
+    const [x, y] = pt(d, R - (width(d) / 2) * BELLY);
+    out.push(`${f(x)},${f(y)}`);
+  }
+  return `M${out.join(" L")}`;
 }
 
 /** Chevron scales along the spine, pointing toward the tail. */
@@ -55,22 +66,10 @@ function scales() {
   const out: string[] = [];
   for (let d = NECK + 8; d < TIP - 14; d += 7.5) {
     const w = width(d) / 2;
-    const [ax, ay] = pt(d - 2.6, R + w * 0.62);
-    const [bx, by] = pt(d + 1.8, R);
-    const [cx, cy] = pt(d - 2.6, R - w * 0.62);
+    const [ax, ay] = pt(d - 2.6, R + w * 0.74);
+    const [bx, by] = pt(d + 2.4, R + w * 0.2);
+    const [cx, cy] = pt(d - 2.6, R - w * (BELLY - 0.1));
     out.push(`M${f(ax)},${f(ay)} Q${f(bx)},${f(by)} ${f(cx)},${f(cy)}`);
-  }
-  return out.join(" ");
-}
-
-/** Outer-edge ticks: the lit side catches a few short cuts. */
-function ticks() {
-  const out: string[] = [];
-  for (let d = NECK + 5; d < TIP - 20; d += 9) {
-    const w = width(d) / 2;
-    const [ax, ay] = pt(d, R + w - 1);
-    const [bx, by] = pt(d, R + w - 6);
-    out.push(`M${f(ax)},${f(ay)} L${f(bx)},${f(by)}`);
   }
   return out.join(" ");
 }
@@ -78,7 +77,10 @@ function ticks() {
 const BODY = bodyPath();
 const HATCH = hatch();
 const SCALES = scales();
-const TICKS = ticks();
+const LATERAL = lateral();
+// the head was drawn for a 36-unit neck; grow it with the body, about the neck
+const HEAD_K = W / 36;
+const HEAD_AT = `translate(221 60) scale(${HEAD_K}) translate(-221 -60)`;
 
 // Head at the top, facing left, jaws open around the tail tip (~171,63).
 const UPPER =
@@ -128,9 +130,10 @@ export function SerpentHead({ fill, stroke, detailed = true, cut = 1, open = 0 }
   );
 }
 
-export function Ouroboros({ size = 400, className, detailed = true, animate = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
-  // woodcut: the uncut wood prints as paper, the lines as ink
-  const fill = detailed ? "var(--paper)" : "none";
+export function Ouroboros({ size = 400, className, detailed = true, solid = false, animate = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
+  // woodcut: the uncut wood prints as paper, the lines as ink.
+  // solid: a one-colour silhouette for small sizes, where line work would fill in
+  const fill = solid ? "currentColor" : detailed ? "var(--paper)" : "none";
   return (
     <svg
       className={className}
@@ -146,17 +149,19 @@ export function Ouroboros({ size = 400, className, detailed = true, animate = fa
     >
       <title>{title}</title>
       <g className={animate ? "ouro-body ouro-animate" : "ouro-body"}>
-        <path d={BODY} fill={fill} strokeWidth={detailed ? 3.4 : 9} pathLength={1} className="ouro-outline" />
-        {detailed && (
+        <path d={BODY} fill={fill} strokeWidth={solid ? 2 : detailed ? 3.6 : 9} pathLength={1} className="ouro-outline" />
+        {detailed && !solid && (
           <g className="ouro-cuts">
-            <path d={HATCH} strokeWidth={2.2} />
-            <path d={SCALES} strokeWidth={2.3} />
-            <path d={TICKS} strokeWidth={1.3} />
+            <path d={HATCH} strokeWidth={1.9} strokeLinecap="butt" />
+            <path d={LATERAL} strokeWidth={2} />
+            <path d={SCALES} strokeWidth={2.4} />
           </g>
         )}
       </g>
-      <g className={animate ? "ouro-head ouro-animate" : "ouro-head"}>
-        <SerpentHead fill={fill} stroke={detailed ? 3.2 : 8} detailed={detailed} />
+      <g className={animate ? "ouro-head ouro-animate" : "ouro-head"} transform={HEAD_AT}>
+        <SerpentHead fill={fill} stroke={(solid ? 2 : detailed ? 3.4 : 8) / HEAD_K} detailed={detailed && !solid} />
+        {/* on the silhouette the eye is a hole */}
+        {solid && <circle cx={196} cy={46} r={4.2} fill="var(--eye, #141110)" stroke="none" />}
       </g>
     </svg>
   );

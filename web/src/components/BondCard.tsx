@@ -192,7 +192,7 @@ function CardFace({ d }: { d: CardData }) {
         <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} fill={RED} />
         <Glory x={SUN.x - 700} y={SUN.y - 700} size={1400} />
         <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 140) / 400} fill={PAPER} />
-        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 168) / 400} fill="none" stroke={INK} strokeWidth={8} />
+        <circle cx={SUN.x} cy={SUN.y} r={(SERPENT * 172) / 400} fill="none" stroke={INK} strokeWidth={8} />
         <g transform={`translate(${SUN.x - SERPENT / 2} ${SUN.y - SERPENT / 2})`} color={INK}>
           <Ouroboros size={SERPENT} title="" />
         </g>

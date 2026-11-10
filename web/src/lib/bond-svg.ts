@@ -4,7 +4,7 @@
 import { createElement } from "react";
 import { BondCard, BondSquare, type CardData } from "@/components/BondCard";
 import { CARD_FONT_CSS } from "@/lib/card-fonts.generated";
-import { DEMO_SNAPSHOT } from "@/lib/demo";
+import { DEMO_NOW_MS, DEMO_SNAPSHOT } from "@/lib/demo";
 import { compact, fromRaw, usd, vestedFraction } from "@/lib/format";
 import { CONSUME_CONTRACT, DEMO, heresyForToken, view, type VestView } from "@/lib/near";
 
@@ -57,7 +57,7 @@ export async function bondSvg(rawId: string, square: boolean): Promise<Response>
       ? total > BigInt(0)
         ? Number((BigInt(v.vest.released) * BigInt(1000)) / total) / 1000
         : 0
-      : vestedFraction(v.vest.start_ns, v.vest.duration_ns),
+      : vestedFraction(v.vest.start_ns, v.vest.duration_ns, DEMO ? DEMO_NOW_MS : Date.now()),
     days: Number(BigInt(v.vest.duration_ns) / BigInt(1_000_000_000)) / 86_400,
     exited: v.vest.exited,
     bonus: v.vest.bonus,

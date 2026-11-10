@@ -6,7 +6,7 @@ Feed it a memecoin from another chain (DOGE, PEPE, SHIB and seven more). It keep
 
 The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list, caps, rates and periods are arguments to `new` and no method changes them afterwards.
 
-> **Status, 2026-11-10.** The contracts and the web app run locally; 50 unit tests and two end-to-end sandbox tests pass. Nothing is deployed yet: no testnet contract, no hosted demo, no video. Those links will be added here. Until then the site shows sample figures and says so on the page.
+> **Status, 2026-11-10.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). 50 unit tests and two end-to-end sandbox tests pass. No video yet. The contract account still holds its own full-access key, so its code could still be replaced; that key is to be deleted after a full run on testnet.
 
 ## Check it in five minutes
 
@@ -56,7 +56,7 @@ The track asks for the mechanic to be in the contract and judged on the mechanic
 - **Prices come from one off-chain account,** the Assayer, which reads NEAR Intents 1Click quotes and posts them, all in one call. A feeding is valued against every memecoin in the Stomach. The caps limit what a price that is too high on the memecoin being fed can cost. They do not limit a price that is too low on what the Stomach already holds: a feeding made then mints more than its share, whatever its size, and a dishonest Assayer could use that to take most of the Stomach. This is the largest trust in the design. See [Trust assumptions](#trust-assumptions).
 - **A guardian exists.** It can stop a listed memecoin being eaten and replace the Assayer. It cannot do anything else, and it can be renounced.
 - **NEAR Intents has no testnet,** so the testnet flow uses a stand-in contract with the same calls (`contracts/mock-intents`). The route check in the site is the real mainnet API.
-- **Not deployed yet,** as the status note says.
+- **The contract account still has its key,** as the status note says. Until it is deleted, whoever holds it could replace the code.
 
 ## The problem
 
@@ -149,7 +149,9 @@ Known and not fixed:
 
 ## Try it
 
-Testnet contract, hosted demo and video: not live yet (links will be added here).
+On testnet: open [consume.cash](https://consume.cash) (or [consume-ivory.vercel.app](https://consume-ivory.vercel.app)) and connect a testnet wallet. The contract is `consume.consumecash.testnet`; the NEAR Intents stand-in is `intents.consumecash.testnet`; the guardian and the Assayer are `consumecash.testnet`. Video: not yet.
+
+To run it yourself:
 
 Prerequisites: Rust (stable) with the `wasm32-unknown-unknown` target, [cargo-near](https://github.com/near/cargo-near) 0.22 or newer, Node.js 22 or newer and pnpm 10. The sandbox test downloads a local NEAR node on first run and builds OpenSSL from source (needs a C compiler, make and perl).
 
