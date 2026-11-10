@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
+import { cardData } from "@/lib/bond-card";
 import { DEMO_MINE, DEMO_NOW_MS } from "@/lib/demo";
 import {
   CONSUME_CONTRACT,
   DEMO,
   EXPLORER,
   INTENTS_CONTRACT,
+  MEAL_TOO_SMALL,
   MOCK_INTENTS,
   NETWORK,
   VIA_INTENTS,
   cleanError,
+  fullAccessKeys,
   heresyForToken,
   intentsToken,
   loadSnapshot,
+  nearBalance,
   tokenAccount,
   view,
   type MealQuote,
@@ -23,17 +27,22 @@ import {
   type VestView,
 } from "@/lib/near";
 import { compact, daysLeft, fromRaw, shortAccount, toRaw, usd, usdCompact, usdValue, vestedFraction } from "@/lib/format";
-import { Ouroboros } from "./Ouroboros";
+import { Ouroboros, SerpentHead } from "./Ouroboros";
 import { Stomach } from "./Stomach";
-import { Coin } from "./Coin";
+import { Coin, ConsumeCoin } from "./Coin";
 import { CARD_H, CARD_W } from "./BondCard";
 import { Chains } from "./Chains";
 import { IntentsWallet } from "./IntentsWallet";
-import { Seal } from "./Seal";
+import { PartySeal, Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
-import { BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
-import { TGAS, hasEvent, useWallet, type TxResult } from "./Wallet";
+import { BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, GobletEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
+import { TGAS, eventData, useWallet, type Call, type TxResult } from "./Wallet";
+import { Feeding, SWALLOW_MS, type FeedingScene, type Meal } from "./Feeding";
+import { Collecting, type CollectScene } from "./Collecting";
 import { sleep, useLive } from "@/lib/live";
+import { Feast } from "./Feast";
+import { Ledger } from "./Ledger";
+import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
 
 const ONE_YOCTO = "1";
 const CONSUME_DEC = 18;
@@ -45,27 +54,55 @@ const REPO_URL = (process.env.NEXT_PUBLIC_REPO_URL ?? "").trim();
 const ORBIT = Array.from({ length: 10 }, (_, i) => (270 + i * 36) % 360);
 
 type Toast = { text: string; href?: string } | null;
-type Done = (text: string, hash?: string) => void;
+/** `quiet` reloads the figures without a notice, for when the page already shows what happened. */
+type Done = (text: string, hash?: string, quiet?: boolean) => void;
 
 export function Consume({ initial, loadError }: { initial: Snapshot; loadError: string | null }) {
   const [snap, setSnap] = useState(initial);
   const [toast, setToast] = useState<Toast>(null);
   const [tick, setTick] = useState(0); // bumps after any transaction so panels reload
+  // the server could not read the contract: the figures are samples, and nothing
+  // may be signed against them, until a reading succeeds
+  const [unread, setUnread] = useState(loadError !== null);
+  const asked = useRef(0);
 
-  const refresh = useCallback(async () => {
+  const reload = useCallback(async () => {
     if (DEMO) return;
+    const mine = ++asked.current;
     try {
-      setSnap(await loadSnapshot());
+      const fresh = await loadSnapshot();
+      // two readings can be in flight: only the latest one is kept
+      if (mine !== asked.current) return;
+      setSnap(fresh);
+      setUnread(false);
     } catch {
       // keep the last good snapshot
     }
-    setTick((t) => t + 1);
   }, []);
 
+  const refresh = useCallback(async () => {
+    await reload();
+    setTick((t) => t + 1);
+  }, [reload]);
+
+  // other people feed and redeem too: read the figures again every minute and
+  // when the tab is looked at again (every few seconds while there is no reading)
+  useEffect(() => {
+    if (DEMO) return;
+    const id = setInterval(reload, unread ? 4_000 : 60_000);
+    window.addEventListener("focus", reload);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", reload);
+    };
+  }, [reload, unread]);
+
   const done: Done = useCallback(
-    (text, hash) => {
-      setToast({ text, href: hash ? `${EXPLORER}/txns/${hash}` : undefined });
-      setTimeout(() => setToast(null), 9000);
+    (text, hash, quiet) => {
+      if (!quiet) {
+        setToast({ text, href: hash ? `${EXPLORER}/txns/${hash}` : undefined });
+        setTimeout(() => setToast(null), 9000);
+      }
       refresh();
     },
     [refresh],
@@ -86,9 +123,14 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
 
   return (
     <div className="folio">
-      <Masthead />
-      {DEMO && <p className="demo-note">A preview with sample figures. The testnet contract is not live yet, so the buttons are off.</p>}
-      {loadError && <p className="demo-note">Could not read the contract just now ({loadError}). Showing sample figures.</p>}
+      <Masthead tick={tick} />
+      {DEMO && <p className="demo-note">A preview with sample figures. This build is not joined to a contract, so the buttons are off.</p>}
+      {unread && (
+        <p className="demo-note" role="status" title={loadError ?? undefined}>
+          Could not read the contract just now, so the figures below are samples and feeding, Bonds and redeeming are off. Trying again
+          every few seconds.
+        </p>
+      )}
 
       <section className="hero split" aria-labelledby="mark">
         <div className="hero-grid">
@@ -199,7 +241,10 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             ) : (
               <dd className="value">None yet</dd>
             )}
-            <dd className="note">{feast ? `${feast} feedings pay no tithe` : "next week, the most fed memecoin pays no tithe"}</dd>
+            <dd className="note">
+              {feast ? `${feast} feedings pay no tithe. ` : "next week, the most fed memecoin pays no tithe. "}
+              <a href="#feast">See the race</a>
+            </dd>
           </div>
         </dl>
       </section>
@@ -255,7 +300,16 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </div>
       </section>
 
-      <section className="chapter band band-red" id="feed" aria-labelledby="feed-h">
+      <section className="chapter" id="feast" aria-labelledby="feast-h">
+        <header>
+          <GobletEmblem />
+          <h2 id="feast-h">The Feast</h2>
+          <p>Each week the most fed memecoin wins. For the week after, feeding it pays no tithe.</p>
+        </header>
+        <Feast snap={snap} />
+      </section>
+
+      <section className="chapter band band-red" id="feed" aria-labelledby="feed-h" inert={unread}>
         <header>
           <FeedEmblem />
           <h2 id="feed-h">Feed the Serpent</h2>
@@ -264,16 +318,17 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <Feed snap={snap} tick={tick} onDone={done} />
       </section>
 
-      <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h">
+      <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h" inert={unread}>
         <header>
           <HourglassEmblem />
           <h2 id="bonds-h">Your Bonds</h2>
           <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: sell it and the payout goes with it.</p>
         </header>
         <Bonds snap={snap} tick={tick} onDone={done} />
+        <CollectPreview />
       </section>
 
-      <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h">
+      <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h" inert={unread}>
         <header>
           <ScalesEmblem />
           <h2 id="transmute-h">Redeem</h2>
@@ -296,9 +351,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <QuillEmblem />
           <h2 id="ledger-h">The Ledger</h2>
-          <p>Latest feedings.</p>
+          <p>Every feeding, every $CONSUME minted and every $CONSUME burned.</p>
         </header>
-        <Entries recent={snap.recent} />
+        <Ledger stats={DEMO || unread ? null : snap.stats} tick={tick} fallback={<Entries recent={snap.recent} />} />
       </section>
 
       <section className="chapter band band-ink invert" id="rule" aria-labelledby="rule-h">
@@ -312,7 +367,11 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
 
       <footer className="colophon invert">
         <span>
-          Built at NEAR HACKATHON. {NETWORK === "mainnet"
+          Built at NEAR HACKATHON by EthBoi (
+          <a href="https://x.com/EthBoi_" target="_blank" rel="noreferrer">
+            @EthBoi_
+          </a>{" "}
+          on X). {NETWORK === "mainnet"
             ? "Running on NEAR mainnet."
             : MOCK_INTENTS
               ? "Running on NEAR testnet, with a stand-in for NEAR Intents that simulates deposits and withdrawals."
@@ -324,7 +383,8 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               Source on <a href={REPO_URL}>GitHub</a>.{" "}
             </>
           )}
-          Also by this builder: <a href="https://oneup.markets">OneUp</a>.
+          Also by this builder: <a href="https://oneup.markets">OneUp</a>. For agents: an MCP server at <code>/api/mcp</code> and{" "}
+          <a href="/llms.txt">llms.txt</a>.
         </span>
       </footer>
 
@@ -353,8 +413,35 @@ function priceLabel(priceE18: string): string {
 
 // ---------------------------------------------------------------- masthead
 
-function Masthead() {
+/** The switch for sound and music. Off until the visitor turns it on; the choice is remembered. */
+function SoundSwitch() {
+  const on = useSyncExternalStore(subscribeSound, soundOn, () => false);
+  return (
+    <button
+      className="sound-button"
+      type="button"
+      aria-pressed={on}
+      aria-label="Sound and music"
+      title={on ? "Sound and music are on" : "Turn on sound and music"}
+      onClick={() => setSound(!on)}
+    >
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        {/* a hand bell */}
+        <path d="M12 3.2v2M7 17c.9-1.5 1.2-3.3 1.2-5.6 0-2.9 1.5-5.2 3.8-5.2s3.8 2.3 3.8 5.2c0 2.3.3 4.1 1.2 5.6z" />
+        <path d="M5.5 17h13M10.5 19.6a1.6 1.6 0 0 0 3 0" />
+        {!on && <path className="mute" d="M4.5 4.5l15 15" />}
+      </svg>
+    </button>
+  );
+}
+
+function Masthead({ tick }: { tick: number }) {
   const { accountId, ready, connect, disconnect } = useWallet();
+  // what the signed-in account holds, kept in view; refreshed after every transaction
+  const held = useLive(DEMO || !accountId ? null : `${accountId}:purse:${tick}`, async () =>
+    BigInt(await view<string>(CONSUME_CONTRACT, "ft_balance_of", { account_id: accountId })),
+  );
+  const million = BigInt(1_000_000) * BigInt(10) ** BigInt(CONSUME_DEC);
   return (
     <header className="masthead">
       <a className="masthead-mark" href="#mark" aria-label="CONSUME, back to top">
@@ -365,20 +452,36 @@ function Masthead() {
       </a>
       <nav aria-label="Sections">
         <a href="#crucible">The Stomach</a>
+        <a href="#feast">The Feast</a>
         <a href="#feed">Feed</a>
         <a href="#bonds">Bonds</a>
         <a href="#transmute">Redeem</a>
         <a href="#ledger">Ledger</a>
       </nav>
-      {accountId ? (
-        <button className="sign-button" onClick={disconnect} title="Sign out">
-          {shortAccount(accountId)}
-        </button>
-      ) : (
-        <button className="sign-button" onClick={connect} disabled={!ready || DEMO}>
-          Connect wallet
-        </button>
-      )}
+      <span className="masthead-end">
+        <SoundSwitch />
+        {accountId ? (
+          <span className="masthead-me">
+            {held.data !== undefined && held.data !== null && (
+              <span className="purse" title="The $CONSUME in your wallet">
+                <ConsumeCoin size={26} />
+                <b>{held.data >= million ? compact(held.data, CONSUME_DEC) : fromRaw(held.data, CONSUME_DEC, 0)}</b>
+                <span className="purse-unit" aria-hidden="true">
+                  $CONSUME
+                </span>
+                <span className="sr-only"> $CONSUME in your wallet</span>
+              </span>
+            )}
+            <button className="sign-button" onClick={disconnect} title="Sign out">
+              {shortAccount(accountId)}
+            </button>
+          </span>
+        ) : (
+          <button className="sign-button" onClick={connect} disabled={!ready || DEMO} aria-label="Connect wallet">
+            Connect<span className="sign-long"> wallet</span>
+          </button>
+        )}
+      </span>
     </header>
   );
 }
@@ -387,6 +490,9 @@ function Masthead() {
 
 const CREDIT_TOP_UP = "100000000000000000000000"; // 0.1 NEAR
 const CREDIT_LOW = BigInt("30000000000000000000000"); // below 0.03 NEAR, top up
+// a first feeding sends the 0.1 NEAR credit and prepays gas: under this, point to the faucet
+const NEAR_LOW = BigInt("250000000000000000000000"); // 0.25 NEAR
+const NEAR_FAUCET = "https://near-faucet.io/";
 
 function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number): MealQuote | null {
   const tribe = snap.tribes.find(([k]) => k === token)?.[1];
@@ -434,27 +540,55 @@ async function registrationCalls(tokens: string[], accountId: string) {
 }
 
 // where a long name may break on a narrow screen (a soft hyphen, unseen until it is needed)
-const SOFT: Record<string, string> = { BLACKDRAGON: "BLACK\u00ADDRAGON" };
+const SOFT: Record<string, string> = { BLACKDRAGON: "BLACK­DRAGON" };
+
+/** Positions on the amount slider, which runs on a log scale: a dollar and a thousand both get room. */
+const SLIDER_STEPS = 240;
+
+/** What the contract logs when $CONSUME is burned for a share of the Stomach. */
+type RedeemEvent = { burned: string; shares: [string, string][] };
+
+/** What the contract logs when it eats. */
+type MealEvent = { vest_id: string; eaten: string; meal_usd: string; consume: string; bonus: boolean };
+
+/** The serpent's open jaws at the end of the slider: the coin is slid toward them. */
+function Maw() {
+  return (
+    <svg className="ms-maw" viewBox="138 20 114 82" aria-hidden="true" fill="none" stroke="var(--ink)" color="var(--ink)" strokeLinecap="round" strokeLinejoin="round">
+      {/* the neck runs off the edge of the trough */}
+      <path d="M221,41 H254 V75 H221 Z" fill="var(--paper)" stroke="none" />
+      <path d="M222,41 H254 M223,75 H254" strokeWidth={2.2} />
+      <path d="M224,66 H254 M230,66 V75 M237,66 V75 M244,66 V75 M251,66 V75" strokeWidth={1.2} />
+      <SerpentHead fill="var(--paper)" stroke={2.2} cut={1.3} open={10} />
+    </svg>
+  );
+}
 
 function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send, connect } = useWallet();
   const [symbol, setSymbol] = useState("PEPE");
   const [amount, setAmount] = useState("");
+  // what is being typed in the dollar box; null when the box just shows the worth of `amount`
+  const [usdText, setUsdText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [scene, setScene] = useState<FeedingScene | null>(null);
+  // false once the feeder closes the sheet: the outcome then arrives as a notice instead
+  const watching = useRef(false);
 
   const h = THE_TEN.find((x) => x.symbol === symbol)!;
   const token = tokenAccount(h);
   const tribe = snap.tribes.find(([k]) => k === token)?.[1];
   const raw = toRaw(amount, h.decimals);
 
-  const bal = useLive(DEMO || !accountId ? null : `${accountId}:${token}:${tick}`, async () =>
-    BigInt(
-      VIA_INTENTS
-        ? await view<string>(INTENTS_CONTRACT, "mt_balance_of", { account_id: accountId, token_id: intentsToken(token) })
-        : await view<string>(token, "ft_balance_of", { account_id: accountId }),
-    ),
-  );
+  // what the feeder holds of each of the ten, so the picker can show it
+  const bals = useLive(DEMO || !accountId ? null : `${accountId}:held:${tick}`, async () => {
+    const tokens = THE_TEN.map(tokenAccount);
+    const held = VIA_INTENTS
+      ? await view<string[]>(INTENTS_CONTRACT, "mt_batch_balance_of", { account_id: accountId, token_ids: tokens.map(intentsToken) })
+      : await Promise.all(tokens.map((t) => view<string>(t, "ft_balance_of", { account_id: accountId }).catch(() => "0")));
+    return Object.fromEntries(tokens.map((t, i) => [t, BigInt(held[i] ?? "0")])) as Record<string, bigint>;
+  });
   const credit = useLive(DEMO || !accountId ? null : `${accountId}:credit:${tick}`, async () =>
     BigInt((await view<string>(CONSUME_CONTRACT, "get_meal_credit", { account_id: accountId })) ?? "0"),
   );
@@ -464,7 +598,34 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
     return view<MealQuote>(CONSUME_CONTRACT, "quote_meal", { token_id: token, amount: raw!.toString() });
   });
   const quote = q.data ?? null;
-  const balance = bal.data ?? null;
+  const balance = bals.data ? (bals.data[token] ?? BigInt(0)) : null;
+  // fees and storage are paid in NEAR; a fresh testnet wallet may hold none
+  const near = useLive(DEMO || !accountId || NETWORK !== "testnet" ? null : `${accountId}:near:${tick}`, () => nearBalance(accountId!));
+  const nearLow = near.data !== undefined && near.data < NEAR_LOW;
+
+  const closeScene = useCallback(() => {
+    watching.current = false;
+    setScene(null);
+  }, []);
+
+  /** The Bond's card as it will print, from what the contract said it ate. */
+  const sceneCard = (ev: MealEvent, startMs: number) =>
+    cardData(
+      ev.vest_id,
+      {
+        tribe: token,
+        eaten: ev.eaten,
+        meal_usd: ev.meal_usd,
+        total: ev.consume,
+        released: "0",
+        start_ns: (BigInt(startMs) * BigInt(1_000_000)).toString(),
+        duration_ns: snap.config.vest_duration_ns,
+        exited: false,
+        bonus: ev.bonus,
+      },
+      h,
+      0,
+    );
 
   const faucet = async () => {
     setBusy(true);
@@ -496,8 +657,11 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
 
   const feed = async () => {
     if (!raw || !quote || !accountId) return;
+    const meal: Meal = { symbol: h.symbol, chain: h.chain, amount: fromRaw(quote.accepted, h.decimals), worth: usd(quote.meal_usd) };
     setBusy(true);
     setError(null);
+    watching.current = true;
+    setScene({ stage: "waiting", meal });
     try {
       const calls = [];
       if ((credit.data ?? BigInt(0)) < CREDIT_LOW) {
@@ -529,13 +693,28 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
       );
       const results = await send(calls);
       const last = results[results.length - 1];
-      if (!hasEvent(results, "meal")) {
+      const ev = eventData<MealEvent>(results, "meal");
+      if (!ev) {
         throw new Error(`It refused the feeding and your ${h.symbol} was returned${last.failure ? `: ${last.failure}` : "."}`);
       }
       setAmount("");
-      onDone(`Fed ${fromRaw(quote.accepted, h.decimals)} ${h.symbol} to the Stomach. Your Bond is minted.`, last.hash);
+      setUsdText(null);
+      const eaten = fromRaw(ev.eaten ?? quote.accepted, h.decimals);
+      const notice = `Fed ${eaten} ${h.symbol} to the Stomach. Your Bond is minted.`;
+      if (!watching.current) {
+        onDone(notice, last.hash);
+        return;
+      }
+      onDone(notice, last.hash, true); // reload the page's figures; the sheet says the rest
+      setScene({ stage: "swallowing", meal: { ...meal, amount: eaten } });
+      await sleep(SWALLOW_MS);
+      if (watching.current) {
+        setScene({ stage: "bond", meal: { ...meal, amount: eaten }, card: sceneCard(ev, Date.now()), href: `${EXPLORER}/txns/${last.hash}` });
+      }
     } catch (e) {
-      setError(cleanError(e));
+      const reason = cleanError(e);
+      setError(reason);
+      if (watching.current) setScene({ stage: "refused", meal, reason });
     } finally {
       setBusy(false);
     }
@@ -555,11 +734,13 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
   };
 
   const over = balance !== null && raw !== null && raw > balance;
-  const shownError = error ?? q.error ?? null;
 
   // amounts in dollars, because nobody knows how many PEPE make fifty dollars
   const price = tribe ? Number(BigInt(tribe.price_e18)) / 1e18 : 0;
   const capUsd = tribe ? Number(BigInt(tribe.max_meal_usd)) / 1e6 : 0;
+  const minUsd = Number(BigInt(snap.config.min_meal_usd ?? "1000000")) / 1e6;
+  const refusal = error ?? q.error ?? null;
+  const shownError = refusal === MEAL_TOO_SMALL ? `The smallest feeding is $${minUsd.toLocaleString("en-US")} of ${h.symbol}.` : refusal;
   const amountFor = (dollars: number) => {
     const n = dollars / price;
     const d = Math.min(h.decimals, n >= 1e6 ? 0 : n >= 1000 ? 2 : 6);
@@ -567,18 +748,64 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
     const round = dollars >= capUsd ? Math.floor : Math.ceil;
     return (round(n * 10 ** d) / 10 ** d).toFixed(d);
   };
-  const quick = price > 0 ? [10, 50, 100].filter((d) => d <= capUsd) : [];
   const feastToken = snap.stats.heaviest_last_epoch;
+  const mealUsd = raw && tribe ? Number(usdValue(raw, h.decimals, tribe.price_e18)) / 1e6 : 0;
 
-  const quoteUsd = quote ? usd(quote.meal_usd) : raw && tribe ? usd(usdValue(raw, h.decimals, tribe.price_e18)) : "$0.00";
+  // the slider: position 0 is the smallest feeding, the last position the most one feeding takes
+  const canSlide = price > 0 && capUsd > minUsd;
+  const span = canSlide ? Math.log(capUsd / minUsd) : 1;
+  const posOf = (dollars: number) => Math.min(SLIDER_STEPS, Math.max(0, Math.round((SLIDER_STEPS * Math.log(dollars / minUsd)) / span)));
+  const usdAt = (pos: number) => {
+    if (pos >= SLIDER_STEPS) return capUsd;
+    if (pos <= 0) return minUsd;
+    const v = minUsd * Math.exp((span * pos) / SLIDER_STEPS);
+    // land on round sums: halves under $10, whole dollars under $100, then fives and tens
+    const step = v < 10 ? 0.5 : v < 100 ? 1 : v < 250 ? 5 : 10;
+    return Math.min(capUsd, Math.max(minUsd, Math.round(v / step) * step));
+  };
+  const pos = canSlide && mealUsd > 0 ? posOf(mealUsd) : 0;
+  const marks = canSlide ? [...new Set([minUsd, ...[10, 100, 1000].filter((v) => v > minUsd * 2 && v < capUsd * 0.6), capUsd])] : [];
+  const setDollars = (dollars: number) => {
+    setAmount(amountFor(dollars));
+    setUsdText(null);
+    setError(null);
+  };
+  const usdShown = usdText ?? (mealUsd > 0 ? mealUsd.toFixed(2).replace(/\.00$/, "") : "");
+
+  // ?preview=feeding plays the sheet with sample figures, so it can be seen without sending anything
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("preview") !== "feeding" || !tribe || !price) return;
+    let alive = true;
+    (async () => {
+      const sample = toRaw(amountFor(Math.min(50, capUsd)), h.decimals)!;
+      const sq = demoQuote(snap, token, sample, h.decimals)!;
+      const meal: Meal = { symbol: h.symbol, chain: h.chain, amount: fromRaw(sq.accepted, h.decimals), worth: usd(sq.meal_usd) };
+      await sleep(500);
+      if (!alive) return;
+      watching.current = true;
+      setScene({ stage: "waiting", meal });
+      await sleep(2600);
+      if (!alive || !watching.current) return;
+      setScene({ stage: "swallowing", meal });
+      await sleep(SWALLOW_MS);
+      if (!alive || !watching.current) return;
+      const ev: MealEvent = { vest_id: String(Number(snap.stats.vests_minted) + 1), eaten: sq.accepted, meal_usd: sq.meal_usd, consume: sq.consume, bonus: sq.bonus };
+      setScene({ stage: "bond", meal, card: sceneCard(ev, Date.now()), preview: true });
+    })();
+    return () => {
+      alive = false;
+    };
+    // played once, with whatever the page first loaded
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="leaf offering">
       <div className="feed-pick">
-        <fieldset className="coin-picker">
+        <fieldset className="pick">
           <legend>Which memecoin</legend>
           {THE_TEN.map((x) => {
             const t = snap.tribes.find(([k]) => k === tokenAccount(x))?.[1];
+            const held = bals.data ? (bals.data[tokenAccount(x)] ?? BigInt(0)) : null;
             return (
               <label key={x.symbol} title={t?.open ? `${x.symbol} from ${x.chain}` : `${x.symbol} is sealed for now`}>
                 <input
@@ -590,11 +817,20 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                   onChange={() => {
                     setSymbol(x.symbol);
                     setAmount("");
+                    setUsdText(null);
                     setError(null);
                   }}
                 />
-                <Coin symbol={x.symbol} size={52} />
-                <span className={x.symbol.length > 8 ? "long" : undefined}>{SOFT[x.symbol] ?? x.symbol}</span>
+                <span className="pick-coin">
+                  <Coin symbol={x.symbol} size={52} />
+                </span>
+                <span className={x.symbol.length > 8 ? "pick-name long" : "pick-name"}>{SOFT[x.symbol] ?? x.symbol}</span>
+                {held !== null && (
+                  <span className={held > BigInt(0) ? "pick-held" : "pick-held none"}>
+                    <span className="sr-only">You have </span>
+                    {held > BigInt(0) ? compact(held, x.decimals) : "none"}
+                  </span>
+                )}
                 {feastToken === tokenAccount(x) && <em className="pick-tag">feast</em>}
               </label>
             );
@@ -613,84 +849,148 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             </button>
           </p>
         )}
+        {NETWORK === "testnet" && (
+          <p className={nearLow ? "pick-fees low" : "pick-fees"}>
+            {nearLow
+              ? `Your wallet holds ${fromRaw(near.data!, 24)} NEAR. A first feeding needs about 0.2 for fees and storage. `
+              : "Fees are paid in testnet NEAR, which is free. "}
+            <a href={NEAR_FAUCET} target="_blank" rel="noreferrer">
+              {nearLow ? "Get free testnet NEAR at near-faucet.io" : "Get some at near-faucet.io"}
+            </a>
+            .
+          </p>
+        )}
       </div>
+
       <div className="feed-main">
-        <div className="receipt" aria-live="polite">
-          <div className="give">
-            <span className="r-label">You feed it</span>
-            <div className="field-row">
-              <label className="sr-only" htmlFor="amount">
-                Amount of {h.symbol}
-              </label>
+        <div className="meal">
+          <div className="meal-head">
+            <span className="meal-label">You feed it</span>
+            {balance !== null && (
+              <span className="meal-hold">
+                {balance > BigInt(0) ? (
+                  <>
+                    <span>
+                      You have{" "}
+                      <b>
+                        {fromRaw(balance, h.decimals)} {h.symbol}
+                      </b>
+                      {tribe ? `, worth ${usd(usdValue(balance, h.decimals, tribe.price_e18))}` : ""}
+                    </span>
+                    <button
+                      className="small-button"
+                      type="button"
+                      onClick={() => {
+                        setAmount(fromRaw(balance, h.decimals, h.decimals).replace(/,/g, ""));
+                        setUsdText(null);
+                        setError(null);
+                      }}
+                    >
+                      Feed it all
+                    </button>
+                  </>
+                ) : (
+                  <span>You have no {h.symbol} yet</span>
+                )}
+              </span>
+            )}
+          </div>
+
+          <div className="meal-figures">
+            <label className="meal-usd">
+              <span className="sr-only">Dollars of {h.symbol}</span>
+              <span aria-hidden="true">$</span>
               <input
-                id="amount"
-                className="amount"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="Amount"
+                placeholder="amount"
+                disabled={!price}
+                value={usdShown}
+                onChange={(e) => {
+                  const text = e.target.value.replace(/[^0-9.]/g, "");
+                  const n = Number(text);
+                  setUsdText(text);
+                  setAmount(text && Number.isFinite(n) && n > 0 && price ? amountFor(n) : "");
+                  setError(null);
+                }}
+                onBlur={() => setUsdText(null)}
+              />
+            </label>
+            <label className="meal-token">
+              <span className="sr-only">Amount of {h.symbol}</span>
+              <span aria-hidden="true">is</span>
+              <input
+                id="amount"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="how many"
                 value={amount}
                 onChange={(e) => {
                   setAmount(e.target.value);
+                  setUsdText(null);
                   setError(null);
                 }}
-                aria-describedby="amount-help"
               />
-              <span className="r-token">
-                <Coin symbol={h.symbol} size={40} />
-                {h.symbol}
+              <Coin symbol={h.symbol} size={30} />
+              <span className="meal-sym">{h.symbol}</span>
+            </label>
+          </div>
+
+          <div className="meal-slider" style={{ ["--p" as string]: pos / SLIDER_STEPS }}>
+            <div className="ms-run">
+              <span className="ms-track" />
+              <span className="ms-fill" />
+              <input
+                type="range"
+                min={0}
+                max={SLIDER_STEPS}
+                step={1}
+                value={pos}
+                disabled={!canSlide}
+                aria-label={`How much ${h.symbol} to feed, in dollars`}
+                aria-valuetext={mealUsd > 0 ? usd(BigInt(Math.round(mealUsd * 1e6))) : "nothing yet"}
+                onChange={(e) => setDollars(usdAt(Number(e.target.value)))}
+              />
+              <span className="ms-thumb">
+                <Coin symbol={h.symbol} size={44} />
               </span>
+              {marks.length > 0 && (
+                <div className="ms-marks">
+                  {marks.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      style={{ ["--t" as string]: posOf(v) / SLIDER_STEPS }}
+                      aria-label={`Feed ${v} dollars of ${h.symbol}`}
+                      onClick={() => setDollars(v)}
+                    >
+                      ${v.toLocaleString("en-US")}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            {quick.length > 0 && (
-              <span className="quick">
-                {quick.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    className="small-button"
-                    aria-label={`Feed ${d} dollars of ${h.symbol}`}
-                    onClick={() => {
-                      setAmount(amountFor(d));
-                      setError(null);
-                    }}
-                  >
-                    ${d}
-                  </button>
-                ))}
-              </span>
-            )}
-            <span id="amount-help" className="r-sub">
-              Worth {quoteUsd}.
-              {balance !== null && (
+            <Maw />
+          </div>
+        </div>
+
+        <div className="yield" aria-live="polite">
+          <Seal size={66} />
+          <div>
+            <span className="yield-label">You get a Bond for</span>
+            <span className={quote ? "yield-amount" : "yield-amount empty"}>
+              {quote ? (
                 <>
-                  {" "}
-                  You hold {fromRaw(balance, h.decimals)}
-                  {VIA_INTENTS ? " on NEAR Intents" : ""}.{" "}
-                  <button
-                    className="link-button"
-                    type="button"
-                    disabled={!balance}
-                    onClick={() => setAmount(fromRaw(balance, h.decimals, h.decimals).replace(/,/g, ""))}
-                  >
-                    use all
-                  </button>
+                  {fromRaw(quote.consume, CONSUME_DEC, 0)} <small>$CONSUME</small>
                 </>
+              ) : (
+                "nothing yet"
               )}
             </span>
-          </div>
-          <span className="r-hand" aria-hidden="true">
-            ☞
-          </span>
-          <div className="get">
-            <span className="r-label">You get</span>
-            <span className={quote ? "r-amount" : "r-amount empty"}>{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "nothing yet"}</span>
-            <span className="r-sub">
-              {quote ? "" : "paid in "}$CONSUME over 30 days
-              {quote && (
-                <>
-                  <br />
-                  {quote.bonus ? "no tithe at a feast" : `after a ${usd(quote.tithe_usd)} tithe`}
-                </>
-              )}
+            <span className="yield-sub">
+              {quote
+                ? `Paid out a little each day for 30 days, ${quote.bonus ? "with no tithe at a feast" : `after a ${usd(quote.tithe_usd)} tithe`}.`
+                : "A Bond pays out $CONSUME a little each day for 30 days."}
             </span>
           </div>
         </div>
@@ -707,9 +1007,9 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           ) : q.loading ? (
             <p className="hint">Asking what it pays…</p>
           ) : !quote ? (
-            <p className="hint">Enter an amount.</p>
+            <p className="hint">Slide the coin toward the jaws, or type an amount.</p>
           ) : (
-            <p className="hint">Fed memecoins stay in the Stomach for good.</p>
+            <p className="hint">A feeding cannot be taken back. Memecoins leave the Stomach only when $CONSUME is burned for them.</p>
           )}
         </div>
 
@@ -739,6 +1039,17 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           </p>
         </details>
       </div>
+
+      {scene && (
+        <Feeding
+          scene={scene}
+          onClose={closeScene}
+          onSeeBonds={() => {
+            closeScene();
+            document.getElementById("bonds")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -755,6 +1066,34 @@ async function loadAllVests(accountId: string): Promise<VestView[]> {
   return out.sort((a, b) => Number(b.token_id) - Number(a.token_id));
 }
 
+type ClaimEvent = { vest_id: string; amount: string };
+type ExitEvent = { vest_id: string; payout: string; forfeited: string };
+
+const wholeConsume = (raw: bigint) => Number(raw / BigInt(10) ** BigInt(CONSUME_DEC));
+
+/** ?preview=collect plays the collecting sheet with sample figures; nothing is sent. */
+function CollectPreview() {
+  const [scene, setScene] = useState<CollectScene | null>(null);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("preview") !== "collect") return;
+    let alive = true;
+    (async () => {
+      const base = { kind: "claim" as const, bond: "1", card: "/bond/1.svg" };
+      await sleep(500);
+      if (!alive) return;
+      setScene({ ...base, stage: "waiting", amount: "4,812" });
+      await sleep(2400);
+      if (!alive) return;
+      setScene((s) => (s ? { ...base, stage: "received", amount: "4,812", whole: 4812, rest: "44,469", by: "10 Dec", preview: true } : s));
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  if (!scene) return null;
+  return <Collecting scene={scene} onClose={() => setScene(null)} />;
+}
+
 function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send } = useWallet();
   const [error, setError] = useState<string | null>(null);
@@ -765,18 +1104,75 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
   const live = useLive(DEMO || !accountId ? null : `${accountId}:${tick}`, () => loadAllVests(accountId!), 30_000);
   const vests = DEMO ? DEMO_MINE.map((id) => snap.recent.find((v) => v.token_id === id)!) : live.data;
 
-  const act = async (id: string, method: "claim" | "exit", text: string) => {
+  // the sheet that shows the payout arriving; closing it never stops the transaction
+  const [scene, setScene] = useState<CollectScene | null>(null);
+  const watching = useRef(false);
+  const closeScene = () => {
+    watching.current = false;
+    setScene(null);
+  };
+
+  const act = async (v: VestView, method: "claim" | "exit") => {
+    const id = v.token_id;
+    const expected = BigInt(method === "exit" ? v.exit_payout : v.claimable);
+    const locked = BigInt(v.locked);
+    const giveUp = locked - (BigInt(v.exit_payout) - BigInt(v.claimable));
+    const base = { kind: method, bond: id, card: `/bond/${id}.svg?v=${tick}` };
     setBusyId(id);
     setError(null);
+    watching.current = true;
+    setScene({
+      ...base,
+      stage: "waiting",
+      amount: fromRaw(expected, CONSUME_DEC, 0),
+      forfeit: method === "exit" ? fromRaw(giveUp, CONSUME_DEC, 0) : undefined,
+    });
     try {
-      const [r] = await send([
-        { receiverId: CONSUME_CONTRACT, methodName: method, args: { token_id: id }, deposit: method === "exit" ? ONE_YOCTO : "0", gas: TGAS(50) },
-      ]);
+      const calls: Call[] = [];
+      // A Bond bought or received in a wallet that has never held $CONSUME: set the
+      // account up first. Both calls go to the one contract, so they travel as one
+      // transaction and the setup is not paid for if the payout is refused.
+      if (!(await view<unknown>(CONSUME_CONTRACT, "storage_balance_of", { account_id: accountId }))) {
+        const bounds = await view<{ min: string }>(CONSUME_CONTRACT, "storage_balance_bounds");
+        calls.push({
+          receiverId: CONSUME_CONTRACT,
+          methodName: "storage_deposit",
+          args: { registration_only: true },
+          deposit: bounds.min,
+          gas: TGAS(10),
+        });
+      }
+      calls.push({
+        receiverId: CONSUME_CONTRACT,
+        methodName: method,
+        args: { token_id: id },
+        deposit: method === "exit" ? ONE_YOCTO : "0",
+        gas: TGAS(50),
+      });
+      const results = await send(calls);
+      const r = results[0];
       if (r.failure) throw new Error(r.failure);
+      // what the contract says it paid, which is a little more than the page showed a moment ago
+      const left = method === "exit" ? eventData<ExitEvent>(results, "exit") : null;
+      const got = BigInt((method === "exit" ? left?.payout : eventData<ClaimEvent>(results, "claim")?.amount) ?? expected.toString());
+      const amount = fromRaw(got, CONSUME_DEC, 0);
+      const ends = new Date(Number((BigInt(v.vest.start_ns) + BigInt(v.vest.duration_ns)) / BigInt(1_000_000)));
       setConfirmBreak(null);
-      onDone(text, r.hash);
+      if (watching.current)
+        setScene({
+          ...base,
+          stage: "received",
+          amount,
+          whole: wholeConsume(got),
+          rest: method === "claim" && locked > BigInt(0) ? fromRaw(locked, CONSUME_DEC, 0) : undefined,
+          by: ends.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }),
+          forfeited: left ? `${fromRaw(left.forfeited, CONSUME_DEC, 0)} $CONSUME` : undefined,
+          href: r.hash ? `${EXPLORER}/txns/${r.hash}` : undefined,
+        });
+      onDone(method === "exit" ? `Seal broken. Received ${amount} $CONSUME.` : `Collected ${amount} $CONSUME.`, r.hash, watching.current);
     } catch (e) {
-      setError(cleanError(e));
+      if (watching.current) setScene({ ...base, stage: "refused", reason: cleanError(e) });
+      else setError(cleanError(e));
     } finally {
       setBusyId(null);
     }
@@ -843,7 +1239,9 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
                       <span className="big" suppressHydrationWarning>
                         {fromRaw(claimable, CONSUME_DEC, 0)}
                       </span>
-                      <span className="unit">$CONSUME</span>
+                      <span className="unit">
+                        <ConsumeCoin size={22} /> $CONSUME
+                      </span>
                     </p>
                     <p className="ind-progress" suppressHydrationWarning>
                       {Math.round(frac * 100)}% of {fromRaw(v.vest.total, CONSUME_DEC, 0)} released
@@ -852,8 +1250,8 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
                     <div className="actions">
                       <button
                         className="press"
-                        disabled={DEMO || claimable === BigInt(0) || busyId === v.token_id}
-                        onClick={() => act(v.token_id, "claim", `Collected ${fromRaw(claimable, CONSUME_DEC, 0)} $CONSUME.`)}
+                        disabled={DEMO || claimable === BigInt(0) || busyId !== null}
+                        onClick={() => act(v, "claim")}
                       >
                         Collect
                       </button>
@@ -863,8 +1261,8 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
                         {confirmBreak === v.token_id ? (
                           <button
                             className="small-button danger"
-                            disabled={busyId === v.token_id}
-                            onClick={() => act(v.token_id, "exit", `Seal broken. Received ${fromRaw(v.exit_payout, CONSUME_DEC, 0)} $CONSUME.`)}
+                            disabled={busyId !== null}
+                            onClick={() => act(v, "exit")}
                           >
                             Yes, break it
                           </button>
@@ -885,6 +1283,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
           );
         })}
       </div>
+      {scene && <Collecting scene={scene} onClose={closeScene} />}
     </>
   );
 }
@@ -922,19 +1321,23 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
   const quote = q.data ?? null;
   const owed = owedLive.data ?? [];
 
-  const totalMicro =
-    quote?.shares.reduce((a, [k, v]) => {
+  const worth = (shares: [string, string][]) =>
+    shares.reduce((a, [k, v]) => {
       const t = snap.tribes.find(([kk]) => kk === k)?.[1];
       return t ? a + usdValue(v, t.decimals, t.price_e18) : a;
-    }, BigInt(0)) ?? BigInt(0);
+    }, BigInt(0));
+  const totalMicro = quote ? worth(quote.shares) : BigInt(0);
 
   const afterPayout = async (results: TxResult[], doneText: string) => {
-    const left = await view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }).catch(() => []);
+    // null: the record could not be read, which is not the same as nothing owed
+    const left = await view<[string, string][]>(CONSUME_CONTRACT, "get_owed", { account_id: accountId }).catch(() => null);
     const last = results[results.length - 1];
     onDone(
-      left.length > 0
-        ? `${doneText} ${left.length} ${left.length === 1 ? "share is" : "shares are"} still unpaid; use Retry.`
-        : doneText,
+      left === null
+        ? `${doneText} Could not check that every share was paid; if one was not, a Retry button shows here.`
+        : left.length > 0
+          ? `${doneText} ${left.length} ${left.length === 1 ? "share is" : "shares are"} still unpaid; use Retry.`
+          : doneText,
       last.hash,
     );
   };
@@ -949,9 +1352,12 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
         ...(await registrationCalls(tokens, accountId)),
         { receiverId: CONSUME_CONTRACT, methodName: "redeem", args: { amount: raw.toString() }, deposit: ONE_YOCTO, gas: TGAS(300) },
       ]);
-      if (!hasEvent(results, "redeem")) throw new Error(results[results.length - 1].failure ?? "The redemption did not go through.");
+      // what the contract says it burned and gave, which can differ from the quote shown before signing
+      const ev = eventData<RedeemEvent>(results, "redeem");
+      if (!ev) throw new Error(results[results.length - 1].failure ?? "The redemption did not go through.");
+      play("burn");
       setAmount("");
-      await afterPayout(results, `Redeemed ${fromRaw(raw, CONSUME_DEC, 0)} $CONSUME for ${usd(totalMicro)} of memecoins.`);
+      await afterPayout(results, `Redeemed ${fromRaw(ev.burned ?? raw, CONSUME_DEC, 0)} $CONSUME for ${usd(worth(ev.shares ?? quote.shares))} of memecoins.`);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -966,7 +1372,8 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
     try {
       const results = await send([
         ...(await registrationCalls(owed.map(([k]) => k), accountId)),
-        { receiverId: CONSUME_CONTRACT, methodName: "withdraw_owed", args: {}, gas: TGAS(200) },
+        // ten payouts at 20 Tgas each would use 200 Tgas on their own
+        { receiverId: CONSUME_CONTRACT, methodName: "withdraw_owed", args: {}, gas: TGAS(300) },
       ]);
       const last = results[results.length - 1];
       if (last.failure) throw new Error(last.failure);
@@ -1027,6 +1434,14 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           )}
         </div>
+        {owedLive.error && (
+          <p className="hint">
+            Could not check for unpaid shares.{" "}
+            <button className="link-button" type="button" onClick={owedLive.reload}>
+              Check again
+            </button>
+          </p>
+        )}
         <p className="hint">Locked $CONSUME counts too, so nobody can empty it first.</p>
       </div>
 
@@ -1068,7 +1483,7 @@ function Entries({ recent }: { recent: VestView[] }) {
         <tr>
           <th scope="col">No.</th>
           <th scope="col">Memecoin</th>
-          <th scope="col">Fed by</th>
+          <th scope="col">Held by</th>
           <th scope="col" className="num">Amount</th>
           <th scope="col" className="num">Worth</th>
           <th scope="col" className="num">$CONSUME</th>
@@ -1109,51 +1524,51 @@ function Rule({ snap }: { snap: Snapshot }) {
   const c = snap.config;
   const days = Number(BigInt(c.vest_duration_ns) / BigInt(86_400_000_000_000));
   const haircut = c.exit_haircut_bps / 100;
+  // read from the chain, so the page cannot go on saying the key is gone, or still there, when it is not
+  const keys = useLive(DEMO ? null : "contract-keys", () => fullAccessKeys(CONSUME_CONTRACT), 300_000).data;
   return (
     <>
-      <ol className="steps">
-        <li>
-          <b>I</b>
-          <h3>Feed</h3>
-          <p>
-            $CONSUME is minted at its backing, so what you feed is what you could redeem, less a tithe of {c.tithe_step_bps / 100}% to{" "}
-            {c.max_tithe_bps / 100}%.
-          </p>
-        </li>
-        <li>
-          <b>II</b>
-          <h3>Release</h3>
-          <p>
-            Paid out over {days} days. Break the seal early and lose {haircut}% of what is still locked.
-          </p>
-        </li>
-        <li>
-          <b>III</b>
-          <h3>Redeem</h3>
-          <p>
-            Burn $CONSUME for your share of the Stomach, paid in memecoins. Nothing else takes them out.
-          </p>
-        </li>
-      </ol>
+      <div className="charter">
+        <ol className="articles">
+          <li>
+            <span className="article-top">
+              <b>I</b>
+              <FeedEmblem />
+            </span>
+            <h3>Feed</h3>
+            <p>
+              $CONSUME is minted at its backing, so what you feed is what you could redeem, less a tithe of{" "}
+              <em>
+                {c.tithe_step_bps / 100}% to {c.max_tithe_bps / 100}%
+              </em>
+              .
+            </p>
+          </li>
+          <li>
+            <span className="article-top">
+              <b>II</b>
+              <HourglassEmblem />
+            </span>
+            <h3>Release</h3>
+            <p>
+              Paid out over <em>{days} days</em>. Break the seal early and lose <em>{haircut}%</em> of what is still locked.
+            </p>
+          </li>
+          <li>
+            <span className="article-top">
+              <b>III</b>
+              <ScalesEmblem />
+            </span>
+            <h3>Redeem</h3>
+            <p>
+              Burn $CONSUME for <em>your share</em> of the Stomach, paid in memecoins. Nothing else takes them out.
+            </p>
+          </li>
+        </ol>
 
-      <div className="trust">
-        <h3>Who you trust</h3>
-        <p>
-          <strong>The Assayer</strong> sets prices from NEAR Intents quotes. Its prices decide what every feeding mints, so a dishonest Assayer could mint itself most of the Stomach. This is the biggest trust here.
-        </p>
-        <p>
-          <strong>The guardian</strong> can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were
-          fixed at launch, and nobody can withdraw.
-        </p>
-        <p>
-          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents
-          contract that is was fixed at launch.
-        </p>
-      </div>
-
-      <details className="all-rules">
-        <summary>All the rules</summary>
-    <div className="rule">
+        <details className="all-rules">
+          <summary>All the rules</summary>
+          <div className="rule">
           <div>
             <h3>What it eats</h3>
             <p>
@@ -1206,11 +1621,65 @@ function Rule({ snap }: { snap: Snapshot }) {
               The ten memecoins, their limits, the tithe and its famines, the feast and the 30 days were set when the contract launched, and it has
               no way to change them. One role is left, the guardian, with two powers: seal or unseal a memecoin on the list, and replace the
               Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer.
-              The contract account&apos;s keys are to be deleted once it is set up.
+              {keys === 0
+                ? "The contract account holds no key (read from the chain just now), so its code cannot be replaced."
+                : keys
+                  ? "The contract account still holds a key (read from the chain just now), so whoever has it could replace the code. It is to be deleted after a full run on testnet."
+                  : "The contract account's keys are to be deleted once it is set up."}
             </p>
           </div>
+          </div>
+        </details>
+
+        <div className="charter-fold">
+          <h3>Who you trust</h3>
+          <p>
+            {keys
+              ? "Three parties, each with its seal on this, and for now a fourth: whoever holds the contract account's key."
+              : "Three parties, each with its seal on this. Everything else was fixed at launch."}
+          </p>
         </div>
-      </details>
+      </div>
+
+      <ul className="seals">
+        <li>
+          <span className="seal-hang">
+            <PartySeal party="assayer" />
+          </span>
+          <div>
+            <h4>The Assayer</h4>
+            <p>
+              Sets prices from NEAR Intents quotes. Its prices decide what every feeding mints, so a dishonest Assayer could mint itself
+              most of the Stomach.
+            </p>
+            <p className="seal-note">The biggest trust here</p>
+          </div>
+        </li>
+        <li>
+          <span className="seal-hang">
+            <PartySeal party="guardian" />
+          </span>
+          <div>
+            <h4>The guardian</h4>
+            <p>
+              Can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were fixed at launch, and nobody
+              can withdraw.
+            </p>
+          </div>
+        </li>
+        <li>
+          <span className="seal-hang">
+            <PartySeal party="intents" />
+          </span>
+          <div>
+            <h4>NEAR Intents</h4>
+            <p>
+              Holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents contract that is was fixed at
+              launch.
+            </p>
+          </div>
+        </li>
+      </ul>
     </>
   );
 }

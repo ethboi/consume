@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "consume": {
+      "command": "node",
+      "args": ["agents/mcp.mjs"]
+    }
+  }
+}

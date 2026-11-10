@@ -22,8 +22,10 @@ type WalletState = {
   ready: boolean;
   connect: () => Promise<void>;
   disconnect: () => Promise<void>;
-  /** Sends the calls as one wallet approval when possible. Resolves to what
-   *  actually happened on chain: hash, every log line, and any failed receipt. */
+  /** Sends the calls as one wallet approval when possible. Calls in a row to the
+   *  same contract travel as one transaction, so they all land or none does.
+   *  Resolves, per transaction, to what actually happened on chain: hash, the
+   *  log lines of the receipts that succeeded, and any failed receipt. */
   send: (calls: Call[]) => Promise<TxResult[]>;
 };
 
@@ -40,28 +42,32 @@ function failureOf(status: unknown): string | undefined {
   return undefined;
 }
 
+const failed = (status: unknown) => !!status && typeof status === "object" && "Failure" in status;
+
 function toResult(o: Outcome): TxResult {
   const receipts = o.receipts_outcome ?? [];
   return {
     hash: o.transaction.hash,
-    logs: receipts.flatMap((r) => r.outcome.logs),
+    // a receipt that failed changed nothing, so what it logged before failing did not happen
+    logs: receipts.filter((r) => !failed(r.outcome.status)).flatMap((r) => r.outcome.logs),
     failure: failureOf(o.status) ?? receipts.map((r) => failureOf(r.outcome.status)).find(Boolean),
   };
 }
 
-/** True if any CONSUME event with this name was logged. */
-export function hasEvent(results: TxResult[], event: string): boolean {
-  return results.some((r) =>
-    r.logs.some((l) => {
-      if (!l.startsWith("EVENT_JSON:")) return false;
+/** What the first CONSUME event with this name said, or null if none was logged. */
+export function eventData<T>(results: TxResult[], event: string): T | null {
+  for (const r of results) {
+    for (const l of r.logs) {
+      if (!l.startsWith("EVENT_JSON:")) continue;
       try {
         const j = JSON.parse(l.slice("EVENT_JSON:".length));
-        return j.standard === "consume" && j.event === event;
+        if (j.standard === "consume" && j.event === event) return (j.data?.[0] ?? {}) as T;
       } catch {
-        return false;
+        // not ours
       }
-    }),
-  );
+    }
+  }
+  return null;
 }
 
 const Ctx = createContext<WalletState | null>(null);
@@ -107,20 +113,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const c = connector.current;
     if (!c) throw new Error("The wallet is still loading. Try again in a moment.");
     const wallet = await c.wallet();
-    const transactions = calls.map((call) => ({
-      receiverId: call.receiverId,
-      actions: [
-        {
-          type: "FunctionCall" as const,
-          params: {
-            methodName: call.methodName,
-            args: call.args as Record<string, unknown>,
-            gas: call.gas ?? TGAS(100),
-            deposit: call.deposit ?? "0",
-          },
-        },
-      ],
-    }));
+    const action = (call: Call) => ({
+      type: "FunctionCall" as const,
+      params: {
+        methodName: call.methodName,
+        args: call.args as Record<string, unknown>,
+        gas: call.gas ?? TGAS(100),
+        deposit: call.deposit ?? "0",
+      },
+    });
+    const transactions: { receiverId: string; actions: ReturnType<typeof action>[] }[] = [];
+    for (const call of calls) {
+      const last = transactions[transactions.length - 1];
+      if (last && last.receiverId === call.receiverId) last.actions.push(action(call));
+      else transactions.push({ receiverId: call.receiverId, actions: [action(call)] });
+    }
     try {
       if (transactions.length === 1) {
         const r = await wallet.signAndSendTransaction(transactions[0]);

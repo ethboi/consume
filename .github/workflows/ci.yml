@@ -1,0 +1,110 @@
+# Runs the checks the README lists under "Check it in five minutes".
+# Nothing here holds a key, signs a transaction or deploys.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Contract unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+      - name: CONSUME (50 tests)
+        working-directory: contracts/consume
+        run: cargo test
+      - name: NEAR Intents stand-in (3 tests)
+        working-directory: contracts/mock-intents
+        run: cargo test
+
+  sandbox:
+    name: End to end on a NEAR sandbox
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: contracts
+      - name: Install cargo-near
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/latest/download/cargo-near-installer.sh | sh
+      - name: Build the three contracts
+        working-directory: contracts
+        run: |
+          for c in consume mock-meme mock-intents; do
+            (cd "$c" && cargo near build non-reproducible-wasm)
+          done
+      - name: Plain NEP-141 flow
+        working-directory: contracts/integration-tests
+        run: cargo test --test flow
+      - name: NEAR Intents flow
+        working-directory: contracts/integration-tests
+        run: cargo test --test intents
+
+  web:
+    name: Site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Types
+        run: pnpm exec tsc --noEmit
+      - name: Lint
+        run: pnpm exec eslint src
+      - name: Build
+        run: pnpm build
+
+  sim-and-agents:
+    name: Simulation and MCP server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Sixty days, four scenarios (stops if the backing ever falls)
+        run: node sim/sim.mjs
+      - name: Launch arguments build from the memecoin list
+        run: node scripts/launch-args.mjs --guardian ci.testnet --assayer ci.testnet --intents intents.ci.testnet > /dev/null
+      - name: The MCP server answers over stdio with its 14 tools
+        run: |
+          printf '%s\n' \
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+            | node agents/mcp.mjs > answers.jsonl
+          node -e '
+            const lines = require("fs").readFileSync("answers.jsonl", "utf8").trim().split("\n").map((l) => JSON.parse(l));
+            const byId = Object.fromEntries(lines.map((l) => [l.id, l]));
+            if (lines.length !== 2) throw new Error("expected 2 answers, got " + lines.length);
+            if (byId[1].result.serverInfo.name !== "consume") throw new Error("wrong server name");
+            const n = byId[2].result.tools.length;
+            if (n !== 14) throw new Error("expected 14 tools, got " + n);
+            console.log("ok:", n, "tools");
+          '

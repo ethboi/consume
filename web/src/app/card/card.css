@@ -1,0 +1,80 @@
+/* The share card: a fixed 1200 x 630 stage at the top left of the page. */
+nextjs-portal {
+  display: none;
+}
+.share-card {
+  position: relative;
+  width: 1200px;
+  height: 630px;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: var(--rubric);
+}
+/* the printed border of the block */
+.share-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 10px solid var(--ink);
+  outline: 2px solid var(--ink);
+  outline-offset: -20px;
+  pointer-events: none;
+  z-index: 5;
+}
+.share-card .hero-art {
+  position: absolute;
+  left: 664px;
+  top: 85px;
+  width: 460px;
+  height: 460px;
+}
+.share-card .hero-art .hero-sigil {
+  width: 460px;
+}
+.share-card .float-coin,
+.share-card .float-coin svg {
+  animation: none;
+}
+.share-copy {
+  position: absolute;
+  left: 62px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 478px;
+  box-sizing: border-box;
+  z-index: 3;
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  outline: 1.5px solid var(--ink);
+  outline-offset: -11px;
+  box-shadow: 12px 12px 0 var(--ink);
+  padding: 40px 40px 30px;
+}
+.share-copy h1 {
+  font-family: var(--font-text);
+  font-weight: 400;
+  font-size: 70px;
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+  margin: 0 0 20px;
+}
+.share-copy h1::first-letter {
+  color: var(--rubric);
+}
+.share-copy p {
+  font-size: 27px;
+  line-height: 1.25;
+  margin: 0;
+}
+.share-copy .share-where {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 2px solid var(--ink);
+  font-family: var(--font-sc);
+  font-size: 30px;
+}
+.share-copy .share-where span:first-child {
+  color: var(--rubric);
+}

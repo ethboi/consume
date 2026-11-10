@@ -130,6 +130,20 @@ export function SerpentHead({ fill, stroke, detailed = true, cut = 1, open = 0 }
   );
 }
 
+/** The serpent as a flat mark in the 400 frame, for striking onto something
+ *  else (the $CONSUME coin). Place and scale it with a transform on a parent. */
+export function SerpentMark({ fill, stroke, strokeWidth, eye }: { fill: string; stroke: string; strokeWidth: number; eye: string }) {
+  return (
+    <g fill="none" stroke={stroke} strokeLinecap="round" strokeLinejoin="round">
+      <path d={BODY} fill={fill} strokeWidth={strokeWidth} />
+      <g transform={HEAD_AT}>
+        <SerpentHead fill={fill} stroke={strokeWidth / HEAD_K} detailed={false} />
+        <circle cx={196} cy={46} r={4.6} fill={eye} stroke="none" />
+      </g>
+    </g>
+  );
+}
+
 export function Ouroboros({ size = 400, className, detailed = true, solid = false, animate = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
   // woodcut: the uncut wood prints as paper, the lines as ink.
   // solid: a one-colour silhouette for small sizes, where line work would fill in

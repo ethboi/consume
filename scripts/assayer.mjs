@@ -7,10 +7,15 @@
 //
 // Prices are read from the mainnet 1Click API (Intents has no testnet). The
 // price of a memecoin is what $100 of it fetches in a dry quote, which moves
-// nothing; if no quote comes back, the 1Click list price is used instead.
-// A feeding needs a fresh price for everything in the Stomach, so all ten are
-// posted every time. If one cannot be priced it is left out and feedings stop
-// until it can: that is the safe way to fail.
+// nothing. The 1Click list price is only a check on that quote, never a price:
+// a price that is too low on what the Stomach holds would mint a later feeder
+// more than their share, so a doubtful price is worse than none.
+//
+// A round is posted only when all ten have a quote within 5% of the list
+// price. Otherwise nothing is posted and the round is tried again a minute
+// later. The contract refuses a feeding once a price is 15 minutes old, so a
+// run of bad rounds stops feedings and leaves redeeming open: that is the
+// safe way to fail.
 //
 // Signing uses the `near` CLI and the key in your local keychain. No key is
 // read or stored by this script.
@@ -22,8 +27,13 @@ import { flags } from "./launch-args.mjs";
 const ONECLICK = "https://1click.chaindefuser.com/v0";
 const USDC = "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1";
 const headers = { "Content-Type": "application/json", "User-Agent": "consume-assayer" };
-/** A quote this far from the list price is reported, and the lower one is used. */
+/** A quote this far from the list price means one of the two is wrong: the round is not posted. */
 const DIVERGENCE = 0.05;
+/** How long 1Click gets to answer. */
+const TIMEOUT_MS = 15_000;
+/** After a round that was not posted, try again this soon (seconds). */
+const RETRY_S = 60;
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function dryQuoteUsd(assetId, raw) {
   const res = await fetch(`${ONECLICK}/quote`, {
@@ -43,9 +53,19 @@ async function dryQuoteUsd(assetId, raw) {
       recipientType: "INTENTS",
       deadline: new Date(Date.now() + 10 * 60_000).toISOString(),
     }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   const json = await res.json().catch(() => null);
-  return json?.quote ? Number(json.quote.amountOut) / 1e6 : null;
+  const out = json?.quote ? Number(json.quote.amountOut) / 1e6 : null;
+  return out && Number.isFinite(out) && out > 0 ? out : null;
+}
+
+/** One quote, asked again once if it is refused: 1Click turns some away when busy. */
+async function quoteTwice(assetId, raw) {
+  const first = await dryQuoteUsd(assetId, raw).catch(() => null);
+  if (first !== null) return first;
+  await pause(1500);
+  return dryQuoteUsd(assetId, raw).catch(() => null);
 }
 
 /** USD per whole token as the contract wants it: scaled by 1e18. */
@@ -53,26 +73,31 @@ const e18 = (price) =>
   // keep the digits of very small prices; large ones would pass what a double holds exactly
   (price * 1e18 < Number.MAX_SAFE_INTEGER ? BigInt(Math.round(price * 1e18)) : BigInt(Math.round(price * 1e12)) * 1_000_000n).toString();
 
+/** One row per memecoin. `price` is null when it has no price that can be trusted. */
 export async function readPrices() {
-  const tokens = await fetch(`${ONECLICK}/tokens`, { headers }).then((r) => r.json());
-  const rows = await Promise.all(
-    HERESIES.map(async (h) => {
-      const assetId = `nep141:${h.mainnet}`;
-      const listed = tokens.find((t) => t.assetId === assetId)?.price || null;
-      if (!listed) return { symbol: h.symbol, token: h.mainnet, price: null, source: "not listed" };
-      const whole = 100 / listed;
-      const [i, f = ""] = whole.toFixed(Math.min(h.decimals, 12)).split(".");
-      const raw = BigInt(i + (f + "0".repeat(h.decimals)).slice(0, h.decimals));
-      const out = await dryQuoteUsd(assetId, raw).catch(() => null);
-      if (out === null) return { symbol: h.symbol, token: h.mainnet, price: listed, source: "list price (no quote)" };
-      const quoted = out / whole;
-      const apart = Math.abs(quoted - listed) / listed;
-      if (apart > DIVERGENCE) {
-        return { symbol: h.symbol, token: h.mainnet, price: Math.min(quoted, listed), source: `quote and list ${(apart * 100).toFixed(1)}% apart, lower used` };
-      }
-      return { symbol: h.symbol, token: h.mainnet, price: quoted, source: "dry quote" };
-    }),
-  );
+  const res = await fetch(`${ONECLICK}/tokens`, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`1Click token list answered ${res.status}`);
+  const tokens = await res.json();
+  const one = async (h) => {
+    const assetId = `nep141:${h.mainnet}`;
+    const row = { symbol: h.symbol, token: h.mainnet, price: null };
+    const listed = tokens.find((t) => t.assetId === assetId)?.price || null;
+    if (!listed) return { ...row, source: "not listed on 1Click" };
+    const whole = 100 / listed;
+    const [i, f = ""] = whole.toFixed(Math.min(h.decimals, 12)).split(".");
+    const raw = BigInt(i + (f + "0".repeat(h.decimals)).slice(0, h.decimals));
+    const out = await quoteTwice(assetId, raw);
+    if (out === null) return { ...row, source: "no quote after two tries" };
+    const quoted = out / whole;
+    const apart = Math.abs(quoted - listed) / listed;
+    if (apart > DIVERGENCE) {
+      return { ...row, source: `quote $${quoted.toPrecision(6)} and list price $${listed.toPrecision(6)} are ${(apart * 100).toFixed(1)}% apart` };
+    }
+    return { ...row, price: quoted, source: "dry quote" };
+  };
+  // four at a time: asked all at once, 1Click refuses the last few
+  const rows = [];
+  for (let i = 0; i < HERESIES.length; i += 4) rows.push(...(await Promise.all(HERESIES.slice(i, i + 4).map(one))));
   return rows;
 }
 
@@ -86,12 +111,16 @@ function post(contract, signer, network, prices) {
   );
 }
 
+/** Reads one round and posts it. Throws, posting nothing, unless every memecoin has a price. */
 async function once(opts) {
   const rows = await readPrices();
-  const priced = rows.filter((r) => r.price);
   for (const r of rows) console.log(`${r.symbol.padEnd(12)} ${r.price ? "$" + r.price.toPrecision(6) : "no price".padEnd(9)}  ${r.source}`);
-  if (priced.length < rows.length) console.error("Some memecoins have no price. The contract refuses a round that leaves out a memecoin that is open or held, so feedings stop within 15 minutes until every one has a price or the guardian seals one that is not held.");
-  const prices = priced.map((r) => [r.token, e18(r.price)]);
+  const without = rows.filter((r) => !r.price);
+  if (without.length > 0) {
+    // the contract would refuse a round that leaves out a memecoin that is open or held
+    throw new Error(`round not posted: no trusted price for ${without.map((r) => r.symbol).join(", ")}`);
+  }
+  const prices = rows.map((r) => [r.token, e18(r.price)]);
   if (!opts.send) {
     console.log(JSON.stringify({ prices }));
     return;
@@ -107,6 +136,14 @@ if (opts.send && (!opts.contract || !opts.as)) {
 }
 const every = Number(opts.every ?? 0);
 do {
-  await once(opts).catch((e) => console.error(`${new Date().toISOString()} ${e.message}`));
-  if (every) await new Promise((r) => setTimeout(r, every * 1000));
+  let posted = true;
+  try {
+    await once(opts);
+  } catch (e) {
+    posted = false;
+    console.error(`${new Date().toISOString()} ${e.message}`);
+    // a single run that posted nothing must say so to whatever started it
+    if (!every) process.exitCode = 1;
+  }
+  if (every) await pause((posted ? every : Math.min(every, RETRY_S)) * 1000);
 } while (every);

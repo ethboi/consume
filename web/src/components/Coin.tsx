@@ -4,6 +4,7 @@
 // engraved lines cut back to the paper.
 
 import type { ReactElement } from "react";
+import { SerpentMark } from "./Ouroboros";
 
 const INK = "var(--ink)";
 const PAPER = "var(--paper)";
@@ -213,6 +214,29 @@ export function Coin({ symbol, chain, size = 40, className }: Props) {
           {symbol[0]}
         </text>
       )}
+    </svg>
+  );
+}
+
+// The serpent's own coin. Struck in vermilion where the ten it eats are bare
+// paper: the ouroboros around a black roundel, with the C of the wordmark.
+const MARK_K = 0.228; // the 400 frame, brought inside the beading
+const MARK_AT = `translate(${(50 - 200 * MARK_K).toFixed(2)} ${(50 - 200 * MARK_K).toFixed(2)}) scale(${MARK_K})`;
+
+export function ConsumeCoin({ size = 40, className }: { size?: number; className?: string }) {
+  return (
+    <svg className={className ? `coin ${className}` : "coin"} width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="$CONSUME coin">
+      <path d={EDGE} fill={RUBRIC} stroke={INK} strokeWidth={2.4} />
+      {BEADS.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={1.3} fill={INK} />
+      ))}
+      <g transform={MARK_AT}>
+        <SerpentMark fill={PAPER} stroke={INK} strokeWidth={8} eye={INK} />
+      </g>
+      <circle cx={50} cy={50} r={21} fill={INK} />
+      <text className="coin-c" x={50} y={62.5} textAnchor="middle" fontSize={36} fill={PAPER}>
+        C
+      </text>
     </svg>
   );
 }

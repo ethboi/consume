@@ -36,6 +36,28 @@ export function StomachEmblem() {
   );
 }
 
+/** A goblet, filled. */
+export function GobletEmblem() {
+  return (
+    <svg {...common}>
+      {/* the bowl */}
+      <path d="M16,11 C16,27 22,37 32,37 C42,37 48,27 48,11 Z" fill="var(--paper)" />
+      {/* the wine, seen through the open rim */}
+      <ellipse cx={32} cy={11} rx={16} ry={4.2} fill="var(--paper)" />
+      <ellipse cx={32} cy={11.6} rx={12} ry={2.6} fill="var(--rubric)" strokeWidth={1.2} />
+      {/* stem, knop and foot */}
+      <path d="M32,37 L32,50" strokeWidth={3} />
+      <ellipse cx={32} cy={43} rx={4.4} ry={2.6} fill="var(--rubric)" strokeWidth={1.6} />
+      <path d="M17,57 C19,52 26,50 32,50 C38,50 45,52 47,57 Z" fill="var(--paper)" />
+      {/* hatching on the shadowed side of the bowl and the foot */}
+      <path d="M44,17 q-1,9 -6,15 M41,18 q-1,8 -5,13 M38,19 q-1,6 -3,10" strokeWidth={1} />
+      <path d="M38,53 q4,1 6,3 M34,53 q3,1 5,3" strokeWidth={1} />
+      {/* a band cut round the bowl */}
+      <path d="M18,22 q14,5 28,0" strokeWidth={1} />
+    </svg>
+  );
+}
+
 /** A stack of coins, one falling. */
 export function CoinsEmblem() {
   return (

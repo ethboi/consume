@@ -8,6 +8,9 @@ import { HERESIES } from "@/lib/heresies";
 const ONECLICK = "https://1click.chaindefuser.com/v0";
 const USDC = "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1";
 const TTL_MS = 5 * 60_000;
+// a reading with a shut road is kept for less time: 1Click refuses a quote now
+// and then when busy, and that should not stand on the page for five minutes
+const SHUT_TTL_MS = 30_000;
 
 export type Route = { symbol: string; chain: string; open: boolean; outUsd: number | null; seconds: number | null };
 type Cache = { at: number; routes: Route[] };
@@ -36,13 +39,27 @@ async function quote(assetId: string, amount: bigint) {
   return json?.quote ?? null;
 }
 
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** One quote, asked again once if it is refused. */
+async function quoteTwice(assetId: string, amount: bigint) {
+  const first = await quote(assetId, amount).catch(() => null);
+  if (first) return first;
+  await pause(1200);
+  return quote(assetId, amount).catch(() => null);
+}
+
 async function load(): Promise<Route[]> {
   const tokens: { assetId: string; price: number; decimals: number }[] = await fetch(`${ONECLICK}/tokens`, {
     headers,
     cache: "no-store",
   }).then((r) => r.json());
-  return Promise.all(
-    HERESIES.map(async (h): Promise<Route> => {
+  // a few at a time: ten at once gets the last ones refused
+  const routes: Route[] = [];
+  for (let i = 0; i < HERESIES.length; i += 4) routes.push(...(await Promise.all(HERESIES.slice(i, i + 4).map(one))));
+  return routes;
+
+  async function one(h: (typeof HERESIES)[number]): Promise<Route> {
       const assetId = `nep141:${h.mainnet}`;
       const t = tokens.find((x) => x.assetId === assetId);
       if (!t || !t.price) return { symbol: h.symbol, chain: h.chain, open: false, outUsd: null, seconds: null };
@@ -50,7 +67,7 @@ async function load(): Promise<Route[]> {
       const whole = 100 / t.price;
       const [i, f = ""] = whole.toFixed(Math.min(t.decimals, 12)).split(".");
       const raw = BigInt(i + (f + "0".repeat(t.decimals)).slice(0, t.decimals));
-      const q = await quote(assetId, raw).catch(() => null);
+      const q = await quoteTwice(assetId, raw);
       return {
         symbol: h.symbol,
         chain: h.chain,
@@ -58,12 +75,12 @@ async function load(): Promise<Route[]> {
         outUsd: q ? Number(q.amountOut) / 1e6 : null,
         seconds: q?.timeEstimate ?? null,
       };
-    }),
-  );
+  }
 }
 
 export async function GET() {
-  if (!cache || Date.now() - cache.at > TTL_MS) {
+  const ttl = cache?.routes.every((r) => r.open) ? TTL_MS : SHUT_TTL_MS;
+  if (!cache || Date.now() - cache.at > ttl) {
     try {
       cache = { at: Date.now(), routes: await load() };
     } catch (e) {

@@ -1,0 +1,55 @@
+# CONSUME
+
+> A memecoin on NEAR that eats other memecoins. Feed it a listed memecoin and you get a Bond, an NFT that releases $CONSUME over 30 days. Every $CONSUME can be burned for its share of every memecoin in the Stomach.
+
+This file is for AI agents. Everything below can be checked against the contract itself.
+
+## Connect
+
+- MCP server (Streamable HTTP, no key, no sign-in): `https://consume.cash/api/mcp`
+- MCP server (stdio), from the repository: `node agents/mcp.mjs`
+- The server reads the chain and prepares unsigned calls. It holds no key and signs nothing. Your own wallet signs.
+
+Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redeem`, `account`, `bond`, `recent_feedings`, `ledger`, `prepare_feed`, `prepare_collect`, `prepare_break_seal`, `prepare_redeem`, `prepare_test_deposit`. Call `overview` first.
+
+## Where it runs
+
+- Network: NEAR testnet
+- CONSUME contract: `consume.consumecash.testnet`
+- NEAR Intents stand-in (testnet only, simulates deposits from other chains): `intents.consumecash.testnet`
+- RPC: `https://test.rpc.fastnear.com`
+
+## The rules, as the contract holds them
+
+- It eats ten memecoins: DOGE, SHIB, PEPE, PENGU, SPX, TURBO, BOME, BLACKDRAGON, SHITZU, NearKat. Fed memecoins go into the Stomach and stay there until someone redeems.
+- A feeding mints $CONSUME at the backing: the Stomach's value divided by all $CONSUME, locked or not. So a feeding never dilutes a holder.
+- The tithe is the part of a feeding that mints nothing and so goes to everyone already holding. It starts at 1% and steps up 1% for every $10,000 fed, to 10% at most.
+- A Bond releases its $CONSUME evenly over 30 days. Collect what has been released at any time.
+- Break the seal to leave early: you receive what has been released plus half of what is still locked. The other half is never minted.
+- Redeem burns $CONSUME and pays the same share of every memecoin in the Stomach.
+- The Feast: each week the most fed memecoin (by USD) wins. For the following week, feeding it pays no tithe.
+- Limits: each memecoin has a largest feeding and a daily cap in USD (`list_memecoins`). The caps are per memecoin, not per account, so splitting a feeding across accounts gains nothing.
+- Prices are posted by the Assayer from NEAR Intents quotes. A feeding is refused when a price is older than 15 minutes. Redeeming needs no price and stays open.
+- There is no owner and no method that changes a number. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account still holds its deployment key; the repository's README says when that changes.
+
+## Reading the contract directly
+
+View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`, `quote_meal`, `quote_redeem`, `get_vest`, `get_vests_for_owner`, `get_recent_vests`, `get_meal_credit`, `get_owed`, plus the NEP-141 and NEP-171 standards. Dollar amounts are in millionths of a dollar. $CONSUME has 18 decimals.
+
+## The log of every mint and burn
+
+- `ledger` (or `https://consume.cash/api/ledger` as JSON) lists every feeding, every $CONSUME minted and every $CONSUME burned, newest first, each with its transaction.
+- A feeding mints nothing: it writes $CONSUME into a Bond. $CONSUME is minted by `claim` and `exit`, and burned by `redeem`.
+- The entries are parsed from the contract's own events (`meal`, `claim`, `exit`, `redeem`). The tool says whether they add up to the totals in `get_stats`.
+
+## Acting
+
+- Feed: `mt_transfer_call` on the NEAR Intents contract with `receiver_id` set to the CONSUME contract. `prepare_feed` builds it, with the slippage floor and deadline the site uses.
+- Collect: `claim`. Break the seal: `exit` (1 yoctoNEAR). Redeem: `redeem` (1 yoctoNEAR).
+- On testnet, `prepare_test_deposit` gives free test memecoins, once an hour per memecoin.
+
+## More
+
+- Site: https://consume.cash
+- Bots that use these calls (dry run unless told to sign): `agents/bots.mjs` in the repository
+- A 60 day simulation of supply and backing under four scenarios: `sim/` in the repository

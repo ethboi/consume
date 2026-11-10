@@ -15,10 +15,15 @@ export function useLive<T>(key: string | null, load: () => Promise<T>, refreshMs
   useEffect(() => {
     if (key === null) return;
     let alive = true;
-    const run = () =>
+    // the timer and a refocus can ask twice at once: only the latest answer is kept
+    let asked = 0;
+    const run = () => {
+      const mine = ++asked;
+      const current = () => alive && mine === asked;
       load()
-        .then((data) => alive && setEntry({ key, data }))
-        .catch((e: unknown) => alive && setEntry({ key, error: e instanceof Error ? e.message : String(e) }));
+        .then((data) => current() && setEntry({ key, data }))
+        .catch((e: unknown) => current() && setEntry({ key, error: e instanceof Error ? e.message : String(e) }));
+    };
     run();
     const id = refreshMs ? setInterval(run, refreshMs) : undefined;
     const onFocus = () => run();
