@@ -26,12 +26,12 @@ import { compact, daysLeft, fromRaw, shortAccount, toRaw, usd, usdCompact, usdVa
 import { Ouroboros } from "./Ouroboros";
 import { Stomach } from "./Stomach";
 import { Coin } from "./Coin";
-import { CARD_H, CARD_W } from "./IndulgenceCard";
+import { CARD_H, CARD_W } from "./BondCard";
 import { Chains } from "./Chains";
 import { IntentsWallet } from "./IntentsWallet";
 import { Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
-import { BookEmblem, CoinsEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
+import { BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
 import { TGAS, hasEvent, useWallet, type TxResult } from "./Wallet";
 import { sleep, useLive } from "@/lib/live";
 
@@ -83,7 +83,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
   const floor = denom > BigInt(0) ? Number(totalMicro) / (Number(denom) / 1e18) : 0;
   const floorLabel = usd(BigInt(Math.round(floor)), 6);
   const feast = snap.stats.heaviest_last_epoch ? heresyForToken(snap.stats.heaviest_last_epoch)?.symbol : null;
-  const bonusX = snap.config.heaviest_bonus_bps / 10000;
 
   return (
     <div className="folio">
@@ -94,7 +93,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="hero split" aria-labelledby="mark">
         <div className="hero-grid">
           <div className="hero-copy">
-            {/* red bosses in the corners, as on the Indulgence card */}
+            {/* red bosses in the corners, as on the Bond card */}
             <span className="boss tl" aria-hidden="true" />
             <span className="boss tr" aria-hidden="true" />
             <span className="boss bl" aria-hidden="true" />
@@ -116,7 +115,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <li>
                 <Seal size={40} />
                 <b>II</b>
-                <span>Get an Indulgence</span>
+                <span>Get a Bond</span>
                 <i>an NFT that pays you</i>
               </li>
               <li>
@@ -182,9 +181,13 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <dd className="note">what one $CONSUME redeems for now</dd>
           </div>
           <div className="tile">
-            <dt>$CONSUME per $1 fed</dt>
-            <dd className="value">{fromRaw(snap.stats.current_rate, CONSUME_DEC, 0)}</dd>
-            <dd className="note">halves at {usdCompact(snap.stats.next_halving_at_usd)} eaten, so early pays most</dd>
+            <dt>Tithe on a feeding</dt>
+            <dd className="value">{snap.stats.tithe_bps / 100}%</dd>
+            <dd className="note">
+              {snap.stats.next_famine_at_usd
+                ? `kept for holders; ${Math.min(snap.config.max_tithe_bps, snap.stats.tithe_bps + snap.config.tithe_step_bps) / 100}% once ${usdCompact(snap.stats.next_famine_at_usd)} is eaten`
+                : "kept for holders; it never goes higher"}
+            </dd>
           </div>
           <div className="tile feast">
             <dt>This week&apos;s feast</dt>
@@ -196,7 +199,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             ) : (
               <dd className="value">None yet</dd>
             )}
-            <dd className="note">{feast ? `${feast} feedings earn ${bonusX}× $CONSUME` : "next week, the most fed memecoin earns extra"}</dd>
+            <dd className="note">{feast ? `${feast} feedings pay no tithe` : "next week, the most fed memecoin pays no tithe"}</dd>
           </div>
         </dl>
       </section>
@@ -205,11 +208,19 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <StomachEmblem />
           <h2 id="crucible-h">The Serpent’s Stomach</h2>
+          <div className="stomach-total">
+            <strong>{usd(totalMicro, 0)}</strong>
+            <span>held now, after redemptions</span>
+          </div>
           <p>Everything it has eaten. It backs every $CONSUME, and only redeeming takes it out.</p>
         </header>
         <div className="crucible-layout">
           <div>
             <Stomach jars={held.map(({ h, t, micro }) => ({ symbol: h.symbol, usd: Number(micro) / 1e6, open: t?.open ?? false }))} />
+            <div className="held">
+              <span>Backing for each $CONSUME</span>
+              <strong className="rubric">{floorLabel}</strong>
+            </div>
           </div>
           <div>
             <table className="ledger">
@@ -240,48 +251,26 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 ))}
               </tbody>
             </table>
-            <div className="held">
-              <span>Held now, after redemptions</span>
-              <strong>{usd(totalMicro, 0)}</strong>
-            </div>
-            <div className="held">
-              <span>Backing for each $CONSUME</span>
-              <strong className="rubric">{floorLabel}</strong>
-            </div>
           </div>
         </div>
       </section>
 
-      <section className="chapter" id="chains" aria-labelledby="chains-h">
-        <header>
-          <h2 id="chains-h">From any chain</h2>
-          <p>NEAR Intents brings memecoins from Dogecoin, Ethereum and Solana to NEAR, so one contract can eat them all.</p>
-        </header>
-        <Chains />
-      </section>
-
       <section className="chapter band band-red" id="feed" aria-labelledby="feed-h">
         <header>
-          <CoinsEmblem />
+          <FeedEmblem />
           <h2 id="feed-h">Feed the Serpent</h2>
-          <p>Pick a memecoin, feed it, get an Indulgence.</p>
-          <aside className="marginal">
-            <span aria-hidden="true">☞</span> {MOCK_INTENTS ? "New? Bring test memecoins in from their chains first." : "New? Get test memecoins from the faucet first."}
-          </aside>
+          <p>Pick a memecoin, feed it, get a Bond.</p>
         </header>
         <Feed snap={snap} tick={tick} onDone={done} />
       </section>
 
-      <section className="chapter band band-ink" id="writs" aria-labelledby="writs-h">
+      <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h">
         <header>
           <HourglassEmblem />
-          <h2 id="writs-h">Your Indulgences</h2>
-          <p>NFTs that pay you $CONSUME over 30 days.</p>
-          <aside className="marginal">
-            <span aria-hidden="true">☞</span> The card is the NFT. Sell it and the payout goes with it.
-          </aside>
+          <h2 id="bonds-h">Your Bonds</h2>
+          <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: sell it and the payout goes with it.</p>
         </header>
-        <Indulgences snap={snap} tick={tick} onDone={done} />
+        <Bonds snap={snap} tick={tick} onDone={done} />
       </section>
 
       <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h">
@@ -292,6 +281,15 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </header>
         <Redeem snap={snap} tick={tick} onDone={done} />
         {VIA_INTENTS && <IntentsWallet snap={snap} tick={tick} onDone={done} />}
+      </section>
+
+      <section className="chapter" id="chains" aria-labelledby="chains-h">
+        <header>
+          <CompassEmblem />
+          <h2 id="chains-h">From any chain</h2>
+          <p>NEAR Intents brings memecoins from Dogecoin, Ethereum and Solana to NEAR, so one contract can eat them all.</p>
+        </header>
+        <Chains />
       </section>
 
       <section className="chapter" id="ledger" aria-labelledby="ledger-h">
@@ -368,7 +366,7 @@ function Masthead() {
       <nav aria-label="Sections">
         <a href="#crucible">The Stomach</a>
         <a href="#feed">Feed</a>
-        <a href="#writs">Indulgences</a>
+        <a href="#bonds">Bonds</a>
         <a href="#transmute">Redeem</a>
         <a href="#ledger">Ledger</a>
       </nav>
@@ -396,12 +394,16 @@ function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number)
   const meal = usdValue(raw, decimals, tribe.price_e18);
   const cap = BigInt(tribe.max_meal_usd);
   const m = meal > cap ? cap : meal;
+  const bonus = snap.stats.heaviest_last_epoch === token;
+  // as the contract does it (meal.rs): the feast pays no tithe, the rest mints at the backing
+  const tithe = bonus ? BigInt(0) : (m * BigInt(snap.stats.tithe_bps)) / BigInt(10_000);
   return {
     accepted: raw.toString(),
     refund: "0",
     meal_usd: m.toString(),
-    consume: ((m * BigInt(snap.stats.current_rate)) / BigInt(1_000_000)).toString(),
-    bonus: snap.stats.heaviest_last_epoch === token,
+    tithe_usd: tithe.toString(),
+    consume: (((m - tithe) * BigInt(snap.stats.current_rate)) / BigInt(1_000_000)).toString(),
+    bonus,
   };
 }
 
@@ -428,6 +430,9 @@ async function registrationCalls(tokens: string[], accountId: string) {
   }
   return calls;
 }
+
+// where a long name may break on a narrow screen (a soft hyphen, unseen until it is needed)
+const SOFT: Record<string, string> = { BLACKDRAGON: "BLACK\u00ADDRAGON" };
 
 function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send, connect } = useWallet();
@@ -496,9 +501,11 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
       if ((credit.data ?? BigInt(0)) < CREDIT_LOW) {
         calls.push({ receiverId: CONSUME_CONTRACT, methodName: "add_meal_credit", args: {}, deposit: CREDIT_TOP_UP, gas: TGAS(10) });
       }
-      // refuse to be paid less than 99% of the quote, or after ten minutes
+      // refuse a feeding counted at under 99% of the quoted value after the tithe, or one
+      // that lands after ten minutes. The count of $CONSUME is not pinned: it moves with
+      // the rest of the Stomach while the wallet is open, and what backs it moves the other way.
       const msg = JSON.stringify({
-        min_consume: ((BigInt(quote.consume) * BigInt(99)) / BigInt(100)).toString(),
+        min_net_usd: (((BigInt(quote.meal_usd) - BigInt(quote.tithe_usd)) * BigInt(99)) / BigInt(100)).toString(),
         deadline_ns: (BigInt(Date.now() + 10 * 60_000) * BigInt(1_000_000)).toString(),
       });
       calls.push(
@@ -524,7 +531,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
         throw new Error(`It refused the feeding and your ${h.symbol} was returned${last.failure ? `: ${last.failure}` : "."}`);
       }
       setAmount("");
-      onDone(`Fed ${fromRaw(quote.accepted, h.decimals)} ${h.symbol} to the Stomach. Your Indulgence is minted.`, last.hash);
+      onDone(`Fed ${fromRaw(quote.accepted, h.decimals)} ${h.symbol} to the Stomach. Your Bond is minted.`, last.hash);
     } catch (e) {
       setError(cleanError(e));
     } finally {
@@ -548,10 +555,63 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
   const over = balance !== null && raw !== null && raw > balance;
   const shownError = error ?? q.error ?? null;
 
+  // amounts in dollars, because nobody knows how many PEPE make fifty dollars
+  const price = tribe ? Number(BigInt(tribe.price_e18)) / 1e18 : 0;
+  const capUsd = tribe ? Number(BigInt(tribe.max_meal_usd)) / 1e6 : 0;
+  const amountFor = (dollars: number) => {
+    const n = dollars / price;
+    const d = Math.min(h.decimals, n >= 1e6 ? 0 : n >= 1000 ? 2 : 6);
+    // round up so the feeding is worth the full amount, except at the limit, where a hair over would be refunded
+    const round = dollars >= capUsd ? Math.floor : Math.ceil;
+    return (round(n * 10 ** d) / 10 ** d).toFixed(d);
+  };
+  const quick = price > 0 ? [10, 50, 100].filter((d) => d <= capUsd) : [];
+  const feastToken = snap.stats.heaviest_last_epoch;
+
   const quoteUsd = quote ? usd(quote.meal_usd) : raw && tribe ? usd(usdValue(raw, h.decimals, tribe.price_e18)) : "$0.00";
 
   return (
     <div className="leaf offering">
+      <div className="feed-pick">
+        <fieldset className="coin-picker">
+          <legend>Which memecoin</legend>
+          {THE_TEN.map((x) => {
+            const t = snap.tribes.find(([k]) => k === tokenAccount(x))?.[1];
+            return (
+              <label key={x.symbol} title={t?.open ? `${x.symbol} from ${x.chain}` : `${x.symbol} is sealed for now`}>
+                <input
+                  type="radio"
+                  name="meme"
+                  value={x.symbol}
+                  checked={symbol === x.symbol}
+                  disabled={!t?.open}
+                  onChange={() => {
+                    setSymbol(x.symbol);
+                    setAmount("");
+                    setError(null);
+                  }}
+                />
+                <Coin symbol={x.symbol} size={52} />
+                <span className={x.symbol.length > 8 ? "long" : undefined}>{SOFT[x.symbol] ?? x.symbol}</span>
+                {feastToken === tokenAccount(x) && <em className="pick-tag">feast</em>}
+              </label>
+            );
+          })}
+        </fieldset>
+        <p className="pick-about">
+          <strong>{h.symbol}</strong> lives on {h.chain}.
+          {tribe ? ` The Serpent takes up to ${usd(tribe.max_meal_usd, 0)} of it in one feeding.` : ""}
+          {feastToken === token ? " It is this week’s feast, so it pays no tithe." : ""}
+        </p>
+        {NETWORK === "testnet" && (
+          <p className="pick-foot">
+            <span>No {h.symbol} yet?</span>
+            <button className="small-button" disabled={DEMO || busy || !accountId} onClick={faucet}>
+              {MOCK_INTENTS ? (h.chain === "NEAR" ? `Deposit test ${h.symbol}` : `Bring test ${h.symbol} from ${h.chain}`) : `Get test ${h.symbol}`}
+            </button>
+          </p>
+        )}
+      </div>
       <div className="feed-main">
         <div className="receipt" aria-live="polite">
           <div className="give">
@@ -578,6 +638,24 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                 {h.symbol}
               </span>
             </div>
+            {quick.length > 0 && (
+              <span className="quick">
+                {quick.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className="small-button"
+                    aria-label={`Feed ${d} dollars of ${h.symbol}`}
+                    onClick={() => {
+                      setAmount(amountFor(d));
+                      setError(null);
+                    }}
+                  >
+                    ${d}
+                  </button>
+                ))}
+              </span>
+            )}
             <span id="amount-help" className="r-sub">
               Worth {quoteUsd}.
               {balance !== null && (
@@ -604,7 +682,13 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             <span className="r-label">You get</span>
             <span className={quote ? "r-amount" : "r-amount empty"}>{quote ? fromRaw(quote.consume, CONSUME_DEC, 0) : "nothing yet"}</span>
             <span className="r-sub">
-              {quote ? "" : "paid in "}$CONSUME over 30 days{quote?.bonus ? ", feast bonus included" : ""}
+              {quote ? "" : "paid in "}$CONSUME over 30 days
+              {quote && (
+                <>
+                  <br />
+                  {quote.bonus ? "no tithe at a feast" : `after a ${usd(quote.tithe_usd)} tithe`}
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -637,18 +721,12 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
               Connect wallet to feed
             </button>
           )}
-          {NETWORK === "testnet" && (
-            <button className="small-button" disabled={DEMO || busy || !accountId} onClick={faucet}>
-              {MOCK_INTENTS ? (h.chain === "NEAR" ? `Deposit test ${h.symbol}` : `Bring test ${h.symbol} from ${h.chain}`) : `Get test ${h.symbol}`}
-            </button>
-          )}
         </div>
 
         <details className="fine">
           <summary>Limits and storage</summary>
           <p>
-            Largest single feeding of {h.symbol}: {tribe ? usd(tribe.max_meal_usd, 0) : "n/a"}; anything over it comes back to you. Each
-            Indulgence takes a little NEAR for storage, paid from a refundable credit
+            Anything over a memecoin’s feeding limit comes back to you. Each Bond takes a little NEAR for storage, paid from a refundable credit
             {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR)` : ""}. Your first feeding adds 0.1 NEAR to it.{" "}
             {credit.data !== undefined && credit.data > BigInt(0) && (
               <button className="link-button" disabled={busy} onClick={withdrawCredit}>
@@ -658,36 +736,11 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           </p>
         </details>
       </div>
-
-      <fieldset className="coin-picker">
-        <legend>Which memecoin</legend>
-        {THE_TEN.map((x) => {
-          const t = snap.tribes.find(([k]) => k === tokenAccount(x))?.[1];
-          return (
-            <label key={x.symbol} title={t?.open ? `${x.symbol} from ${x.chain}` : `${x.symbol} is sealed for now`}>
-              <input
-                type="radio"
-                name="meme"
-                value={x.symbol}
-                checked={symbol === x.symbol}
-                disabled={!t?.open}
-                onChange={() => {
-                  setSymbol(x.symbol);
-                  setAmount("");
-                  setError(null);
-                }}
-              />
-              <Coin symbol={x.symbol} size={52} />
-              <span>{x.symbol}</span>
-            </label>
-          );
-        })}
-      </fieldset>
     </div>
   );
 }
 
-// ---------------------------------------------------------------- indulgences
+// ---------------------------------------------------------------- bonds
 
 async function loadAllVests(accountId: string): Promise<VestView[]> {
   const out: VestView[] = [];
@@ -699,7 +752,7 @@ async function loadAllVests(accountId: string): Promise<VestView[]> {
   return out.sort((a, b) => Number(b.token_id) - Number(a.token_id));
 }
 
-function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
+function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
   const { accountId, send } = useWallet();
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -726,18 +779,18 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
     }
   };
 
-  if (!DEMO && !accountId) return <p className="empty">Connect a wallet to see the Indulgences you hold.</p>;
+  if (!DEMO && !accountId) return <p className="empty">Connect a wallet to see the Bonds you hold.</p>;
   if (!DEMO && live.error)
     return (
       <p className="empty">
-        Could not read your Indulgences ({cleanError(live.error)}).{" "}
+        Could not read your Bonds ({cleanError(live.error)}).{" "}
         <button className="link-button" onClick={live.reload}>
           Try again
         </button>
       </p>
     );
-  if (!vests) return <p className="empty">Reading your Indulgences…</p>;
-  if (vests.length === 0) return <p className="empty">You hold no Indulgences yet. Feed the Serpent to receive one.</p>;
+  if (!vests) return <p className="empty">Reading your Bonds…</p>;
+  if (vests.length === 0) return <p className="empty">You hold no Bonds yet. Feed the Serpent to receive one.</p>;
 
   return (
     <>
@@ -754,19 +807,19 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
           return (
             <article key={v.token_id} className={v.vest.exited ? "ind broken" : "ind"}>
               {/* the NFT's own image, exactly as wallets and marketplaces show it */}
-              <a className="ind-card-link" href={`/indulgence/${v.token_id}.svg`} target="_blank" rel="noreferrer" title="Open the card full size">
+              <a className="ind-card-link" href={`/bond/${v.token_id}.svg`} target="_blank" rel="noreferrer" title="Open the card full size">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className="ind-card"
-                  src={`/indulgence/${v.token_id}.svg?v=${tick}`}
+                  src={`/bond/${v.token_id}.svg?v=${tick}`}
                   width={CARD_W}
                   height={CARD_H}
-                  alt={`Indulgence ${v.token_id}, the NFT card. Opens full size.`}
+                  alt={`Bond ${v.token_id}, the NFT card. Opens full size.`}
                 />
               </a>
               <div className="ind-body">
                 <h3>
-                  Indulgence <span className="no">№ {v.token_id}</span>
+                  Bond <span className="no">№ {v.token_id}</span>
                 </h3>
                 <p className="ind-meal">
                   {h && <Coin symbol={h.symbol} size={26} />}
@@ -788,33 +841,10 @@ function Indulgences({ snap, tick, onDone }: { snap: Snapshot; tick: number; onD
                       </span>
                       <span className="unit">$CONSUME</span>
                     </p>
-                    <dl className="ind-facts">
-                      <div>
-                        <dt>In total</dt>
-                        <dd>{fromRaw(v.vest.total, CONSUME_DEC, 0)}</dd>
-                      </div>
-                      <div>
-                        <dt>Released</dt>
-                        <dd suppressHydrationWarning>{Math.round(frac * 100)}%</dd>
-                      </div>
-                      <div>
-                        <dt>Fully released</dt>
-                        <dd suppressHydrationWarning>
-                          {left > 0 ? ends.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : "now"}
-                        </dd>
-                      </div>
-                    </dl>
-                    <div
-                      className="sand"
-                      suppressHydrationWarning
-                      role="progressbar"
-                      aria-valuenow={Math.round(frac * 100)}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label="Released so far"
-                    >
-                      <span style={{ width: `${frac * 100}%` }} suppressHydrationWarning />
-                    </div>
+                    <p className="ind-progress" suppressHydrationWarning>
+                      {Math.round(frac * 100)}% of {fromRaw(v.vest.total, CONSUME_DEC, 0)} released
+                      {left > 0 ? `, the rest by ${ends.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" })}` : ""}.
+                    </p>
                     <div className="actions">
                       <button
                         className="press"
@@ -979,7 +1009,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
           <span className="hint">
             {accountId && balance !== null
               ? `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME.`
-              : "Collect $CONSUME from your Indulgences first, then burn it here."}
+              : "Collect $CONSUME from your Bonds first, then burn it here."}
           </span>
         </div>
         {(shownError || over) && <p className="error">{shownError ?? "That is more $CONSUME than you hold."}</p>}
@@ -1082,7 +1112,8 @@ function Rule({ snap }: { snap: Snapshot }) {
           <b>I</b>
           <h3>Feed</h3>
           <p>
-            {c.start_rate} $CONSUME per dollar to start, halved every {usd(c.halving_usd, 0)} eaten. Early feeders earn most.
+            $CONSUME is minted at its backing, so what you feed is what you could redeem, less a tithe of {c.tithe_step_bps / 100}% to{" "}
+            {c.max_tithe_bps / 100}%.
           </p>
         </li>
         <li>
@@ -1107,11 +1138,12 @@ function Rule({ snap }: { snap: Snapshot }) {
           <strong>The Assayer</strong> sets prices from NEAR Intents quotes. A bad price can overpay, up to each memecoin&apos;s daily limit.
         </p>
         <p>
-          <strong>The owner</strong> can add memecoins, set limits and swap the Assayer, but cannot withdraw. It passes to a DAO after launch.
+          <strong>The guardian</strong> can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were
+          fixed at launch, and nobody can withdraw.
         </p>
         <p>
-          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. The owner cannot
-          switch to a different Intents contract once it has eaten.
+          <strong>NEAR Intents</strong> holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents
+          contract that is was fixed at launch.
         </p>
       </div>
 
@@ -1128,14 +1160,16 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>What it pays</h3>
             <p>
-              {c.start_rate} $CONSUME per dollar at the start. Every {usd(c.halving_usd, 0)} it consumes, famine halves the rate, so the earliest
-              feedings earn the most.
+              Every feeding mints $CONSUME at the current backing, so a late feeder gets the same deal as an early one: what you feed is what
+              you could redeem, less the tithe. The first feeding sets it at {c.start_rate} per dollar. The tithe is the part of a feeding that
+              mints nothing and so belongs to everyone already holding: {c.tithe_step_bps / 100}% at the start, {c.tithe_step_bps / 100}% more
+              with each famine (every {usd(c.famine_usd, 0)} eaten), never above {c.max_tithe_bps / 100}%. A feeding can never lower the backing.
             </p>
           </div>
           <div>
-            <h3>Indulgences</h3>
+            <h3>Bonds</h3>
             <p>
-              Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Sell or give the Indulgence and the rest goes with it. Break the
+              Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Sell or give the Bond and the rest goes with it. Break the
               seal early and you take what has been released plus half the rest; the other {haircut}% is never minted, which raises everyone
               else&apos;s share.
             </p>
@@ -1144,29 +1178,30 @@ function Rule({ snap }: { snap: Snapshot }) {
             <h3>The Stomach</h3>
             <p>
               Fed memecoins never leave except through redemption. Burning $CONSUME pays your share of every memecoin inside, measured against all $CONSUME
-              including what is still locked in Indulgences.
+              including what is still locked in Bonds.
             </p>
           </div>
           <div>
             <h3>Feasts and limits</h3>
             <p>
-              The memecoin fed most in a week pays {c.heaviest_bonus_bps / 100}% the next week. Each memecoin has a largest feeding and a daily limit; thin
+              The memecoin fed most in a week pays no tithe the next week. Each memecoin has a largest feeding and a daily limit; thin
               markets get small ones so a bad price cannot be used to empty the Stomach.
             </p>
           </div>
           <div>
             <h3>The Assayer</h3>
             <p>
-              Prices come from one price-feeder account, the Assayer, which reads NEAR Intents quotes. Feedings are refused when its price is more
-              than 15 minutes old. A wrong price can overpay feedings up to the daily limits, but it can never move what is in the Stomach.
+              Prices come from one price-feeder account, the Assayer, which reads NEAR Intents quotes. Feedings are refused when any price they
+              depend on is more than 15 minutes old. A wrong price can overpay feedings up to the daily limits, but it can never move what is in the Stomach.
             </p>
           </div>
           <div>
             <h3>Who you trust</h3>
             <p>
-              The owner can add memecoins, change limits, seal a memecoin and replace the Assayer, but has no way to withdraw from the Stomach. A bad
-              owner could still list a fake token or appoint a dishonest Assayer, so the owner role is meant to pass to a DAO, and the contract
-              account&apos;s keys to be deleted once it is set up.
+              The ten memecoins, their limits, the tithe and its famines, the feast and the 30 days were set when the contract launched, and it has
+              no way to change them. One role is left, the guardian, with two powers: seal or unseal a memecoin on the list, and replace the
+              Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer,
+              within the daily limits. The contract account&apos;s keys are to be deleted once it is set up.
             </p>
           </div>
         </div>

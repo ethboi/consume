@@ -49,28 +49,35 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     consume
         .call("new")
         .args_json(json!({ "config": {
-            "owner_id": owner.id(), "price_feeder_id": owner.id(),
-            "start_rate": "1000", "halving_usd": (10_000 * USD).to_string(),
+            "guardian_id": owner.id(), "price_feeder_id": owner.id(),
+            "start_rate": "1000", "famine_usd": (10_000 * USD).to_string(),
+            "tithe_step_bps": 100, "max_tithe_bps": 1000,
             "vest_duration_ns": "20000000000",           // 20 s so the test can watch it vest
             "exit_haircut_bps": 5000,
             "max_price_age_ns": "3600000000000000",      // 1000 h: no feeder running here
             "min_meal_usd": USD.to_string(),
-            "epoch_ns": "604800000000000", "heaviest_bonus_bps": 15000,
+            "epoch_ns": "604800000000000",
             "media_base": null
-        }}))
+        }, "tribes": [
+            // the memecoin list and its caps are fixed here, at launch
+            { "token_id": pepe.id(), "symbol": "PEPE", "decimals": 18,
+              "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string() },
+            { "token_id": doge.id(), "symbol": "DOGE", "decimals": 8,
+              "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string() },
+        ]}))
         .transact()
         .await?
         .into_result()?;
 
-    for (t, sym, dec) in [(&pepe, "PEPE", 18), (&doge, "DOGE", 8)] {
-        owner
-            .call(consume.id(), "set_tribe")
-            .args_json(json!({ "token_id": t.id(), "symbol": sym, "decimals": dec,
-                "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string(), "open": true }))
-            .transact()
-            .await?
-            .into_result()?;
+    // No admin key: the methods that used to change the list, the Intents
+    // contract, the image base or the owner do not exist, and launching twice
+    // is refused.
+    for method in ["set_tribe", "set_intents_id", "set_media_base", "set_owner"] {
+        let r = owner.call(consume.id(), method).args_json(json!({})).transact().await?;
+        assert!(format!("{:?}", r.into_result().unwrap_err()).contains("MethodNotFound"), "{method} should not exist");
     }
+    let again = consume.call("new").args_json(json!({ "config": consume.view("get_config").await?.json::<serde_json::Value>()?, "tribes": [] })).transact().await?;
+    assert!(again.is_failure(), "the contract cannot be launched twice");
     owner
         .call(consume.id(), "set_prices")
         .args_json(json!({ "prices": [
@@ -89,7 +96,7 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     let bob = root.create_subaccount("bob").initial_balance(NearToken::from_near(10)).transact().await?.into_result()?;
     alice.call(pepe.id(), "faucet").transact().await?.into_result()?;
     bob.call(doge.id(), "faucet").transact().await?.into_result()?;
-    // feeders prepay the storage their Indulgences use
+    // feeders prepay the storage their Bonds use
     for who in [&alice, &bob] {
         who.call(consume.id(), "add_meal_credit")
             .args_json(json!({}))
@@ -142,7 +149,7 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
     worker.fast_forward(600).await?;
     alice.call(consume.id(), "claim").args_json(json!({ "token_id": "1" })).transact().await?.into_result()?;
     let alice_consume = balance(&consume, &alice).await?;
-    assert_eq!(alice_consume, 100_000 * 10u128.pow(18));
+    assert_eq!(alice_consume, 99_000 * 10u128.pow(18));
 
     // Alice redeems everything. She is registered on PEPE but not on DOGE,
     // so her DOGE share must stay owed rather than vanish.

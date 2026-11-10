@@ -86,6 +86,48 @@ const UPPER =
 const LOWER =
   "M222,67 C206,69 190,72 178,74 L175,69 L171,75 L154,73 C161,82 180,88 199,86 C210,85 218,80 224,74 Z";
 
+const HINGE = [223, 64] as const;
+
+/** The head alone, in the ouroboros' own frame: spine at y=60, neck at x≈220,
+ *  jaws open to the left around the tail tip. Place it with a transform; `cut`
+ *  thickens the fine lines when it is drawn small, and `open` swings each jaw
+ *  that many degrees wider about the hinge, showing the dark of the mouth. */
+export function SerpentHead({ fill, stroke, detailed = true, cut = 1, open = 0 }: { fill: string; stroke: number; detailed?: boolean; cut?: number; open?: number }) {
+  const swing = (deg: number) => (open ? `rotate(${deg} ${HINGE[0]} ${HINGE[1]})` : undefined);
+  const turn = (x: number, y: number, deg: number) => {
+    const [dx, dy] = [x - HINGE[0], y - HINGE[1]];
+    return `${f(HINGE[0] + dx * Math.cos(rad(deg)) - dy * Math.sin(rad(deg)))},${f(HINGE[1] + dx * Math.sin(rad(deg)) + dy * Math.cos(rad(deg)))}`;
+  };
+  return (
+    <>
+      {open > 0 && (
+        <path
+          d={`M${HINGE[0] + 6},${HINGE[1]} L${turn(222, 58, open)} L${turn(176, 55, open)} Q${HINGE[0] - 30},${HINGE[1] + 1} ${turn(178, 74, -open)} L${turn(222, 70, -open)} Z`}
+          fill="currentColor"
+          stroke="none"
+        />
+      )}
+      <g transform={swing(-open)}>
+        <path d={LOWER} fill={fill} strokeWidth={stroke} />
+        {detailed && <path d="M188,79 C200,80 211,78 219,73" strokeWidth={1 * cut} opacity={0.8} />}
+      </g>
+      <g transform={swing(open)}>
+        <path d={UPPER} fill={fill} strokeWidth={stroke} />
+        {detailed && (
+          <>
+            {/* brow, eye with slit pupil, nostril, neck folds */}
+            <path d="M178,41 C188,36 200,36 210,40" strokeWidth={1.4 * cut} />
+            <circle cx={196} cy={46} r={5} fill="var(--rubric)" stroke="currentColor" strokeWidth={1.2 * cut} />
+            <path d="M196,42 L196,50" stroke="currentColor" strokeWidth={1.6 * cut} />
+            <path d="M156,49 l3,-1" strokeWidth={1.8 * cut} />
+            <path d="M201,52 C208,52 214,53 219,55 M203,48 C209,48 214,49 219,51" strokeWidth={0.9 * cut} opacity={0.75} />
+          </>
+        )}
+      </g>
+    </>
+  );
+}
+
 export function Ouroboros({ size = 400, className, detailed = true, animate = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
   // woodcut: the uncut wood prints as paper, the lines as ink
   const fill = detailed ? "var(--paper)" : "none";
@@ -114,19 +156,7 @@ export function Ouroboros({ size = 400, className, detailed = true, animate = fa
         )}
       </g>
       <g className={animate ? "ouro-head ouro-animate" : "ouro-head"}>
-        <path d={LOWER} fill={fill} strokeWidth={detailed ? 3.2 : 8} />
-        <path d={UPPER} fill={fill} strokeWidth={detailed ? 3.2 : 8} />
-        {detailed && (
-          <>
-            {/* brow, eye with slit pupil, nostril, jaw line */}
-            <path d="M178,41 C188,36 200,36 210,40" strokeWidth={1.4} />
-            <circle cx={196} cy={46} r={5} fill="var(--rubric)" stroke="currentColor" strokeWidth={1.2} />
-            <path d="M196,42 L196,50" stroke="currentColor" strokeWidth={1.6} />
-            <path d="M156,49 l3,-1" strokeWidth={1.8} />
-            <path d="M188,79 C200,80 211,78 219,73" strokeWidth={1} opacity={0.8} />
-            <path d="M201,52 C208,52 214,53 219,55 M203,48 C209,48 214,49 219,51" strokeWidth={0.9} opacity={0.75} />
-          </>
-        )}
+        <SerpentHead fill={fill} stroke={detailed ? 3.2 : 8} detailed={detailed} />
       </g>
     </svg>
   );

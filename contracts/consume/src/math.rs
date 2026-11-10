@@ -46,41 +46,48 @@ pub fn amount_for_usd(usd: u128, decimals: u8, price_e18: u128) -> u128 {
     r.as_u128()
 }
 
-/// Raw $CONSUME (18 decimals) per USD once `total_eaten` micro-USD has been
-/// eaten. Kept in raw units so halvings stay exact (125 halves to 62.5, not 62).
-pub fn rate_at(start_rate: u128, halving_usd: u128, total_eaten: u128) -> u128 {
-    let halvings = total_eaten / halving_usd;
-    if halvings >= 128 {
-        0
-    } else {
-        (start_rate * ONE_CONSUME) >> halvings
-    }
+/// The tithe, in basis points, once `total_eaten` micro-USD has been eaten:
+/// one step from the start and one more for every `famine_usd` eaten, never
+/// above `max_bps`.
+pub fn tithe_at(step_bps: u128, max_bps: u128, famine_usd: u128, total_eaten: u128) -> u128 {
+    (total_eaten / famine_usd).saturating_add(1).saturating_mul(step_bps).min(max_bps)
 }
 
-pub fn next_halving_at(halving_usd: u128, total_eaten: u128) -> u128 {
-    (total_eaten / halving_usd + 1) * halving_usd
+/// Total eaten (micro-USD) at which the tithe steps up next.
+pub fn next_famine_at(famine_usd: u128, total_eaten: u128) -> u128 {
+    (total_eaten / famine_usd + 1) * famine_usd
 }
 
-/// $CONSUME (raw, 18 decimals) earned by a meal worth `meal_usd` micro-USD,
-/// starting when `total_eaten` micro-USD has already been eaten. A meal that
-/// crosses a halving is paid at each rate for the part on each side.
-pub fn consume_for_meal(start_rate: u128, halving_usd: u128, total_eaten: u128, meal_usd: u128) -> u128 {
-    let mut minted: u128 = 0;
+/// What is left of a feeding worth `meal_usd` after the tithe, starting when
+/// `total_eaten` has already been eaten. A feeding that crosses a famine pays
+/// each tithe on the part on each side. Rounded down.
+pub fn after_tithe(step_bps: u128, max_bps: u128, famine_usd: u128, total_eaten: u128, meal_usd: u128) -> u128 {
+    let mut net: u128 = 0;
     let mut eaten = total_eaten;
     let mut left = meal_usd;
     while left > 0 {
-        let rate = rate_at(start_rate, halving_usd, eaten);
-        if rate == 0 {
-            break;
-        }
-        let era_end = next_halving_at(halving_usd, eaten);
-        let take = left.min(era_end - eaten);
-        // take micro-USD * raw-CONSUME-per-USD -> raw units
-        minted += mul_div(take, rate, MICRO_USD);
+        let tithe = tithe_at(step_bps, max_bps, famine_usd, eaten);
+        // once the tithe has stopped growing the rest is all at one rate
+        let take = if tithe >= max_bps || step_bps == 0 { left } else { left.min(next_famine_at(famine_usd, eaten) - eaten) };
+        net += mul_div(take, BPS - tithe, BPS);
         eaten += take;
         left -= take;
     }
-    minted
+    net
+}
+
+/// $CONSUME (raw, 18 decimals) minted for `net_usd` micro-USD at the floor:
+/// the new claim is the same share of the stomach as `net_usd` is of its value,
+/// so a feeding never lowers what each existing $CONSUME is backed by.
+/// `claims` is all $CONSUME, minted or still locked in Bonds; `stomach_usd` is
+/// the stomach's value before this feeding. An empty stomach (or no claims)
+/// starts at `start_rate` whole $CONSUME per USD.
+pub fn consume_at_floor(start_rate: u128, net_usd: u128, claims: u128, stomach_usd: u128) -> u128 {
+    if claims == 0 || stomach_usd == 0 {
+        mul_div(net_usd, start_rate * ONE_CONSUME, MICRO_USD)
+    } else {
+        mul_div(net_usd, claims, stomach_usd)
+    }
 }
 
 pub fn apply_bps(amount: u128, bps: u128) -> u128 {

@@ -1,7 +1,7 @@
 //! CONSUME: a memecoin that eats other memecoins.
 //!
 //! Feed it a whitelisted memecoin (PEPE, DOGE, SHIB ...) with `ft_transfer_call`.
-//! The meme goes into the stomach for good. You get a Vest NFT that releases
+//! The meme goes into the stomach for good. You get a Bond NFT that releases
 //! $CONSUME to whoever holds it, linearly over the vesting period.
 //! Burn $CONSUME with `redeem` to take your share of everything in the stomach.
 //!
@@ -11,9 +11,15 @@
 //! balance, and redemptions are paid there with `mt_transfer`, so they can be
 //! withdrawn to the memecoin's home chain.
 //!
-//! One contract holds the $CONSUME token (NEP-141), the Vest NFTs (NEP-171)
+//! One contract holds the $CONSUME token (NEP-141), the Bond NFTs (NEP-171)
 //! and the stomach, so minting, vesting and redemption never need a
 //! cross-contract call except for paying out stomach shares.
+//!
+//! Everything about the mechanic is fixed by `new`: the list of memecoins,
+//! their caps, the start rate, the tithe and its famines, the vesting period,
+//! the exit forfeit, the Intents contract. No method changes any of it afterwards. The only
+//! role left is the guardian, who can seal or unseal a listed memecoin and
+//! replace the price feeder, and nothing else (see "guardian" below).
 
 mod intents;
 mod math;
@@ -42,6 +48,10 @@ pub const BPS: u128 = 10_000;
 pub const MAX_START_RATE: u128 = 1_000_000_000;
 /// Largest token decimals accepted for a tribe.
 pub const MAX_DECIMALS: u8 = 30;
+/// Largest tithe a deployment can set (basis points): half of a feeding.
+pub const MAX_TITHE_BPS: u32 = 5_000;
+/// Most memecoins a deployment can list (views and the feast walk the list).
+pub const MAX_TRIBES: usize = 32;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -86,11 +96,26 @@ pub struct Tribe {
     pub eaten_usd: U128,
     /// True if this memecoin is held on NEAR Intents (fed with
     /// `mt_transfer_call`, paid out with `mt_transfer`) rather than as a
-    /// NEP-141 balance on its token contract. Fixed once the tribe has eaten.
+    /// NEP-141 balance on its token contract. Fixed at launch.
     pub via_intents: bool,
 }
 
-/// The vesting position held by a Vest NFT.
+/// A memecoin on the launch list, as passed to `new`. The list, the decimals,
+/// the caps and where each memecoin is held never change after launch.
+#[near(serializers = [json])]
+#[derive(Clone)]
+pub struct TribeInit {
+    pub token_id: AccountId,
+    pub symbol: String,
+    pub decimals: u8,
+    pub max_meal_usd: U128,
+    pub daily_cap_usd: U128,
+    /// Held on NEAR Intents rather than as a plain NEP-141 balance.
+    #[serde(default)]
+    pub via_intents: bool,
+}
+
+/// The vesting position held by a Bond NFT.
 #[near(serializers = [borsh, json])]
 #[derive(Clone)]
 pub struct Vest {
@@ -114,14 +139,24 @@ pub struct Vest {
 #[near(serializers = [borsh, json])]
 #[derive(Clone)]
 pub struct Config {
-    /// Can add tribes and change caps. Can be renounced.
-    pub owner_id: AccountId,
+    /// The guardian can seal or unseal a listed memecoin and replace the
+    /// price feeder. It cannot add memecoins, change caps or rates, mint,
+    /// or move anything in the stomach. `None` once renounced.
+    pub guardian_id: Option<AccountId>,
     /// The only account allowed to post tribe prices.
     pub price_feeder_id: AccountId,
-    /// Whole $CONSUME paid per 1 USD eaten, before any halving (at most MAX_START_RATE).
+    /// Whole $CONSUME minted per 1 USD while the stomach is empty (at most
+    /// MAX_START_RATE). After that every feeding mints at the floor: the same
+    /// share of all $CONSUME as its value is of the stomach.
     pub start_rate: U128,
-    /// The rate halves every time this much USD (micro-USD) has been eaten in total.
-    pub halving_usd: U128,
+    /// Famine: the tithe grows by one step every time this much USD
+    /// (micro-USD) has been eaten in total.
+    pub famine_usd: U128,
+    /// The tithe is the share of a feeding that mints nothing and so belongs to
+    /// everyone already holding (basis points). It starts at one step.
+    pub tithe_step_bps: u32,
+    /// The tithe never grows past this (basis points, at most MAX_TITHE_BPS).
+    pub max_tithe_bps: u32,
     pub vest_duration_ns: U64,
     /// Share of the still-locked amount forfeited on early exit (basis points).
     pub exit_haircut_bps: u32,
@@ -129,11 +164,10 @@ pub struct Config {
     pub max_price_age_ns: U64,
     /// Smallest meal accepted, micro-USD (stops dust NFTs).
     pub min_meal_usd: U128,
-    /// Length of a "heaviest meal" epoch.
+    /// Length of a feast epoch. The memecoin fed most (by USD) in one epoch
+    /// pays no tithe in the next.
     pub epoch_ns: U64,
-    /// Multiplier for meals from last epoch's heaviest tribe (basis points, 15000 = 1.5x).
-    pub heaviest_bonus_bps: u32,
-    /// Base URL for Vest NFT images, e.g. "https://consume.example/vest".
+    /// Base URL for Bond NFT images, e.g. "https://consume.example/bond/square".
     pub media_base: Option<String>,
     /// The NEAR Intents contract (`intents.near` on mainnet, the mock on
     /// testnet). Only this account can feed `via_intents` tribes.
@@ -155,7 +189,7 @@ pub struct Contract {
     /// (account, tribe) -> raw meme units the account can withdraw after redeeming.
     pub(crate) owed: LookupMap<(AccountId, AccountId), u128>,
     pub(crate) next_vest_id: u64,
-    /// Lifetime USD eaten across all tribes, micro-USD. Drives the halvings.
+    /// Lifetime USD eaten across all tribes, micro-USD. Drives the famines.
     pub(crate) total_eaten_usd: u128,
     /// $CONSUME promised to Vest NFTs but not yet released.
     pub(crate) total_unvested: u128,
@@ -166,9 +200,9 @@ pub struct Contract {
     /// Accounts whose $CONSUME registration the contract paid for. They cannot
     /// unregister, so the sponsored deposit can never be cashed out.
     pub(crate) sponsored: LookupSet<AccountId>,
-    /// Indulgences inside an unresolved nft_transfer_call. They cannot be
+    /// Bonds inside an unresolved nft_transfer_call. They cannot be
     /// claimed or exited until the transfer resolves (blocks a receiver from
-    /// draining an Indulgence and then rejecting it).
+    /// draining a Bond and then rejecting it).
     pub(crate) in_flight: LookupSet<String>,
     /// NEAR each account has prepaid for the storage its feedings create.
     pub(crate) meal_credit: LookupMap<AccountId, u128>,
@@ -176,26 +210,50 @@ pub struct Contract {
 
 #[near]
 impl Contract {
+    /// Launch. The memecoin list and every parameter are set here, once.
     #[init]
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, tribes: Vec<TribeInit>) -> Self {
         require!(config.start_rate.0 > 0, "start_rate must be positive");
         require!(config.start_rate.0 <= MAX_START_RATE, "start_rate too large");
-        require!(config.halving_usd.0 > 0, "halving_usd must be positive");
+        require!(config.famine_usd.0 > 0, "famine_usd must be positive");
+        require!(config.max_tithe_bps <= MAX_TITHE_BPS, "max_tithe_bps too large");
+        require!(config.tithe_step_bps <= config.max_tithe_bps, "tithe_step_bps above max_tithe_bps");
         require!(config.vest_duration_ns.0 > 0, "vest_duration_ns must be positive");
         require!(config.epoch_ns.0 > 0, "epoch_ns must be positive");
         require!(config.exit_haircut_bps as u128 <= BPS, "exit_haircut_bps above 100%");
-        let owner = config.owner_id.clone();
+        require!(!tribes.is_empty(), "List at least one memecoin");
+        require!(tribes.len() <= MAX_TRIBES, "Too many memecoins");
+        let mut list = IterableMap::new(StorageKey::Tribes);
+        for t in tribes {
+            require!(t.decimals <= MAX_DECIMALS, "decimals too large");
+            require!(t.max_meal_usd.0 > 0 && t.daily_cap_usd.0 > 0, "Caps must be positive");
+            require!(!t.via_intents || config.intents_id.is_some(), "An Intents memecoin needs intents_id");
+            let tribe = Tribe {
+                symbol: t.symbol,
+                decimals: t.decimals,
+                price_e18: U128(0),
+                price_updated_ns: U64(0),
+                max_meal_usd: t.max_meal_usd,
+                daily_cap_usd: t.daily_cap_usd,
+                open: true,
+                stomach: U128(0),
+                eaten_usd: U128(0),
+                via_intents: t.via_intents,
+            };
+            require!(list.insert(t.token_id, tribe).is_none(), "A memecoin is listed twice");
+        }
         Self {
             config,
             token: FungibleToken::new(StorageKey::FungibleToken),
             nft: NonFungibleToken::new(
                 StorageKey::NftOwnerById,
-                owner,
+                // the standard wants an owner; Bonds are only ever minted by a feeding
+                env::current_account_id(),
                 Some(StorageKey::NftMetadata),
                 Some(StorageKey::NftEnumeration),
                 Some(StorageKey::NftApproval),
             ),
-            tribes: IterableMap::new(StorageKey::Tribes),
+            tribes: list,
             vests: LookupMap::new(StorageKey::Vests),
             daily_fed: LookupMap::new(StorageKey::DailyFed),
             epoch_fed: LookupMap::new(StorageKey::EpochFed),
@@ -211,89 +269,46 @@ impl Contract {
         }
     }
 
-    // ---------- admin ----------
+    // ---------- guardian ----------
+    //
+    // These three methods are the whole of the guardian's power. There is no
+    // method that adds a memecoin, changes a cap, a rate or a period, repoints
+    // the Intents contract, mints $CONSUME or takes anything from the stomach.
 
-    fn assert_owner(&self) {
-        require!(env::predecessor_account_id() == self.config.owner_id, "Only the owner");
+    fn assert_guardian(&self) {
+        require!(
+            self.config.guardian_id.as_ref() == Some(&env::predecessor_account_id()),
+            "Only the guardian"
+        );
     }
 
-    /// Add a tribe, or update its caps and symbol. Never touches the stomach.
-    /// A tribe's decimals are fixed once it is added, and where it is held
-    /// (`via_intents`) is fixed once it has eaten. `via_intents` defaults to the
-    /// current setting, or false for a new tribe.
-    #[allow(clippy::too_many_arguments)]
-    pub fn set_tribe(
-        &mut self,
-        token_id: AccountId,
-        symbol: String,
-        decimals: u8,
-        max_meal_usd: U128,
-        daily_cap_usd: U128,
-        open: bool,
-        via_intents: Option<bool>,
-    ) {
-        self.assert_owner();
-        require!(decimals <= MAX_DECIMALS, "decimals too large");
-        let tribe = match self.tribes.get(&token_id) {
-            Some(t) => {
-                require!(t.decimals == decimals, "A tribe's decimals cannot change");
-                let via_intents = via_intents.unwrap_or(t.via_intents);
-                require!(
-                    via_intents == t.via_intents || (t.eaten_usd.0 == 0 && t.stomach.0 == 0),
-                    "A tribe's custody cannot change once it has eaten"
-                );
-                Tribe { symbol, decimals, max_meal_usd, daily_cap_usd, open, via_intents, ..t.clone() }
-            }
-            None => Tribe {
-                symbol,
-                decimals,
-                price_e18: U128(0),
-                price_updated_ns: U64(0),
-                max_meal_usd,
-                daily_cap_usd,
-                open,
-                stomach: U128(0),
-                eaten_usd: U128(0),
-                via_intents: via_intents.unwrap_or(false),
-            },
-        };
-        require!(!tribe.via_intents || self.config.intents_id.is_some(), "Set the Intents contract first");
-        self.tribes.insert(token_id, tribe);
-    }
-
+    /// Seal a listed memecoin (stop eating it, e.g. when its route has no
+    /// liquidity or its price cannot be trusted) or unseal it. What is already
+    /// in the stomach stays there and stays redeemable either way.
     pub fn set_tribe_open(&mut self, token_id: AccountId, open: bool) {
-        self.assert_owner();
+        self.assert_guardian();
         let tribe = self.tribes.get_mut(&token_id).unwrap_or_else(|| env::panic_str("Unknown tribe"));
         tribe.open = open;
+        emit_event("tribe_open", near_sdk::serde_json::json!({ "token_id": token_id, "open": open }));
     }
 
+    /// Replace the price feeder (e.g. if its key is lost or it misprices).
     pub fn set_price_feeder(&mut self, price_feeder_id: AccountId) {
-        self.assert_owner();
+        self.assert_guardian();
+        emit_event("price_feeder", near_sdk::serde_json::json!({ "price_feeder_id": price_feeder_id }));
         self.config.price_feeder_id = price_feeder_id;
     }
 
-    /// Point CONSUME at the NEAR Intents contract. Refused once any Intents
-    /// tribe has eaten, since its stomach is held there.
-    pub fn set_intents_id(&mut self, intents_id: Option<AccountId>) {
-        self.assert_owner();
-        require!(
-            !self.tribes.values().any(|t| t.via_intents && (t.eaten_usd.0 > 0 || t.stomach.0 > 0)),
-            "Intents tribes have eaten; the Intents contract is fixed"
-        );
-        self.config.intents_id = intents_id;
+    /// Pass the guardian role on (e.g. to a DAO), or renounce it with `null`.
+    /// Renouncing cannot be undone: no memecoin can be sealed or unsealed and
+    /// the price feeder can never be replaced again.
+    pub fn set_guardian(&mut self, guardian_id: Option<AccountId>) {
+        self.assert_guardian();
+        emit_event("guardian", near_sdk::serde_json::json!({ "guardian_id": guardian_id }));
+        self.config.guardian_id = guardian_id;
     }
 
-    pub fn set_media_base(&mut self, media_base: Option<String>) {
-        self.assert_owner();
-        self.config.media_base = media_base;
-    }
-
-    /// Hand the owner role to another account (e.g. a DAO), or to the contract
-    /// itself to make the tribe list permanent.
-    pub fn set_owner(&mut self, owner_id: AccountId) {
-        self.assert_owner();
-        self.config.owner_id = owner_id;
-    }
+    // ---------- price feeder ----------
 
     /// Price feeder posts USD prices (1e18-scaled, per whole token).
     /// The feeder reads them from NEAR Intents 1Click dry quotes.
@@ -304,6 +319,8 @@ impl Contract {
         );
         let now = env::block_timestamp();
         for (token_id, price) in prices {
+            // a zero price would value the stomach too low and overpay the next feeding
+            require!(price.0 > 0, "A price must be more than zero");
             if let Some(tribe) = self.tribes.get_mut(&token_id) {
                 tribe.price_e18 = price;
                 tribe.price_updated_ns = U64(now);
@@ -313,7 +330,7 @@ impl Contract {
 
     // ---------- storage credit for feedings ----------
 
-    /// Prepay NEAR for the storage your feedings create (each Indulgence NFT
+    /// Prepay NEAR for the storage your feedings create (each Bond NFT
     /// and its records). A feeding is refused if its storage cost exceeds the
     /// feeder's credit.
     #[payable]
@@ -357,6 +374,8 @@ impl Contract {
     pub fn get_stats(&self) -> Stats {
         let now = env::block_timestamp();
         let epoch = now / self.config.epoch_ns.0;
+        let stomach_usd = self.stomach_usd(None);
+        let tithe = self.tithe_now();
         Stats {
             total_eaten_usd: U128(self.total_eaten_usd),
             consume_supply: U128(self.token.total_supply),
@@ -364,15 +383,11 @@ impl Contract {
             total_forfeited: U128(self.total_forfeited),
             total_redeemed: U128(self.total_redeemed),
             vests_minted: U64(self.next_vest_id - 1),
-            current_rate: U128(math::rate_at(
-                self.config.start_rate.0,
-                self.config.halving_usd.0,
-                self.total_eaten_usd,
-            )),
-            next_halving_at_usd: U128(math::next_halving_at(
-                self.config.halving_usd.0,
-                self.total_eaten_usd,
-            )),
+            stomach_usd: U128(stomach_usd),
+            current_rate: U128(math::consume_at_floor(self.config.start_rate.0, MICRO_USD, self.claims(), stomach_usd)),
+            tithe_bps: tithe as u32,
+            next_famine_at_usd: (tithe < self.config.max_tithe_bps as u128 && self.config.tithe_step_bps > 0)
+                .then(|| U128(math::next_famine_at(self.config.famine_usd.0, self.total_eaten_usd))),
             epoch: U64(epoch),
             heaviest_last_epoch: self.heaviest_tribe(epoch.saturating_sub(1)),
             now_ns: U64(now),
@@ -398,6 +413,42 @@ impl Contract {
 }
 
 impl Contract {
+    /// All $CONSUME that has a claim on the stomach: minted, plus what is still
+    /// locked in Bonds. Redemptions and feedings are both measured against it.
+    pub(crate) fn claims(&self) -> u128 {
+        self.token.total_supply + self.total_unvested
+    }
+
+    /// The stomach's value at the posted prices, micro-USD. With `fresh_at`
+    /// (a feeding), every memecoin held must have a price no older than
+    /// `max_price_age_ns`, because the feeding is priced against all of them.
+    pub(crate) fn stomach_usd(&self, fresh_at: Option<u64>) -> u128 {
+        let mut total: u128 = 0;
+        for t in self.tribes.values() {
+            if t.stomach.0 == 0 {
+                continue;
+            }
+            if let Some(now) = fresh_at {
+                require!(
+                    now.saturating_sub(t.price_updated_ns.0) <= self.config.max_price_age_ns.0,
+                    "A price in the stomach is stale, try again shortly"
+                );
+            }
+            total += math::usd_value(t.stomach.0, t.decimals, t.price_e18.0);
+        }
+        total
+    }
+
+    /// The tithe right now, basis points.
+    pub(crate) fn tithe_now(&self) -> u128 {
+        math::tithe_at(
+            self.config.tithe_step_bps as u128,
+            self.config.max_tithe_bps as u128,
+            self.config.famine_usd.0,
+            self.total_eaten_usd,
+        )
+    }
+
     /// The tribe that was fed the most USD in the given epoch, if any was fed.
     pub(crate) fn heaviest_tribe(&self, epoch: u64) -> Option<AccountId> {
         let mut best: Option<(AccountId, u128)> = None;
@@ -419,10 +470,15 @@ pub struct Stats {
     pub total_forfeited: U128,
     pub total_redeemed: U128,
     pub vests_minted: U64,
-    /// Whole $CONSUME per USD right now (before any heaviest-tribe bonus).
+    /// The stomach's value at the posted prices, micro-USD.
+    pub stomach_usd: U128,
+    /// Raw $CONSUME (18 decimals) one USD mints at the floor, before the tithe.
     pub current_rate: U128,
-    /// Total USD eaten (micro-USD) at which the rate halves next.
-    pub next_halving_at_usd: U128,
+    /// The tithe on a feeding right now, basis points.
+    pub tithe_bps: u32,
+    /// Total USD eaten (micro-USD) at which the tithe grows next. `null` once
+    /// it has reached its maximum.
+    pub next_famine_at_usd: Option<U128>,
     pub epoch: U64,
     pub heaviest_last_epoch: Option<AccountId>,
     pub now_ns: U64,

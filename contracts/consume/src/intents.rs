@@ -44,8 +44,8 @@ impl Contract {
         let tribe = self.tribes.get(&token).unwrap_or_else(|| env::panic_str("CONSUME does not eat this token"));
         require!(tribe.via_intents, "This memecoin is fed directly (ft_transfer_call), not through Intents");
 
-        let (eater, min_consume) = parse_meal_msg(&sender_id, &msg);
-        let refund = self.eat(token, sender_id, eater, amounts[0].0, min_consume);
+        let (eater, terms) = parse_meal_msg(&sender_id, &msg);
+        let refund = self.eat(token, sender_id, eater, amounts[0].0, terms);
         PromiseOrValue::Value(vec![U128(refund)])
     }
 }

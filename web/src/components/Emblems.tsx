@@ -1,6 +1,8 @@
 // Small woodcut emblems for each chapter heading. Ink lines with a little
 // hatching, drawn at 64x64.
 
+import { SerpentHead } from "./Ouroboros";
+
 const common = {
   viewBox: "0 0 64 64",
   fill: "none",
@@ -52,6 +54,81 @@ export function CoinsEmblem() {
   );
 }
 
+// The feeding serpent: its body is a spine of curves given a width, the same
+// way the big serpents are cut, and the head is theirs with the jaws thrown open.
+type Pt = readonly [number, number];
+const FEED_K = 0.5; // head scale from the ouroboros frame
+const FEED_TILT = 50; // degrees the head is thrown back
+const FEED_SPINE: readonly (readonly [Pt, Pt, Pt, Pt])[] = [
+  [[43.6, 31.2], [49.5, 38.3], [63, 39], [63.5, 50]],
+  [[63.5, 50], [64, 62], [47, 63.5], [35, 59.5]],
+  [[35, 59.5], [23, 55.5], [11, 56], [3, 65]],
+];
+const FEED_BW = 7.6; // half the body width at the neck
+
+function feedSpine() {
+  const out: { x: number; y: number; nx: number; ny: number; w: number }[] = [];
+  const N = 14;
+  const total = FEED_SPINE.length * N;
+  FEED_SPINE.forEach(([a, b, c, d], i) => {
+    for (let j = i ? 1 : 0; j <= N; j++) {
+      const t = j / N;
+      const u = 1 - t;
+      const x = u * u * u * a[0] + 3 * u * u * t * b[0] + 3 * u * t * t * c[0] + t * t * t * d[0];
+      const y = u * u * u * a[1] + 3 * u * u * t * b[1] + 3 * u * t * t * c[1] + t * t * t * d[1];
+      const dx = 3 * u * u * (b[0] - a[0]) + 6 * u * t * (c[0] - b[0]) + 3 * t * t * (d[0] - c[0]);
+      const dy = 3 * u * u * (b[1] - a[1]) + 6 * u * t * (c[1] - b[1]) + 3 * t * t * (d[1] - c[1]);
+      const len = Math.hypot(dx, dy) || 1;
+      const s = (i * N + j) / total;
+      const w = s < 0.3 ? FEED_BW : 0.8 + (FEED_BW - 0.8) * ((1 - s) / 0.7) ** 0.9;
+      out.push({ x, y, nx: -dy / len, ny: dx / len, w });
+    }
+  });
+  return out;
+}
+
+const n1 = (n: number) => n.toFixed(1);
+const FEED_PTS = feedSpine();
+const FEED_BODY = (() => {
+  const left = FEED_PTS.map((p) => `${n1(p.x + p.nx * p.w)},${n1(p.y + p.ny * p.w)}`);
+  const right = FEED_PTS.map((p) => `${n1(p.x - p.nx * p.w)},${n1(p.y - p.ny * p.w)}`).reverse();
+  return `M${left.join(" L")} L${right.join(" L")} Z`;
+})();
+// chevron scales down the spine, pointing at the tail
+const FEED_SCALES = FEED_PTS.filter((p, i) => i > 3 && i % 4 === 0 && p.w > 2.6)
+  .map((p) => {
+    const [tx, ty] = [p.ny, -p.nx];
+    const k = p.w * 0.5;
+    return `M${n1(p.x + p.nx * k - tx * 1.4)},${n1(p.y + p.ny * k - ty * 1.4)} L${n1(p.x + tx * 1.2)},${n1(p.y + ty * 1.2)} L${n1(p.x - p.nx * k - tx * 1.4)},${n1(p.y - p.ny * k - ty * 1.4)}`;
+  })
+  .join(" ");
+// short cuts along the belly edge, the shadowed side
+const FEED_HATCH = FEED_PTS.filter((p, i) => i > 1 && i % 2 === 1 && p.w > 2)
+  .map((p) => `M${n1(p.x - p.nx * (p.w - 0.6))},${n1(p.y - p.ny * (p.w - 0.6))} L${n1(p.x - p.nx * p.w * 0.55)},${n1(p.y - p.ny * p.w * 0.55)}`)
+  .join(" ");
+
+/** The serpent with its head thrown back, taking a coin. Cut in ink on paper
+ *  whatever it sits on, so it reads on the red band. */
+export function FeedEmblem() {
+  return (
+    <svg {...common} viewBox="-4 -10 80 80" className="emblem emblem-feed" stroke="var(--ink)" color="var(--ink)">
+      <g stroke="var(--ink)">
+        <path d={FEED_BODY} fill="var(--paper)" strokeWidth={1.8} />
+        <path d={FEED_HATCH} strokeWidth={0.9} />
+        <path d={FEED_SCALES} strokeWidth={1.1} />
+        <g transform={`translate(41 33) rotate(${FEED_TILT}) scale(${FEED_K}) translate(-223 -64)`}>
+          <SerpentHead fill="var(--paper)" stroke={1.8 / FEED_K} cut={2} open={15} />
+        </g>
+        {/* the coin going in */}
+        <circle cx={15.5} cy={3.5} r={8} fill="var(--paper)" strokeWidth={1.8} />
+        <circle cx={15.5} cy={3.5} r={4.8} strokeWidth={1} />
+        <path d="M13.2,3.5 h4.6 M15.5,1.2 v4.6" strokeWidth={1} />
+        <path d="M1.6,-3.6 l3.6,2.2 M-0.6,3.2 l4.4,0.2 M7.6,-8 l1.8,2.8" strokeWidth={1.3} />
+      </g>
+    </svg>
+  );
+}
+
 /** An hourglass, for what is released over time. */
 export function HourglassEmblem() {
   return (
@@ -91,6 +168,23 @@ export function QuillEmblem() {
       <path d="M16,44 L48,44" strokeWidth={2.6} />
       <path d="M30,44 C34,30 44,16 56,6 C50,18 44,26 34,38 Z" fill="var(--paper)" />
       <path d="M33,40 L54,8 M38,33 l-4,-1 M41,28 l-4,-1 M45,23 l-4,-1 M48,18 l-4,-1" strokeWidth={1} />
+    </svg>
+  );
+}
+
+/** A compass rose, for the four chains the memecoins come from. */
+export function CompassEmblem() {
+  return (
+    <svg {...common}>
+      <circle cx={32} cy={32} r={25} fill="var(--paper)" />
+      <circle cx={32} cy={32} r={20.5} strokeWidth={0.9} />
+      {/* the short diagonal points */}
+      <path d="M32,32 L20,20 M32,32 L44,20 M32,32 L44,44 M32,32 L20,44" strokeWidth={1.2} />
+      {/* the four long points, north in red */}
+      <path d="M32,4 L37,27 L60,32 L37,37 L32,60 L27,37 L4,32 L27,27 Z" fill="var(--paper)" />
+      <path d="M32,4 L37,27 L32,32 L27,27 Z" fill="var(--rubric)" />
+      <path d="M32,32 L60,32 M32,32 L32,60 M32,32 L4,32" strokeWidth={1} />
+      <circle cx={32} cy={32} r={2.2} fill="var(--ink)" />
     </svg>
   );
 }

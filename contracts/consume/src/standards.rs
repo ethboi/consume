@@ -134,7 +134,7 @@ impl NonFungibleTokenCore for Contract {
         msg: String,
     ) -> PromiseOrValue<bool> {
         // lock until nft_resolve_transfer: the receiver must not claim or exit
-        // and then hand the Indulgence back
+        // and then hand the Bond back
         self.in_flight.insert(token_id.clone());
         self.nft.nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
     }
@@ -205,8 +205,8 @@ impl NonFungibleTokenMetadataProvider for Contract {
     fn nft_metadata(&self) -> NFTContractMetadata {
         NFTContractMetadata {
             spec: NFT_METADATA_SPEC.to_string(),
-            name: "CONSUME Indulgences".to_string(),
-            symbol: "INDULGENCE".to_string(),
+            name: "CONSUME Bonds".to_string(),
+            symbol: "BOND".to_string(),
             icon: Some(ICON.to_string()),
             base_uri: None,
             reference: None,

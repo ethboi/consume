@@ -1,5 +1,10 @@
-//! Eating: a whitelisted meme arrives through `ft_transfer_call`, goes into the
-//! stomach for good, and the sender gets a Vest NFT that releases $CONSUME.
+//! Eating: a listed memecoin arrives through `ft_transfer_call` (or from NEAR
+//! Intents, see intents.rs), goes into the stomach for good, and the sender
+//! gets a Bond NFT that releases $CONSUME.
+//!
+//! A feeding mints at the floor: its $CONSUME is the same share of all
+//! $CONSUME as its value, less the tithe, is of the stomach. So a feeding can
+//! never lower what each existing $CONSUME is backed by, and the tithe raises it.
 
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
@@ -19,9 +24,12 @@ pub struct MealQuote {
     pub refund: U128,
     /// USD value of the accepted part, micro-USD.
     pub meal_usd: U128,
-    /// $CONSUME the Vest NFT would release.
+    /// The part of `meal_usd` kept back as the tithe, micro-USD. It mints
+    /// nothing, so it belongs to everyone already holding.
+    pub tithe_usd: U128,
+    /// $CONSUME the Bond would release.
     pub consume: U128,
-    /// True if the heaviest-tribe bonus applies.
+    /// True if this is last epoch's most-fed memecoin (the feast): no tithe.
     pub bonus: bool,
 }
 
@@ -53,30 +61,35 @@ impl Contract {
 
         let epoch = now / self.config.epoch_ns.0;
         let bonus = self.heaviest_tribe(epoch.saturating_sub(1)).as_ref() == Some(token_id) && epoch > 0;
-        let mut consume = math::consume_for_meal(
-            self.config.start_rate.0,
-            self.config.halving_usd.0,
-            self.total_eaten_usd,
-            meal_usd,
-        );
-        if bonus {
-            consume = math::apply_bps(consume, self.config.heaviest_bonus_bps as u128);
-        }
+        let net_usd = if bonus {
+            meal_usd
+        } else {
+            math::after_tithe(
+                self.config.tithe_step_bps as u128,
+                self.config.max_tithe_bps as u128,
+                self.config.famine_usd.0,
+                self.total_eaten_usd,
+                meal_usd,
+            )
+        };
+        let consume = math::consume_at_floor(self.config.start_rate.0, net_usd, self.claims(), self.stomach_usd(Some(now)));
         require!(consume > 0, "This feeding would mint no $CONSUME");
 
         MealQuote {
             accepted: U128(accepted),
             refund: U128(amount - accepted),
             meal_usd: U128(meal_usd),
+            tithe_usd: U128(meal_usd - net_usd),
             consume: U128(consume),
             bonus,
         }
     }
 
-    pub(crate) fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, min_consume: u128) -> u128 {
+    pub(crate) fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, terms: MealTerms) -> u128 {
         let storage_before = env::storage_usage();
         let q = self.plan_meal(&token_id, amount);
-        require!(q.consume.0 >= min_consume, "Pays less than your minimum, refunded");
+        require!(q.consume.0 >= terms.min_consume, "Pays less than your minimum, refunded");
+        require!(q.meal_usd.0 - q.tithe_usd.0 >= terms.min_net_usd, "Worth less than your minimum, refunded");
         let now = env::block_timestamp();
         let day = now / NANOS_PER_DAY;
         let epoch = now / self.config.epoch_ns.0;
@@ -92,7 +105,7 @@ impl Contract {
         self.total_eaten_usd += q.meal_usd.0;
         self.total_unvested += q.consume.0;
 
-        // the Vest NFT
+        // the Bond
         let vest_id = self.next_vest_id.to_string();
         self.next_vest_id += 1;
         let vest = Vest {
@@ -108,9 +121,9 @@ impl Contract {
         };
         self.vests.insert(vest_id.clone(), vest);
         let metadata = TokenMetadata {
-            title: Some(format!("Indulgence #{}: {} {}", vest_id, format_units(q.accepted.0, decimals), symbol)),
+            title: Some(format!("Bond #{}: {} {}", vest_id, format_units(q.accepted.0, decimals), symbol)),
             description: Some(format!(
-                "CONSUME ate {} {} (${}). This Indulgence releases {} $CONSUME to whoever holds it, a little each day. Break the seal early and half of what is still locked is forfeit.",
+                "CONSUME ate {} {} (${}). This Bond releases {} $CONSUME to whoever holds it, a little each day. Break the seal early and half of what is still locked is forfeit.",
                 format_units(q.accepted.0, decimals),
                 symbol,
                 format_units(q.meal_usd.0, 6),
@@ -144,6 +157,7 @@ impl Contract {
                 "tribe": token_id,
                 "eaten": q.accepted,
                 "meal_usd": q.meal_usd,
+                "tithe_usd": q.tithe_usd,
                 "consume": q.consume,
                 "bonus": q.bonus,
                 "via_intents": self.tribes.get(&token_id).map(|t| t.via_intents).unwrap_or(false),
@@ -165,39 +179,56 @@ impl Contract {
 struct MealMsg {
     recipient: Option<AccountId>,
     min_consume: Option<U128>,
+    min_net_usd: Option<U128>,
     deadline_ns: Option<U64>,
 }
 
+/// The least a feeder will accept; anything less refunds the whole feeding.
+#[derive(Default)]
+pub(crate) struct MealTerms {
+    /// Fewest $CONSUME. This count falls when the rest of the stomach gains
+    /// value, even though each $CONSUME is then backed by more.
+    pub min_consume: u128,
+    /// Least value the feeding must be counted at after the tithe, micro-USD.
+    /// It depends only on the fed memecoin's price, the caps and the tithe,
+    /// so it is the steadier guard of the two.
+    pub min_net_usd: u128,
+}
+
 /// Read a feeding's `msg` (same rules for NEP-141 and Intents feedings):
-/// returns who gets the Indulgence and the smallest acceptable payout.
-pub(crate) fn parse_meal_msg(sender_id: &AccountId, msg: &str) -> (AccountId, u128) {
+/// returns who gets the Bond and the least the feeder will accept.
+pub(crate) fn parse_meal_msg(sender_id: &AccountId, msg: &str) -> (AccountId, MealTerms) {
     let m = msg.trim();
     if m.is_empty() {
-        (sender_id.clone(), 0)
+        (sender_id.clone(), MealTerms::default())
     } else if m.starts_with('{') {
         let parsed: MealMsg = near_sdk::serde_json::from_str(m).unwrap_or_else(|_| env::panic_str("msg is not valid JSON"));
         if let Some(deadline) = parsed.deadline_ns {
             require!(env::block_timestamp() <= deadline.0, "Feeding arrived after its deadline, refunded");
         }
-        (parsed.recipient.unwrap_or_else(|| sender_id.clone()), parsed.min_consume.map(|v| v.0).unwrap_or(0))
+        let terms = MealTerms {
+            min_consume: parsed.min_consume.map(|v| v.0).unwrap_or(0),
+            min_net_usd: parsed.min_net_usd.map(|v| v.0).unwrap_or(0),
+        };
+        (parsed.recipient.unwrap_or_else(|| sender_id.clone()), terms)
     } else {
-        (m.parse().unwrap_or_else(|_| env::panic_str("msg must be empty, an account id or JSON")), 0)
+        (m.parse().unwrap_or_else(|_| env::panic_str("msg must be empty, an account id or JSON")), MealTerms::default())
     }
 }
 
 #[near]
 impl FungibleTokenReceiver for Contract {
     /// Feed CONSUME: call `ft_transfer_call` on a tribe's token with this contract
-    /// as receiver. `msg` is empty, an account id to receive the Indulgence, or
-    /// JSON `{"recipient"?, "min_consume"?, "deadline_ns"?}`. Anything over the
+    /// as receiver. `msg` is empty, an account id to receive the Bond, or
+    /// JSON `{"recipient"?, "min_consume"?, "min_net_usd"?, "deadline_ns"?}`. Anything over the
     /// caps is refunded; a failed check refunds everything.
     fn ft_on_transfer(&mut self, sender_id: AccountId, amount: U128, msg: String) -> PromiseOrValue<U128> {
         let token_id = env::predecessor_account_id();
         if let Some(t) = self.tribes.get(&token_id) {
             require!(!t.via_intents, "This memecoin is fed through NEAR Intents (mt_transfer_call)");
         }
-        let (eater, min_consume) = parse_meal_msg(&sender_id, &msg);
-        let refund = self.eat(token_id, sender_id, eater, amount.0, min_consume);
+        let (eater, terms) = parse_meal_msg(&sender_id, &msg);
+        let refund = self.eat(token_id, sender_id, eater, amount.0, terms);
         PromiseOrValue::Value(U128(refund))
     }
 }

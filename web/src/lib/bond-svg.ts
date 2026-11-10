@@ -1,14 +1,12 @@
-// GET /indulgence/<id>.svg : the Indulgence NFT image, drawn from live contract
-// state (or sample data before deployment). The contract's media_base points here.
+// Draws a Bond's NFT image from live contract state (or sample data before
+// deployment), as the tall card or as the card on a square mount.
 
 import { createElement } from "react";
-import { IndulgenceCard, type CardData } from "@/components/IndulgenceCard";
+import { BondCard, BondSquare, type CardData } from "@/components/BondCard";
 import { CARD_FONT_CSS } from "@/lib/card-fonts.generated";
 import { DEMO_SNAPSHOT } from "@/lib/demo";
 import { compact, fromRaw, usd, vestedFraction } from "@/lib/format";
 import { CONSUME_CONTRACT, DEMO, heresyForToken, view, type VestView } from "@/lib/near";
-
-export const dynamic = "force-dynamic";
 
 // Concrete colours: NFT renderers do not all understand CSS variables.
 const COLOURS: [string, string][] = [
@@ -26,9 +24,10 @@ const STYLE =
 const date = (ns: bigint) =>
   new Date(Number(ns / BigInt(1_000_000))).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
-export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const id = (await ctx.params).id.replace(/\.svg$/i, "");
-  if (!/^\d+$/.test(id)) return new Response("Not an Indulgence number", { status: 400 });
+/** The response for /bond/<id>.svg and /bond/square/<id>.svg. */
+export async function bondSvg(rawId: string, square: boolean): Promise<Response> {
+  const id = rawId.replace(/\.svg$/i, "");
+  if (!/^\d+$/.test(id)) return new Response("Not a Bond number", { status: 400 });
 
   let v: VestView | null = null;
   if (DEMO) {
@@ -36,7 +35,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   } else {
     v = await view<VestView | null>(CONSUME_CONTRACT, "get_vest", { token_id: id }).catch(() => null);
   }
-  if (!v) return new Response("No such Indulgence", { status: 404 });
+  if (!v) return new Response("No such Bond", { status: 404 });
 
   const h = heresyForToken(v.vest.tribe);
   if (!h) return new Response("Unknown meme", { status: 404 });
@@ -66,7 +65,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
 
   // loaded lazily: Next refuses a static react-dom/server import in the app dir
   const { renderToStaticMarkup } = await import("react-dom/server");
-  let svg = renderToStaticMarkup(createElement(IndulgenceCard, { d }));
+  let svg = renderToStaticMarkup(createElement(square ? BondSquare : BondCard, { d }));
   for (const [from, to] of COLOURS) svg = svg.split(from).join(to);
   svg = svg.replace(/^<svg([^>]*)>/, `<svg$1><style>${STYLE}</style>`);
 

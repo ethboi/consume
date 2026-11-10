@@ -65,8 +65,13 @@ export type Stats = {
   total_forfeited: string;
   total_redeemed: string;
   vests_minted: string;
+  /** The Stomach at posted prices, in micro-USD. */
+  stomach_usd: string;
+  /** Raw $CONSUME one dollar mints at the backing, before the tithe. */
   current_rate: string;
-  next_halving_at_usd: string;
+  tithe_bps: number;
+  /** Null once the tithe is at its most. */
+  next_famine_at_usd: string | null;
   epoch: string;
   heaviest_last_epoch: string | null;
   now_ns: string;
@@ -93,14 +98,16 @@ export type VestView = {
   exit_payout: string;
 };
 
-export type MealQuote = { accepted: string; refund: string; meal_usd: string; consume: string; bonus: boolean };
+/** `bonus` is the feast: that feeding paid no tithe. */
+export type MealQuote = { accepted: string; refund: string; meal_usd: string; tithe_usd: string; consume: string; bonus: boolean };
 export type RedeemQuote = { shares: [string, string][]; denominator: string };
 export type Config = {
   start_rate: string;
-  halving_usd: string;
+  famine_usd: string;
+  tithe_step_bps: number;
+  max_tithe_bps: number;
   vest_duration_ns: string;
   exit_haircut_bps: number;
-  heaviest_bonus_bps: number;
   epoch_ns: string;
 };
 

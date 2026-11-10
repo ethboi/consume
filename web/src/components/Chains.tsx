@@ -1,7 +1,7 @@
 "use client";
 
 // "From any chain": where the ten memecoins live, how NEAR Intents brings them
-// to NEAR, and a live check that each one is routable right now.
+// to NEAR, and under each one a live check that it is routable right now.
 
 import { HERESIES } from "@/lib/heresies";
 import { useLive } from "@/lib/live";
@@ -19,21 +19,43 @@ export function Chains() {
   const routes = live.data?.routes ?? [];
   const checked = live.data ? new Date(live.data.checkedAt) : null;
   const openCount = routes.filter((r) => r.open).length;
+  const routeFor = (symbol: string) => routes.find((r) => r.symbol === symbol);
 
   return (
     <div className="chains">
       <figure className="chain-map" aria-label="Memecoins travel from four chains through NEAR Intents to the Stomach, and redemptions travel back the same way">
+        <p className="routes-line" aria-live="polite">
+          {live.error ? (
+            "Could not reach NEAR Intents for prices just now."
+          ) : !live.data ? (
+            "Asking NEAR Intents for prices…"
+          ) : (
+            <>
+              <strong>
+                {openCount} of {routes.length} routes open.
+              </strong>{" "}
+              Under each memecoin: what $100 of it fetches in USDC through NEAR Intents
+              {checked ? `, checked at ${checked.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}` : ""}.
+            </>
+          )}
+        </p>
         <div className="chain-row">
           {CHAINS.map((c) => (
             <div key={c} className="chain-card">
               <span className="chain-name">{c}</span>
               <span className="chain-coins">
-                {HERESIES.filter((h) => h.chain === c).map((h) => (
-                  <span key={h.symbol} className="chain-coin">
-                    <Coin symbol={h.symbol} size={40} />
-                    <span>{h.symbol}</span>
-                  </span>
-                ))}
+                {HERESIES.filter((h) => h.chain === c).map((h) => {
+                  const r = routeFor(h.symbol);
+                  return (
+                    <span key={h.symbol} className="chain-coin">
+                      <Coin symbol={h.symbol} size={48} />
+                      <span>{h.symbol}</span>
+                      <span className={r && !r.open ? "out shut" : "out"}>
+                        {!r ? " " : r.open && r.outUsd !== null ? `$${r.outUsd.toFixed(2)}` : "no route"}
+                      </span>
+                    </span>
+                  );
+                })}
               </span>
             </div>
           ))}
@@ -67,38 +89,6 @@ export function Chains() {
           </figcaption>
         )}
       </figure>
-
-      <div className="routes">
-        <h3>Live routes</h3>
-        <p className="hint">
-          A free price check through NEAR Intents for each memecoin: $100 in, what comes out in USDC.
-          {checked && ` Checked at ${checked.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.`}
-        </p>
-        {live.error ? (
-          <p className="hint">Could not reach NEAR Intents just now.</p>
-        ) : !live.data ? (
-          <p className="hint">Asking NEAR Intents…</p>
-        ) : (
-          <>
-            <p className="routes-sum">
-              <strong>
-                {openCount} of {routes.length}
-              </strong>{" "}
-              routes open
-            </p>
-            <ul>
-              {routes.map((r) => (
-                <li key={r.symbol} className={r.open ? "" : "shut"}>
-                  <Coin symbol={r.symbol} size={24} />
-                  <span className="s">{r.symbol}</span>
-                  <span className="c">{r.chain}</span>
-                  <span className="o">{r.open && r.outUsd !== null ? `$${r.outUsd.toFixed(2)}` : "no route"}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
     </div>
   );
 }

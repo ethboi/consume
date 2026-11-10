@@ -72,8 +72,8 @@ impl Contract {
     /// Release everything that has vested so far to the NFT's current holder.
     pub fn claim(&mut self, token_id: String) -> U128 {
         let owner = self.vest_owner(&token_id);
-        require!(env::predecessor_account_id() == owner, "Only the Indulgence holder can claim");
-        require!(!self.in_flight.contains(&token_id), "This Indulgence is mid-transfer");
+        require!(env::predecessor_account_id() == owner, "Only the Bond holder can claim");
+        require!(!self.in_flight.contains(&token_id), "This Bond is mid-transfer");
         let mut vest = self.vests.get(&token_id).unwrap().clone();
         let (claimable, _) = self.split(&vest);
         require!(claimable > 0, "Nothing to claim yet");
@@ -95,8 +95,8 @@ impl Contract {
     pub fn exit(&mut self, token_id: String) -> U128 {
         assert_one_yocto();
         let owner = self.vest_owner(&token_id);
-        require!(env::predecessor_account_id() == owner, "Only the Indulgence holder can exit");
-        require!(!self.in_flight.contains(&token_id), "This Indulgence is mid-transfer");
+        require!(env::predecessor_account_id() == owner, "Only the Bond holder can exit");
+        require!(!self.in_flight.contains(&token_id), "This Bond is mid-transfer");
         let mut vest = self.vests.get(&token_id).unwrap().clone();
         require!(!vest.exited, "Already exited");
         let (claimable, locked) = self.split(&vest);

@@ -1,4 +1,4 @@
-// Embeds the card fonts (OFL, from @fontsource) as base64 so the Indulgence
+// Embeds the card fonts (OFL, from @fontsource) as base64 so the Bond
 // NFT image renders correctly in wallets and marketplaces, which load SVGs as
 // plain images and cannot fetch web fonts. Runs before dev and build.
 import { readFileSync, writeFileSync } from "node:fs";

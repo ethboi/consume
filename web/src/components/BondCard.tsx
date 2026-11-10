@@ -1,8 +1,9 @@
-// The Indulgence NFT image, drawn as a woodcut tarot card: a numeral in a box
+// The Bond NFT image, drawn as a woodcut tarot card: a numeral in a box
 // at the top, one tall picture, and the card's title in a box at the foot.
-// Rendered to a standalone SVG by app/indulgence/[id]/route.ts and used as the
+// Rendered to a standalone SVG by app/bond/[id]/route.ts and used as the
 // NFT's media. Everything is drawn here; the route embeds the fonts and swaps
-// CSS variables for colours.
+// CSS variables for colours. BondSquare is the same card on a square mount, for
+// wallets and marketplaces that crop images to a square.
 
 import { Coin } from "./Coin";
 import { Ouroboros } from "./Ouroboros";
@@ -26,6 +27,8 @@ export type CardData = {
 /** Tarot proportions, 7:12. */
 export const CARD_W = 600;
 export const CARD_H = 1030;
+/** The square mount is as wide as the card is tall. */
+export const SQUARE = CARD_H;
 
 const W = CARD_W;
 const H = CARD_H;
@@ -91,30 +94,38 @@ function Box({ y, h }: { y: number; h: number }) {
   );
 }
 
-/** The wax seal, pressed on the corner of the picture. Cracked once broken. */
+const WAX_EDGE =
+  "M0,-48 C9,-46 13,-51 21,-45 C30,-40 35,-42 40,-34 C46,-26 52,-22 51,-12 C50,-3 55,3 52,12 C49,21 52,28 45,35 C38,43 35,49 25,52 C15,55 10,59 0,56 C-10,59 -15,55 -25,52 C-35,49 -38,43 -45,35 C-52,28 -49,21 -52,12 C-55,3 -50,-3 -51,-12 C-52,-22 -46,-26 -40,-34 C-35,-42 -30,-40 -21,-45 C-13,-51 -9,-46 0,-48 Z";
+
+/** The wax seal, pressed on the corner of the picture: a paper roundel under it
+ *  so it stands off the red, the die's C stamped in ink. Cracked once broken. */
 function Seal({ x, y, broken }: { x: number; y: number; broken: boolean }) {
   return (
     <g transform={`translate(${x} ${y})`}>
-      <path
-        d="M0,-48 C9,-46 13,-51 21,-45 C30,-40 35,-42 40,-34 C46,-26 52,-22 51,-12 C50,-3 55,3 52,12 C49,21 52,28 45,35 C38,43 35,49 25,52 C15,55 10,59 0,56 C-10,59 -15,55 -25,52 C-35,49 -38,43 -45,35 C-52,28 -49,21 -52,12 C-55,3 -50,-3 -51,-12 C-52,-22 -46,-26 -40,-34 C-35,-42 -30,-40 -21,-45 C-13,-51 -9,-46 0,-48 Z"
-        fill="var(--wax, #9b1d18)"
-        stroke={INK}
-        strokeWidth={2.4}
-      />
-      <circle r={38} fill="none" stroke="rgba(0,0,0,0.38)" strokeWidth={2} />
-      <g transform="translate(-27 -27)" color="rgba(0,0,0,0.5)">
-        <Ouroboros size={54} detailed={false} title="" />
+      {/* a paper roundel under the wax */}
+      <circle cx={5} cy={6} r={64} fill={INK} />
+      <circle r={64} fill={PAPER} stroke={INK} strokeWidth={3} />
+      <circle r={57.5} fill="none" stroke={INK} strokeWidth={1} />
+      <g transform="translate(0 -3)">
+        <path d={WAX_EDGE} fill={INK} transform="translate(3 4)" />
+        <path d={WAX_EDGE} fill="var(--wax, #9b1d18)" stroke={INK} strokeWidth={3.2} strokeLinejoin="round" />
+        {/* the die: a raised ring and the C */}
+        <circle cy={3} r={35} fill={RED} stroke={INK} strokeWidth={2.6} />
+        <circle cy={3} r={29.5} fill="none" stroke={INK} strokeWidth={1} />
+        <text x={-1} y={22} textAnchor="middle" className="bl" fontSize={54} fill={INK}>
+          C
+        </text>
+        <path d="M-38,-22 Q-30,-38 -12,-43" fill="none" stroke={PAPER} strokeWidth={2.6} strokeLinecap="round" opacity={0.55} />
+        {broken && (
+          <path
+            d="M-8,-50 L-2,-26 L-12,-10 L4,6 L-6,22 L6,40 L0,58"
+            fill="none"
+            stroke={PAPER}
+            strokeWidth={5}
+            strokeLinejoin="bevel"
+          />
+        )}
       </g>
-      <path d="M-30,-30 Q0,-44 30,-30" fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={3} strokeLinecap="round" />
-      {broken && (
-        <path
-          d="M-8,-50 L-2,-26 L-12,-10 L4,6 L-6,22 L6,40 L0,58"
-          fill="none"
-          stroke={PAPER}
-          strokeWidth={4.5}
-          strokeLinejoin="bevel"
-        />
-      )}
     </g>
   );
 }
@@ -140,16 +151,18 @@ function Banderole({ text }: { text: string }) {
   );
 }
 
-export function IndulgenceCard({ d }: { d: CardData }) {
+/** Everything on the card, in the card's own 600 by 1030 frame. */
+function CardFace({ d }: { d: CardData }) {
   const done = !d.exited && d.released >= 1;
   const days = Math.max(1, Math.round(d.days));
   const filled = Math.floor(Math.min(1, Math.max(0, d.released)) * days + 1e-9);
   const step = 450 / days;
   const title = TITLES[d.symbol] ?? d.symbol;
-  const numeral = roman(Number(d.id));
+  const heading = `Bond ${roman(Number(d.id))}`;
+  const headSize = Math.min(44, 350 / (heading.length * 0.8));
 
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
+    <>
       <defs>
         <pattern id="band" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="7" height="7" fill={PAPER} />
@@ -166,12 +179,12 @@ export function IndulgenceCard({ d }: { d: CardData }) {
       <rect x={22} y={22} width={W - 44} height={H - 44} rx={16} fill={PAPER} stroke={INK} strokeWidth={3} />
       <rect x={34} y={34} width={W - 68} height={H - 68} rx={8} fill="none" stroke={RED} strokeWidth={1.8} />
 
-      {/* the numeral */}
+      {/* what it is and its number */}
       <Box y={50} h={74} />
       <Star x={104} y={87} s={0.8} />
       <Star x={W - 104} y={87} s={0.8} />
-      <text x={CX} y={103} textAnchor="middle" className="sc" fontSize={numeral.length > 9 ? 34 : 44} letterSpacing={5} fill={INK}>
-        {numeral}
+      <text x={CX} y={87 + headSize * 0.36} textAnchor="middle" className="sc" fontSize={headSize} letterSpacing={headSize * 0.11} fill={INK}>
+        {heading}
       </text>
 
       {/* the picture: red ground, black rays, the serpent around the memecoin */}
@@ -191,19 +204,12 @@ export function IndulgenceCard({ d }: { d: CardData }) {
         <Star x={PIC.x + 82} y={PIC.y + 92} s={0.45} fill={PAPER} />
         <Star x={PIC.x + PIC.w - 120} y={PIC.y + 30} s={0.4} fill={PAPER} />
 
-        {/* the ground, with one mark for each day of the payout */}
+        {/* the ground, with one cell for each day of the payout */}
         <path
           d={`M${PIC.x},${GROUND_Y + 14} Q${PIC.x + 120},${GROUND_Y - 10} ${CX},${GROUND_Y + 4} T${PIC.x + PIC.w},${GROUND_Y + 2} L${PIC.x + PIC.w},${PIC.y + PIC.h} L${PIC.x},${PIC.y + PIC.h} Z`}
           fill={INK}
           stroke={PAPER}
           strokeWidth={3}
-        />
-        <path
-          d={`M100,${GROUND_Y + 12} l4,-10 l3,10 M168,${GROUND_Y + 2} l3,-9 l4,9 M420,${GROUND_Y + 4} l4,-10 l3,10 M488,${GROUND_Y + 8} l3,-8 l4,8`}
-          stroke={PAPER}
-          strokeWidth={2.4}
-          fill="none"
-          strokeLinejoin="round"
         />
         <g transform={`translate(${CX - 225} ${GROUND_Y + 30})`}>
           {Array.from({ length: days }, (_, i) => (
@@ -236,7 +242,7 @@ export function IndulgenceCard({ d }: { d: CardData }) {
         </g>
       )}
 
-      <Seal x={PIC.x + PIC.w - 40} y={PIC.y + 44} broken={d.exited} />
+      <Seal x={PIC.x + PIC.w - 58} y={PIC.y + 62} broken={d.exited} />
 
       {/* the title */}
       <Box y={822} h={166} />
@@ -247,7 +253,7 @@ export function IndulgenceCard({ d }: { d: CardData }) {
       <Star x={CX} y={894} s={0.5} />
       <g className="fell" fill={INK} textAnchor="middle">
         <text x={CX} y={924} fontSize={19}>
-          {`Indulgence for ${d.eaten} ${d.symbol}, worth ${d.mealUsd},`}
+          {`Bond for ${d.eaten} ${d.symbol}, worth ${d.mealUsd},`}
         </text>
         <text x={CX} y={950} fontSize={19}>
           {`released to its bearer from ${d.from} to ${d.to}.`}
@@ -274,6 +280,36 @@ export function IndulgenceCard({ d }: { d: CardData }) {
           </text>
         </g>
       )}
+    </>
+  );
+}
+
+export function BondCard({ d }: { d: CardData }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${W} ${H}`} width={W} height={H}>
+      <CardFace d={d} />
+    </svg>
+  );
+}
+
+const MOUNT_K = 0.93; // the card's size on the mount
+
+/** The same card laid on a square mount, so a square crop keeps all of it. */
+export function BondSquare({ d }: { d: CardData }) {
+  const Q = SQUARE;
+  const x = (Q - W * MOUNT_K) / 2;
+  const y = (Q - H * MOUNT_K) / 2;
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox={`0 0 ${Q} ${Q}`} width={Q} height={Q}>
+      <rect width={Q} height={Q} fill={RED} />
+      <Glory x={Q / 2 - 900} y={y + SUN.y * MOUNT_K - 900} size={1800} />
+      <rect x={9} y={9} width={Q - 18} height={Q - 18} fill="none" stroke={INK} strokeWidth={18} />
+      <rect x={27} y={27} width={Q - 54} height={Q - 54} fill="none" stroke={PAPER} strokeWidth={3} />
+      {/* the card's hard shadow, then the card */}
+      <rect x={x + 12} y={y + 14} width={W * MOUNT_K} height={H * MOUNT_K} rx={34 * MOUNT_K} fill={INK} />
+      <g transform={`translate(${x} ${y}) scale(${MOUNT_K})`}>
+        <CardFace d={d} />
+      </g>
     </svg>
   );
 }

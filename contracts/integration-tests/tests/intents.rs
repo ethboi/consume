@@ -59,29 +59,25 @@ async fn feed_and_redeem_through_intents() -> anyhow::Result<()> {
     consume
         .call("new")
         .args_json(json!({ "config": {
-            "owner_id": owner.id(), "price_feeder_id": owner.id(),
-            "start_rate": "1000", "halving_usd": (10_000 * USD).to_string(),
+            "guardian_id": owner.id(), "price_feeder_id": owner.id(),
+            "start_rate": "1000", "famine_usd": (10_000 * USD).to_string(),
+            "tithe_step_bps": 100, "max_tithe_bps": 1000,
             "vest_duration_ns": "20000000000",
             "exit_haircut_bps": 5000,
             "max_price_age_ns": "3600000000000000",
             "min_meal_usd": USD.to_string(),
-            "epoch_ns": "604800000000000", "heaviest_bonus_bps": 15000,
+            "epoch_ns": "604800000000000",
             "media_base": null,
             "intents_id": intents.id(),
-        }}))
+        }, "tribes": [
+            { "token_id": PEPE, "symbol": "PEPE", "decimals": 18, "via_intents": true,
+              "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string() },
+            { "token_id": DOGE, "symbol": "DOGE", "decimals": 8, "via_intents": true,
+              "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string() },
+        ]}))
         .transact()
         .await?
         .into_result()?;
-    for (token, sym, dec) in [(PEPE, "PEPE", 18), (DOGE, "DOGE", 8)] {
-        owner
-            .call(consume.id(), "set_tribe")
-            .args_json(json!({ "token_id": token, "symbol": sym, "decimals": dec,
-                "max_meal_usd": (1_000 * USD).to_string(), "daily_cap_usd": (5_000 * USD).to_string(),
-                "open": true, "via_intents": true }))
-            .transact()
-            .await?
-            .into_result()?;
-    }
     owner
         .call(consume.id(), "set_prices")
         .args_json(json!({ "prices": [[PEPE, "5000000000000"], [DOGE, "70000000000000000"]] }))
@@ -130,7 +126,7 @@ async fn feed_and_redeem_through_intents() -> anyhow::Result<()> {
     worker.fast_forward(600).await?;
     alice.call(consume.id(), "claim").args_json(json!({ "token_id": "1" })).transact().await?.into_result()?;
     let got: u128 = view(&consume, "ft_balance_of", json!({ "account_id": alice.id() })).await?.as_str().unwrap().parse()?;
-    assert_eq!(got, 100_000 * 10u128.pow(18));
+    assert_eq!(got, 99_000 * 10u128.pow(18));
 
     // Redeem: both shares land in Alice's Intents balance, no registration needed
     let quote = view(&consume, "quote_redeem", json!({ "amount": got.to_string() })).await?;

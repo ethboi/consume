@@ -49,8 +49,8 @@ const tribes: [string, Tribe][] = HERESIES.map((h) => [
 
 function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAgo: number, opts: Partial<VestView["vest"]> = {}): VestView {
   const h = HERESIES.find((x) => x.symbol === symbol)!;
-  // at the current sample rate; a feast feeding earns 1.5x
-  const total = (BigInt(mealUsd) * BigInt(500) * pow10(18) * BigInt(opts.bonus ? 3 : 2)) / BigInt(2);
+  // minted at the sample backing, less the 2% tithe; a feast feeding pays none
+  const total = (BigInt(mealUsd) * BigInt(920) * pow10(18) * BigInt(opts.bonus ? 100 : 98)) / BigInt(100);
   const start = nowNs - BigInt(daysAgo) * DAY;
   return {
     token_id: String(id),
@@ -89,31 +89,39 @@ const recent: VestView[] = [
   vest(207, "the-miller.testnet", "PENGU", 600, 27),
 ];
 
-// The wallet's own Indulgences in the preview: a spread of ages.
+// The wallet's own Bonds in the preview: a spread of ages.
 export const DEMO_MINE = ["209", "208", "212", "207"];
+
+const SUPPLY = BigInt(3_100_000) * pow10(18);
+const UNVESTED = BigInt(7_420_000) * pow10(18);
+const STOMACH_MICRO = BigInt(Object.values(HELD_USD).reduce((a, b) => a + b, 0)) * BigInt(1_000_000);
 
 export const DEMO_SNAPSHOT: Snapshot = {
   tribes,
   recent,
   stats: {
     total_eaten_usd: String(12_480 * 1e6),
-    consume_supply: (BigInt(3_100_000) * pow10(18)).toString(),
-    total_unvested: (BigInt(7_420_000) * pow10(18)).toString(),
+    consume_supply: SUPPLY.toString(),
+    total_unvested: UNVESTED.toString(),
     total_forfeited: (BigInt(212_000) * pow10(18)).toString(),
     total_redeemed: (BigInt(480_000) * pow10(18)).toString(),
     vests_minted: "214",
-    current_rate: (BigInt(500) * pow10(18)).toString(),
-    next_halving_at_usd: String(20_000 * 1e6),
+    stomach_usd: STOMACH_MICRO.toString(),
+    // one dollar mints its share of every $CONSUME with a claim
+    current_rate: (((SUPPLY + UNVESTED) * BigInt(1_000_000)) / STOMACH_MICRO).toString(),
+    tithe_bps: 200,
+    next_famine_at_usd: String(20_000 * 1e6),
     epoch: "2966",
     heaviest_last_epoch: DEMO_TOKEN("PEPE"),
     now_ns: nowNs.toString(),
   },
   config: {
     start_rate: "1000",
-    halving_usd: String(10_000 * 1e6),
+    famine_usd: String(10_000 * 1e6),
+    tithe_step_bps: 100,
+    max_tithe_bps: 1000,
     vest_duration_ns: (BigInt(30) * DAY).toString(),
     exit_haircut_bps: 5000,
-    heaviest_bonus_bps: 15000,
     epoch_ns: (BigInt(7) * DAY).toString(),
   },
 };

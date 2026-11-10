@@ -41,15 +41,10 @@ pub struct RedeemQuote {
 }
 
 impl Contract {
-    /// Everyone's claim on the stomach is counted against minted $CONSUME plus
-    /// $CONSUME still vesting, so early claimers cannot drain it before later
-    /// vests unlock.
-    fn denominator(&self) -> u128 {
-        self.token.total_supply + self.total_unvested
-    }
-
     fn quote(&self, amount: u128) -> RedeemQuote {
-        let denom = self.denominator();
+        // counted against minted $CONSUME plus $CONSUME still locked in Bonds, so
+        // early claimers cannot drain the stomach before later Bonds unlock
+        let denom = self.claims();
         let shares = self
             .tribes
             .iter()

@@ -1221,7 +1221,7 @@ main,
   cursor: not-allowed;
 }
 
-/* an Indulgence shown as its NFT card */
+/* a Bond shown as its NFT card */
 .writ-card {
   display: block;
   width: 100%;
@@ -1389,37 +1389,6 @@ main,
 @media (max-width: 560px) {
   .corners {
     grid-template-columns: 1fr;
-  }
-}
-
-/* ================= marginal notes with a pointing hand ================= */
-
-.chapter > header .marginal {
-  margin-left: auto;
-  max-width: 270px;
-  font-style: italic;
-  font-size: var(--t-sm);
-  line-height: 1.35;
-  color: var(--rubric);
-  border-left: 2px solid currentColor;
-  padding: 2px 0 2px 12px;
-}
-.marginal span {
-  font-style: normal;
-  font-size: 1.25em;
-  margin-right: 2px;
-}
-.band-red > header .marginal {
-  color: var(--paper);
-}
-.band-ink > header .marginal,
-.band.invert > header .marginal {
-  color: #e2533f;
-}
-@media (max-width: 900px) {
-  .chapter > header .marginal {
-    margin-left: 0;
-    max-width: none;
   }
 }
 
@@ -1705,7 +1674,7 @@ details.fine p {
   }
 }
 
-/* ---- indulgences: the card beside the numbers that matter ---- */
+/* ---- bonds: the card beside the numbers that matter ---- */
 .ind-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(520px, 1fr));
@@ -2432,52 +2401,6 @@ details.all-rules summary {
   border: 3px solid var(--ink);
   color: var(--ink);
 }
-.routes {
-  border: 2px solid var(--ink);
-  padding: 18px 20px;
-  background: var(--paper);
-}
-.routes h3 {
-  font-size: var(--t-xl);
-  margin-bottom: 4px;
-}
-.routes h3::first-letter {
-  color: var(--rubric);
-}
-.routes-sum {
-  margin: 8px 0 10px;
-}
-.routes-sum strong {
-  font-weight: 400;
-  color: var(--rubric);
-  font-size: 1.4rem;
-}
-.routes ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  font-variant-numeric: lining-nums tabular-nums;
-}
-.routes li {
-  display: grid;
-  grid-template-columns: 24px 1fr auto auto;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 0;
-  border-bottom: 1px dotted rgba(20, 17, 16, 0.35);
-}
-.routes li .s {
-  font-family: var(--font-sc);
-}
-.routes li .c {
-  font-style: italic;
-  color: var(--faded);
-  font-size: var(--t-sm);
-}
-.routes li.shut .o {
-  color: var(--rubric);
-  font-style: italic;
-}
 @media (max-width: 900px) {
   .chains {
     grid-template-columns: 1fr;
@@ -2994,3 +2917,277 @@ details.all-rules summary {
     margin-top: 0;
   }
 }
+
+/* ================= design pass: bigger cards, one-column chain map, larger small type ================= */
+
+:root {
+  --t-sm: 1rem;
+  --t-xs: 0.9rem;
+}
+.howto i {
+  font-size: 0.9rem;
+}
+
+/* ---- feed: choose the memecoin first, then the amount ---- */
+.leaf.offering {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.55fr);
+}
+.feed-pick {
+  display: grid;
+  gap: 16px;
+}
+.coin-picker label {
+  font-size: 0.85rem;
+}
+.pick-foot {
+  margin: 0;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(20, 17, 16, 0.35);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-style: italic;
+  font-size: var(--t-sm);
+  color: var(--faded);
+}
+@media (max-width: 900px) {
+  .leaf.offering {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- bonds: the card is the thing, so it gets the room ---- */
+.ind-list {
+  grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+}
+.ind {
+  grid-template-columns: 270px minmax(0, 1fr);
+  gap: 26px;
+}
+.ind-body {
+  display: flex;
+  flex-direction: column;
+}
+.ind-progress {
+  margin: 0 0 16px;
+  font-size: var(--t-sm);
+  font-variant-numeric: lining-nums;
+}
+.ind-body .actions {
+  margin-bottom: 16px;
+}
+.ind-break {
+  margin-top: auto;
+}
+@media (max-width: 600px) {
+  .ind-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ind {
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 14px;
+  }
+}
+
+/* ---- from any chain: one map, a price under every memecoin ---- */
+.chains {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1080px;
+  margin-inline: auto;
+}
+.routes-line {
+  margin: 0 0 20px;
+  text-align: center;
+  font-style: italic;
+  font-size: var(--t-sm);
+  font-variant-numeric: lining-nums;
+}
+.routes-line strong {
+  font-family: var(--font-sc);
+  font-style: normal;
+  font-weight: 400;
+  font-size: 1.2em;
+  color: var(--rubric);
+}
+.chain-coins {
+  gap: 10px 14px;
+}
+.chain-coin {
+  font-size: 0.85rem;
+  gap: 3px;
+}
+.chain-coin .out {
+  font-family: var(--font-text);
+  font-size: 0.85rem;
+  font-variant-numeric: lining-nums tabular-nums;
+  color: var(--faded);
+}
+.chain-coin .out.shut {
+  font-style: italic;
+  color: var(--rubric);
+}
+/* a chain with four memecoins gets more room than a chain with one */
+@media (min-width: 561px) {
+  .chain-row,
+  .chain-arrows:not(.single) {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 3.4fr) minmax(0, 2fr) minmax(0, 2.7fr);
+  }
+}
+/* "NEAR" in blackletter capitals is hard to read; small capitals are not */
+.intents-band {
+  font-family: var(--font-sc);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  letter-spacing: 0.06em;
+}
+.intents-wallet h3 {
+  font-family: var(--font-sc);
+}
+.intents-wallet h3::first-letter {
+  color: inherit;
+}
+.routes-line {
+  max-width: none;
+  justify-self: center;
+}
+.ind-body h3 .no {
+  white-space: nowrap;
+}
+.ind-meal {
+  align-items: flex-start;
+}
+.ind-meal > :first-child {
+  flex: none;
+}
+@media (max-width: 600px) {
+  .ind-body h3 {
+    font-size: 1.45rem;
+  }
+  .ind-body h3 .no {
+    font-size: 0.95rem;
+  }
+}
+@media (min-width: 601px) {
+  .ind-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(560px, 100%), 1fr));
+  }
+}
+
+/* ================= section pass: the Stomach inside the serpent, feeding by dollars ================= */
+/* stomach: the total leads the section; the backing closes the picture */
+.chapter > header .stomach-total {
+  margin-left: auto;
+  display: grid;
+  justify-items: end;
+  line-height: 1.1;
+}
+.stomach-total strong {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: var(--t-xl);
+  font-variant-numeric: lining-nums;
+}
+.stomach-total span {
+  font-style: italic;
+  font-size: var(--t-sm);
+  color: var(--faded);
+}
+@media (max-width: 700px) {
+  .chapter > header .stomach-total {
+    margin-left: 0;
+    flex-basis: 100%;
+    justify-items: start;
+  }
+}
+.crucible-layout > div:first-child {
+  padding-top: 0;
+  align-self: start;
+}
+.crucible-layout .held:first-of-type {
+  margin-top: 16px;
+}
+.jar-worth {
+  font-family: var(--font-text);
+  font-variant-numeric: lining-nums;
+  fill: var(--ink);
+  text-anchor: middle;
+}
+.jar-sealed .jar-worth {
+  fill: var(--faded);
+}
+/* feed */
+.receipt .quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 4px;
+}
+.receipt .quick .small-button {
+  font-family: var(--font-text);
+  font-variant-numeric: lining-nums;
+  min-width: 3.4em;
+}
+.coin-picker label span.long {
+  font-size: 0.6rem;
+  letter-spacing: -0.01em;
+  overflow: visible;
+}
+.coin-picker label {
+  position: relative;
+}
+.pick-tag {
+  position: absolute;
+  top: -7px;
+  right: -2px;
+  padding: 1px 5px 2px;
+  background: var(--rubric);
+  color: var(--paper);
+  font-family: var(--font-text);
+  font-style: italic;
+  font-size: 0.74rem;
+  line-height: 1;
+  transform: rotate(6deg);
+}
+.pick-about {
+  margin: 0;
+  max-width: none;
+  font-size: var(--t-sm);
+  font-variant-numeric: lining-nums;
+}
+.pick-about strong {
+  font-family: var(--font-sc);
+  font-weight: 400;
+}
+/* redeem: long names and amounts stay inside the panel */
+.basket li {
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+}
+.basket .s {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 821px) {
+  .leaf.redeem {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+}
+@media (max-width: 600px) {
+  /* the shelf is drawn small on a phone, so its lettering is cut larger */
+  .jar-label:not(.long) {
+    font-size: 16.5px;
+  }
+  .jar-worth {
+    font-size: 19px;
+  }
+  .coin-picker label span.long {
+    white-space: normal;
+    hyphens: manual;
+    text-align: center;
+    line-height: 1.1;
+    font-size: 0.66rem;
+  }
+}
+
+/* ================= the feeding serpent heads its chapter, larger than the other emblems ================= */
+.band > header .emblem.emblem-feed { width: 104px; height: 104px; stroke: var(--ink); margin: -14px 0 -10px; }
+@media (max-width: 600px) { .band > header .emblem.emblem-feed { width: 76px; height: 76px; margin: -6px 0; } }
