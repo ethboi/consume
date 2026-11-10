@@ -59,6 +59,8 @@ export type Ledger = {
 };
 
 const INDEXER = { testnet: "https://tx.test.fastnear.com", mainnet: "https://tx.main.fastnear.com" };
+/** Another indexer that speaks the same two calls, if CONSUME_INDEXER_URL names one. The browser tests point it at a local sandbox. */
+const indexer = (net: LedgerNet) => process.env.CONSUME_INDEXER_URL?.trim() || INDEXER[net.network];
 const PAGE = 200; // the most the indexer gives per page
 const MAX_PAGES = 5;
 const MAX_ACCOUNTS = 25;
@@ -74,7 +76,7 @@ type Tx = {
 };
 
 async function post<T>(net: LedgerNet, path: string, body: object): Promise<T> {
-  const res = await fetch(`${INDEXER[net.network]}${path}`, {
+  const res = await fetch(`${indexer(net)}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": "consume-site" },
     body: JSON.stringify(body),

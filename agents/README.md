@@ -39,7 +39,7 @@ Both read the public testnet deployment (`consume.consumecash.testnet`). To poin
 | `overview` | What CONSUME is and its state now: the Stomach, the backing of each $CONSUME, the tithe, the Feast, when the week ends, whether prices are fresh, the fixed rules |
 | `list_memecoins` | The ten memecoins: price, price age, largest feeding, daily cap, how much is in the Stomach |
 | `feast_race` | This week's standings, who is feasting now, time left |
-| `quote_feeding` | What a feeding would mint right now, by amount or by dollar value |
+| `quote_feeding` | What a feeding would earn right now, by amount or by dollar value |
 | `quote_redeem` | What burning some $CONSUME would pay, memecoin by memecoin |
 | `account` | An account's NEAR, $CONSUME, memecoins ready to feed, Bonds and anything owed |
 | `bond` | One Bond: collected, ready, locked, and what breaking the seal would give and forfeit |
@@ -96,4 +96,4 @@ Three things the bots are careful about:
 
 ## Why the kingmaker is here
 
-The Feast is a game: the most fed memecoin of the week pays no tithe the next. The cheapest way to play it is to wait until the last hours and feed just past the leader, and the simulation in `sim/` shows that a reigning Feast tends to keep its crown. We would rather ship that strategy in the open, where every community can run it, than leave it to whoever writes the script first. What it can take is bounded: the winner skips the tithe, mints exactly at the backing like everyone else, and is still held to that memecoin's daily cap.
+The Feast is a game: the most fed memecoin of the week pays no tithe the next. The cheapest way to play it is to wait until the last hours and feed just past the leader, and the simulation in `sim/` shows that a reigning Feast tends to keep its crown. We would rather ship that strategy in the open, where every community can run it, than leave it to whoever writes the script first. What it can take is bounded: the winner skips the tithe, earns exactly at the backing like everyone else, and is still held to that memecoin's daily cap.

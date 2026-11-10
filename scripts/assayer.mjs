@@ -8,7 +8,7 @@
 // Prices are read from the mainnet 1Click API (Intents has no testnet). The
 // price of a memecoin is what $100 of it fetches in a dry quote, which moves
 // nothing. The 1Click list price is only a check on that quote, never a price:
-// a price that is too low on what the Stomach holds would mint a later feeder
+// a price that is too low on what the Stomach holds would earn a later feeder
 // more than their share, so a doubtful price is worse than none.
 //
 // A round is posted only when all ten have a quote within 5% of the list

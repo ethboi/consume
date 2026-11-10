@@ -123,7 +123,7 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
         ) : agrees ? (
           <>
             <b>Checked against the contract.</b> The entries below add up to exactly the totals the contract keeps, so no mint or burn is
-            missing.
+            missing. Figures are shown to the nearest whole $CONSUME; the check uses the full amounts.
           </>
         ) : short ? (
           <>

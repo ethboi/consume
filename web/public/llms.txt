@@ -24,8 +24,8 @@ Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redee
 ## The rules, as the contract holds them
 
 - It eats ten memecoins: DOGE, SHIB, PEPE, PENGU, SPX, TURBO, BOME, BLACKDRAGON, SHITZU, NearKat. Fed memecoins go into the Stomach and stay there until someone redeems.
-- A feeding mints $CONSUME at the backing: the Stomach's value divided by all $CONSUME, locked or not. So a feeding never dilutes a holder.
-- The tithe is the part of a feeding that mints nothing and so goes to everyone already holding. It starts at 1% and steps up 1% for every $10,000 fed, to 10% at most.
+- A feeding earns $CONSUME at the backing: the Stomach's value divided by all $CONSUME, locked or not. So a feeding never dilutes a holder.
+- The tithe is the part of a feeding that earns no $CONSUME and so goes to everyone already holding. It starts at 1% and steps up 1% for every $10,000 fed, to 10% at most.
 - A Bond releases its $CONSUME evenly over 30 days. Collect what has been released at any time.
 - Break the seal to leave early: you receive what has been released plus half of what is still locked. The other half is never minted.
 - Redeem burns $CONSUME and pays the same share of every memecoin in the Stomach.

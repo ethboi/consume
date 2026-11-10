@@ -67,7 +67,7 @@ export type Stats = {
   vests_minted: string;
   /** The Stomach at posted prices, in micro-USD. */
   stomach_usd: string;
-  /** Raw $CONSUME one dollar mints at the backing, before the tithe. */
+  /** Raw $CONSUME one dollar earns at the backing, before the tithe. */
   current_rate: string;
   tithe_bps: number;
   /** Null once the tithe is at its most. */

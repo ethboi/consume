@@ -156,7 +156,7 @@ export function Chains() {
 
       <figcaption className="roads-notes">
         <p>
-          Under each memecoin: what $100 of it fetches in USDC through NEAR Intents right now, which shows NEAR Intents is trading it.
+          Under each memecoin: what $100 of it fetches in USDC (a dollar stablecoin) through NEAR Intents right now, which shows NEAR Intents is trading it.
           Redeemed memecoins are paid to your NEAR Intents balance.
         </p>
         {MOCK_INTENTS && !DEMO && (

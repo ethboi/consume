@@ -203,7 +203,7 @@ export function Coin({ symbol, chain, size = 40, className }: Props) {
   const id = `legend-${symbol}`;
   const legend = `${symbol.toUpperCase()} ✦ ${(chain ?? "").toUpperCase()} ✦`;
   return (
-    <svg className={className ? `coin ${className}` : "coin"} width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={`${symbol} coin`}>
+    <svg className={className ? `coin ${className}` : "coin"} width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={symbol}>
       <defs>
         <path id={id} d="M50,50 m-35,0 a35,35 0 1,1 70,0 a35,35 0 1,1 -70,0" />
       </defs>
@@ -237,7 +237,7 @@ const MARK_AT = `translate(${(50 - 200 * MARK_K).toFixed(2)} ${(50 - 200 * MARK_
 
 export function ConsumeCoin({ size = 40, className }: { size?: number; className?: string }) {
   return (
-    <svg className={className ? `coin ${className}` : "coin"} width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="$CONSUME coin">
+    <svg className={className ? `coin ${className}` : "coin"} width={size} height={size} viewBox="0 0 100 100" role="img" aria-label="$CONSUME">
       <path d={EDGE} fill={RUBRIC} stroke={INK} strokeWidth={2.4} />
       {BEADS.map(([x, y], i) => (
         <circle key={i} cx={x} cy={y} r={1.3} fill={INK} />

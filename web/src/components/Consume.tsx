@@ -147,6 +147,12 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <p className="hero-explain">
               Feed it yours from any chain. Earn $CONSUME, backed by everything it has eaten.
             </p>
+            {NETWORK === "testnet" && !DEMO && (
+              <p className="hero-net">
+                <b>On NEAR testnet.</b> The memecoins here are test memecoins with no value
+                {MOCK_INTENTS ? ", and arrivals from other chains are simulated." : "."}
+              </p>
+            )}
             <ol className="howto" aria-label="How it works">
               <li>
                 <CoinsEmblem />
@@ -158,7 +164,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 <Seal size={40} />
                 <b>II</b>
                 <span>Bond</span>
-                <i>an NFT that pays you</i>
+                <i>a token (an NFT) that pays you</i>
               </li>
               <li>
                 <HourglassEmblem />
@@ -233,8 +239,8 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <dd className="value">{snap.stats.tithe_bps / 100}%</dd>
             <dd className="note">
               {snap.stats.next_famine_at_usd
-                ? `kept for holders; ${Math.min(snap.config.max_tithe_bps, snap.stats.tithe_bps + snap.config.tithe_step_bps) / 100}% once ${usdCompact(snap.stats.next_famine_at_usd)} is eaten`
-                : "kept for holders; it never goes higher"}
+                ? `the part of a feeding kept for holders; ${Math.min(snap.config.max_tithe_bps, snap.stats.tithe_bps + snap.config.tithe_step_bps) / 100}% once ${usdCompact(snap.stats.next_famine_at_usd)} is eaten`
+                : "the part of a feeding kept for holders; it never goes higher"}
             </dd>
           </div>
           <div className="tile feast">
@@ -287,7 +293,10 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                       <span className="with-coin">
                         <Coin symbol={h.symbol} size={30} />
                         <span className="sym">{h.symbol}</span>
-                        <span className="chain">from {h.chain}</span>
+                        <span className="chain">
+                          from {h.chain}
+                          {t && <span className="price-inline">, {priceLabel(t.price_e18)} each</span>}
+                        </span>
                         {t && !t.open && <em className="tag">sealed</em>}
                       </span>
                     </td>
@@ -417,7 +426,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <nav aria-label="More">
           {REPO_URL && <a href={REPO_URL}>GitHub</a>}
           <a href="/llms.txt">For agents</a>
-          <a href="https://oneup.markets">OneUp</a>
+          <a href="https://oneup.markets" title="OneUp, another project by the same builder">
+            Also by @EthBoi_: OneUp
+          </a>
         </nav>
       </footer>
 
@@ -484,8 +495,12 @@ function Masthead({ tick }: { tick: number }) {
         </span>
       </a>
       <nav aria-label="Sections">
-        <a href="#crucible">The Stomach</a>
-        <a href="#feast">The Feast</a>
+        <a href="#crucible">
+          <span className="nav-the">The </span>Stomach
+        </a>
+        <a href="#feast">
+          <span className="nav-the">The </span>Feast
+        </a>
         <a href="#feed">Feed</a>
         <a href="#bonds">Bonds</a>
         <a href="#transmute">Redeem</a>
@@ -533,7 +548,7 @@ function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number)
   // over the feeding limit the contract takes what fits and sends the rest back
   const accepted = meal > cap ? (raw * cap) / meal : raw;
   const bonus = snap.stats.heaviest_last_epoch === token;
-  // as the contract does it (meal.rs): the feast pays no tithe, the rest mints at the backing
+  // as the contract does it (meal.rs): the feast pays no tithe, the rest earns at the backing
   const tithe = bonus ? BigInt(0) : (m * BigInt(snap.stats.tithe_bps)) / BigInt(10_000);
   return {
     accepted: accepted.toString(),
@@ -1000,7 +1015,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                       key={v}
                       type="button"
                       style={{ ["--t" as string]: posOf(v) / SLIDER_STEPS }}
-                      aria-label={allHeld && v === topUsd ? `Feed all your ${h.symbol}` : `Feed ${v} dollars of ${h.symbol}`}
+                      aria-label={allHeld && v === topUsd ? `Feed all your ${h.symbol}` : `Feed ${v} ${v === 1 ? "dollar" : "dollars"} of ${h.symbol}`}
                       onClick={() => setDollars(v)}
                     >
                       {allHeld && v === topUsd && "all, "}${v.toLocaleString("en-US", { maximumFractionDigits: 2 })}
@@ -1052,7 +1067,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                 ? `You have no ${h.symbol} to feed yet.`
                 : heldUsd !== null && heldUsd <= minUsd
                   ? `You hold less than the smallest feeding, $${minUsd.toLocaleString("en-US")} of ${h.symbol}.`
-                  : "Slide the coin toward the jaws, or type an amount."}
+                  : "Slide the memecoin toward the jaws, or type an amount."}
             </p>
           ) : (
             <p className="hint">A feeding cannot be taken back. Memecoins leave the Stomach only when $CONSUME is burned for them.</p>
@@ -1128,7 +1143,9 @@ function CollectPreview() {
     if (which !== "collect" && which !== "collect-all") return;
     let alive = true;
     (async () => {
-      const base = { kind: "claim" as const, bond: "1", card: "/bond/1.svg", bonds: which === "collect-all" ? 3 : undefined };
+      // a sample build has no Bond 1 to draw, so it shows one of its sample Bonds
+      const bond = DEMO ? DEMO_MINE[0] : "1";
+      const base = { kind: "claim" as const, bond, card: `/bond/${bond}.svg`, bonds: which === "collect-all" ? 3 : undefined };
       await sleep(500);
       if (!alive) return;
       setScene({ ...base, stage: "waiting", amount: "4,812" });
@@ -1641,7 +1658,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
         <span className="r-label">
           {typed ? "You receive" : balance && balance > BigInt(0) ? "All your $CONSUME takes" : `For example, ${fromRaw(EXAMPLE_REDEEM, CONSUME_DEC, 0)} $CONSUME takes`}
         </span>
-        <span className="r-amount">{usd(totalMicro)}</span>
+        <span className="r-amount">{q.error ? "No figure" : usd(totalMicro)}</span>
         <span className="r-sub">{VIA_INTENTS ? "paid in memecoins to your NEAR Intents balance" : "paid in memecoins"}</span>
         {shares.length > 0 ? (
           <ul className="basket">
@@ -1657,7 +1674,11 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             })}
           </ul>
         ) : (
-          <p className="hint">{q.loading ? "Weighing the Stomach…" : "The Stomach is empty, so there is nothing to take yet."}</p>
+          <p className="hint">{q.loading
+              ? "Weighing the Stomach…"
+              : q.error
+                ? "The contract could not be read just now, so there is no figure to show. This is not an empty Stomach."
+                : "The Stomach is empty, so there is nothing to take yet."}</p>
         )}
         <p className="hint r-foot">A share is counted against all $CONSUME, locked in Bonds or not, so nobody can empty the Stomach first.</p>
       </div>
@@ -1730,7 +1751,7 @@ function Rule({ snap }: { snap: Snapshot }) {
             </span>
             <h3>Feed</h3>
             <p>
-              $CONSUME is minted at its backing, so what you feed is what you could redeem, less a tithe of{" "}
+              $CONSUME is earned at its backing, so what you feed is what you could redeem, less a tithe of{" "}
               <em>
                 {c.tithe_step_bps / 100}% to {c.max_tithe_bps / 100}%
               </em>
@@ -1772,9 +1793,9 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>What it pays</h3>
             <p>
-              Every feeding mints $CONSUME at the current backing, so a late feeder gets the same deal as an early one: what you feed is what
+              Every feeding earns $CONSUME at the current backing, so a late feeder gets the same deal as an early one: what you feed is what
               you could redeem, less the tithe. The first feeding sets it at {c.start_rate} per dollar. The tithe is the part of a feeding that
-              mints nothing and so belongs to everyone already holding: {c.tithe_step_bps / 100}% at the start, {c.tithe_step_bps / 100}% more
+              earns no $CONSUME and so belongs to everyone already holding: {c.tithe_step_bps / 100}% at the start, {c.tithe_step_bps / 100}% more
               with each famine (every {usd(c.famine_usd, 0)} eaten), never above {c.max_tithe_bps / 100}%. A feeding can never lower the backing.
             </p>
           </div>
@@ -1804,8 +1825,8 @@ function Rule({ snap }: { snap: Snapshot }) {
             <h3>The Assayer</h3>
             <p>
               Prices come from one price-feeder account, the Assayer, which reads NEAR Intents quotes. Feedings are refused when any price they
-              depend on is more than 15 minutes old. It cannot move what is in the Stomach, but its prices decide what a feeding mints. The limits cap a price that is too high on the
-              memecoin fed. They do not cap a price that is too low on what the Stomach holds: a feeding made then mints more than its share.
+              depend on is more than 15 minutes old. It cannot move what is in the Stomach, but its prices decide what a feeding earns. The limits cap a price that is too high on the
+              memecoin fed. They do not cap a price that is too low on what the Stomach holds: a feeding made then earns more than its share.
             </p>
           </div>
           <div>
@@ -1813,7 +1834,7 @@ function Rule({ snap }: { snap: Snapshot }) {
             <p>
               The ten memecoins, their limits, the tithe and its famines, the feast and the 30 days were set when the contract launched, and it has
               no way to change them. One role is left, the guardian, with two powers: seal or unseal a memecoin on the list, and replace the
-              Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer.
+              Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer.{" "}
               {keys === 0
                 ? "The contract account holds no key (read from the chain just now), so its code cannot be replaced."
                 : keys
@@ -1842,7 +1863,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h4>The Assayer</h4>
             <p>
-              Sets prices from NEAR Intents quotes. Its prices decide what every feeding mints, so a dishonest Assayer could mint itself
+              Sets prices from NEAR Intents quotes. Its prices decide what every feeding earns, so a dishonest Assayer could mint itself
               most of the Stomach.
             </p>
             <p className="seal-note">The biggest trust here</p>

@@ -7,6 +7,8 @@ web/.next/
 web/out/
 *.tsbuildinfo
 next-env.d.ts
+# what a browser test run leaves behind
+web/e2e/.run/
 
 # Secrets and local config: keys belong in environment variables
 .env

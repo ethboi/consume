@@ -5854,3 +5854,172 @@ section[inert] > :not(header) {
     display: none;
   }
 }
+
+/* ---- the page says where it runs: one line under the pitch ---- */
+.folio .hero-net {
+  margin: -8px 0 22px;
+  max-width: none;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--faded);
+}
+.folio .hero-net b {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--rubric);
+}
+
+/* ---- narrow windows: the sections move to a second row of the top bar, so they are never lost ---- */
+@media (max-width: 1020px) {
+  .folio .masthead:has(.masthead-me) {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 6px;
+    padding-bottom: 8px;
+  }
+  .folio .masthead:has(.masthead-me) nav {
+    display: flex;
+    grid-column: 1 / -1;
+    min-width: 0;
+    gap: 22px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-top: 1px solid rgba(239, 233, 220, 0.22);
+  }
+}
+@media (max-width: 900px) {
+  .folio .masthead {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 6px;
+    padding-bottom: 8px;
+  }
+  .folio .masthead nav {
+    display: flex;
+    grid-column: 1 / -1;
+    min-width: 0;
+    gap: 22px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-top: 1px solid rgba(239, 233, 220, 0.22);
+  }
+}
+@media (max-width: 1020px) {
+  .folio .masthead nav::-webkit-scrollbar {
+    display: none;
+  }
+  .folio .masthead nav a {
+    flex: none;
+    padding: 9px 0 7px;
+    color: rgba(239, 233, 220, 0.86);
+  }
+}
+@media (max-width: 600px) {
+  .folio .masthead nav,
+  .folio .masthead:has(.masthead-me) nav {
+    gap: 12px;
+    justify-content: space-between;
+  }
+  /* "The Stomach" and "The Feast" drop the article so all six fit a phone */
+  .folio .masthead nav .nav-the {
+    display: none;
+  }
+}
+
+/* ---- a phone: a smaller serpent and the button before the four steps, so "Feed the Serpent" is on the first screen ---- */
+@media (max-width: 600px) {
+  .folio .hero.split .hero-grid {
+    padding-top: 14px;
+    row-gap: 14px;
+  }
+  .folio .hero.split .hero-art {
+    max-width: 264px;
+  }
+  .folio .hero-copy {
+    display: flex;
+    flex-direction: column;
+  }
+  .folio .hero-net {
+    margin: -4px 0 16px;
+    font-size: 0.9rem;
+  }
+  .folio .hero.split .hero-actions {
+    order: 1;
+  }
+  .folio .howto {
+    order: 2;
+    margin: 20px 0 0;
+  }
+  .folio .hero-entry {
+    order: 3;
+  }
+}
+
+/* ---- the Stomach on a phone: the price column is dropped there, so each row carries its price ---- */
+.price-inline {
+  display: none;
+}
+@media (max-width: 600px) {
+  .price-inline {
+    display: inline;
+  }
+}
+
+/* ---- pale text made readable: rows it holds none of, and the words in empty boxes ---- */
+.folio .ledger tr.holds-none td:nth-child(2),
+.folio .ledger tr.holds-none td:nth-child(3) {
+  color: var(--faded);
+}
+.receipt input.amount::placeholder,
+.redeem input.amount::placeholder,
+.meal-usd input::placeholder,
+.meal-token input::placeholder {
+  color: rgba(20, 17, 16, 0.62);
+}
+@media (max-width: 350px) {
+  .folio .masthead nav,
+  .folio .masthead:has(.masthead-me) nav {
+    gap: 8px;
+    font-size: 0.8rem;
+  }
+}
+/* the narrow top bar: mark and wallet on the first row, the sections under them */
+@media (max-width: 1020px) {
+  .folio .masthead-end {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    max-width: 100%;
+  }
+  .folio .masthead nav {
+    grid-row: 2;
+  }
+}
+
+/* ---- a short window (most laptops): the pitch closes up so "Feed the Serpent" stays on the first screen ---- */
+@media (min-width: 901px) and (max-height: 840px) {
+  .folio .hero.split .hero-grid {
+    padding-top: 26px;
+  }
+  .folio .hero-copy h1 {
+    font-size: clamp(2.4rem, 4vw, 3.3rem);
+    margin-bottom: 12px;
+  }
+  .folio .hero-explain {
+    margin-bottom: 16px;
+  }
+  .folio .hero-net {
+    margin-bottom: 16px;
+  }
+  .folio .howto {
+    padding: 8px 0 10px;
+    margin-bottom: 18px;
+  }
+}
+@media (max-width: 600px) {
+  /* what each bottle is worth, a size up on a phone */
+  .folio .jar-worth {
+    font-size: 21px;
+  }
+}

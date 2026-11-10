@@ -345,7 +345,7 @@ function CardFace({ d }: { d: CardData }) {
           ))}
         </g>
         <text x={CX} y={GROUND_Y + 74} textAnchor="middle" className="fell" fontSize={16} fontStyle="italic" fill={PAPER}>
-          {d.exited ? `Seal broken: ${filled} of ${days} days released, the rest forfeit` : `${filled} of ${days} days released`}
+          {d.exited ? `Seal broken: ${Math.round(Math.min(1, Math.max(0, d.released)) * 100)}% paid out, the rest forfeit` : `${filled} of ${days} days released`}
         </text>
       </g>
       <rect x={PIC.x} y={PIC.y} width={PIC.w} height={PIC.h} fill="none" stroke={INK} strokeWidth={5} />

@@ -14,7 +14,7 @@ No dependencies, Node.js 22.18 or newer, about a second. Every run gives the sam
 
 ## What is modelled
 
-`model.mjs` is a port of the contract in whole numbers (BigInt), with the same rounding: `math.rs` line for line, and the rules of `meal.rs` (caps, the tithe and its steps, the Feast, minting at the backing), `vest.rs` (collect, break the seal) and `redeem.rs`. It uses the parameters the live contract was launched with and the ten memecoins with their real caps and their prices on 2026-11-09.
+`model.mjs` is a port of the contract in whole numbers (BigInt), with the same rounding: `math.rs` line for line, and the rules of `meal.rs` (caps, the tithe and its steps, the Feast, earning at the backing), `vest.rs` (collect, break the seal) and `redeem.rs`. It uses the parameters the live contract was launched with and the ten memecoins with their real caps and their prices on 2026-11-09.
 
 Before the scenarios run, the model is checked against known answers: the starting rate, the tithe schedule, a feeding that crosses a tithe step, and the README's example ($100 fed into a $100 Stomach at a 10% tithe is worth $94.74).
 
@@ -69,7 +69,7 @@ Measured in dollars, the backing rises with every tithe and every broken seal, a
 1. **The backing never fell from an action.** No feeding, broken seal or redemption lowered it in any scenario. Only falling memecoin prices did.
 2. **A run does not break it.** With a quarter of holders redeeming everything each day for ten days, everyone was paid their share in memecoins ($54,624 over the 60 days) and those who stayed ended with more behind each $CONSUME, not less.
 3. **The Feast tends to stick.** With 30% of feeders chasing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four (DOGE, PENGU, DOGE). It changed hands only when feeding was thin. This is the mechanic's weak point as a game: the crown is easier to keep than to take.
-4. **What the crown costs holders is bounded.** In steady feeding $4,136 of tithe was not charged, against $5,986 that was. A feeding with no tithe still mints exactly at the backing, so it takes nothing from holders; they only miss the tithe they would have been paid. And it is held to that memecoin's daily cap ($5,000 a day for the largest five), which is per memecoin, not per account, so many accounts gain no more room than one.
+4. **What the crown costs holders is bounded.** In steady feeding $4,136 of tithe was not charged, against $5,986 that was. A feeding with no tithe still earns exactly at the backing, so it takes nothing from holders; they only miss the tithe they would have been paid. And it is held to that memecoin's daily cap ($5,000 a day for the largest five), which is per memecoin, not per account, so many accounts gain no more room than one.
 5. **The basket concentrates.** The largest memecoin ended at 24% to 44% of the Stomach. A redemption is paid in that mix.
 6. **The caps only bit in the rush.** 32 feedings were refused in the scenario with 150 a day. In the others none were.
 

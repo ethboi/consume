@@ -107,7 +107,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const connect = useCallback(async () => {
-    await connector.current?.connect();
+    try {
+      await connector.current?.connect();
+    } catch (e) {
+      // closing the wallet picker without choosing is not an error; anything else is worth a line
+      if (!(e instanceof Error && e.message === "User rejected")) console.warn("The wallet did not connect:", e);
+    }
   }, []);
 
   const disconnect = useCallback(async () => {

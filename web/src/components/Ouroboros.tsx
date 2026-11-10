@@ -154,14 +154,16 @@ export function Ouroboros({ size = 400, className, detailed = true, solid = fals
       width={size}
       height={size}
       viewBox="0 0 400 400"
-      role="img"
-      aria-label={title}
+      // with no title it is decoration, and a screen reader skips it
+      role={title ? "img" : undefined}
+      aria-label={title || undefined}
+      aria-hidden={title ? undefined : true}
       fill="none"
       stroke="currentColor"
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <title>{title}</title>
+      {title && <title>{title}</title>}
       <g className="ouro-body">
         <path d={BODY} fill={fill} strokeWidth={solid ? 2 : detailed ? 3.6 : 9} className="ouro-outline" />
         {detailed && !solid && (

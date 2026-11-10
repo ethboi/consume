@@ -52,7 +52,7 @@ const tribes: [string, Tribe][] = HERESIES.map((h) => [
 
 function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAgo: number, opts: Partial<VestView["vest"]> = {}): VestView {
   const h = HERESIES.find((x) => x.symbol === symbol)!;
-  // minted at the sample backing, less the 2% tithe; a feast feeding pays none
+  // earned at the sample backing, less the 2% tithe; a feast feeding pays none
   const total = (BigInt(mealUsd) * BigInt(920) * pow10(18) * BigInt(opts.bonus ? 100 : 98)) / BigInt(100);
   const start = nowNs - BigInt(daysAgo) * DAY;
   return {
@@ -117,7 +117,7 @@ export const DEMO_SNAPSHOT: Snapshot = {
     total_redeemed: (BigInt(480_000) * pow10(18)).toString(),
     vests_minted: "214",
     stomach_usd: STOMACH_MICRO.toString(),
-    // one dollar mints its share of every $CONSUME with a claim
+    // one dollar earns its share of every $CONSUME with a claim
     current_rate: (((SUPPLY + UNVESTED) * BigInt(1_000_000)) / STOMACH_MICRO).toString(),
     tithe_bps: 200,
     next_famine_at_usd: String(20_000 * 1e6),
