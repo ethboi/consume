@@ -6,7 +6,7 @@ The track asks: simulate 60 days of community behaviour first, and show supply o
 node sim/sim.mjs
 ```
 
-No dependencies, Node.js 22 or newer, about a second. Every run gives the same numbers, because the randomness comes from fixed seeds. It writes:
+No dependencies, Node.js 22.18 or newer, about a second. Every run gives the same numbers, because the randomness comes from fixed seeds. It writes:
 
 - `sim/out/steady.csv`, `rush.csv`, `run.csv`, `crash.csv`: one row a day (fed, tithe, the Feast, supply, locked, forfeited, redeemed, Stomach, backing)
 - `sim/out/summary.md`: the table below

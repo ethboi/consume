@@ -40,7 +40,7 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 
 ## The log of every mint and burn
 
-- `ledger` (or `https://consume.cash/api/ledger` as JSON) lists every feeding, every $CONSUME minted and every $CONSUME burned, newest first, each with its transaction.
+- `ledger` (or `https://consume.cash/api/ledger` as JSON) lists every feeding, every $CONSUME minted and every $CONSUME burned, newest first, each with its transaction. On a busy contract the oldest entries can drop off the list; the totals are the contract's own and stay right.
 - A feeding mints nothing: it writes $CONSUME into a Bond. $CONSUME is minted by `claim` and `exit`, and burned by `redeem`.
 - The entries are parsed from the contract's own events (`meal`, `claim`, `exit`, `redeem`). The tool says whether they add up to the totals in `get_stats`.
 

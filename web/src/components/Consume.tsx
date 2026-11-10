@@ -499,9 +499,6 @@ function Masthead({ tick }: { tick: number }) {
               <span className="purse" title="The $CONSUME in your wallet">
                 <ConsumeCoin size={26} />
                 <b>{held.data >= million ? compact(held.data, CONSUME_DEC) : fromRaw(held.data, CONSUME_DEC, 0)}</b>
-                <span className="purse-unit" aria-hidden="true">
-                  $CONSUME
-                </span>
                 <span className="sr-only"> $CONSUME in your wallet</span>
               </span>
             )}

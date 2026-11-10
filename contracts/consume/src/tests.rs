@@ -582,6 +582,28 @@ fn bond_in_flight_cannot_be_claimed() {
 }
 
 #[test]
+#[should_panic(expected = "This Bond is mid-transfer")]
+fn bond_in_flight_cannot_have_its_seal_broken() {
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    c.in_flight.insert("1".to_string()); // as nft_transfer_call does before calling the receiver
+    ctx_yocto("alice.testnet", 20 * DAY);
+    c.exit("1".into());
+}
+
+#[test]
+#[should_panic(expected = "This feeding would mint no $CONSUME")]
+fn a_feeding_that_would_mint_nothing_is_refused() {
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    // Feeding and redeeming cannot reach this state, so it is set by hand: one
+    // raw unit of $CONSUME holding the claim on a $100 Stomach. A $1 feeding
+    // would then round down to no $CONSUME at all, and must be refused.
+    c.total_unvested = 1;
+    feed(&mut c, "doge.testnet", "bob.testnet", doge(15), DAY);
+}
+
+#[test]
 #[should_panic(expected = "Pays less than your minimum")]
 fn min_consume_is_enforced() {
     let mut c = setup(DAY);
@@ -708,6 +730,38 @@ fn intents_tribe_cannot_be_fed_directly() {
 fn non_nep141_intents_tokens_are_refused() {
     let mut c = setup_intents(DAY);
     feed_intents(&mut c, "intents.testnet", "alice.testnet", "nep245:x.near:1", 1, "", DAY);
+}
+
+#[test]
+#[should_panic(expected = "Feed one memecoin at a time")]
+fn intents_feeding_takes_one_memecoin_at_a_time() {
+    let mut c = setup_intents(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    ctx("intents.testnet", DAY);
+    let id = format!("nep141:{PEPE_OMFT}");
+    let _ = c.mt_on_transfer(
+        acc("alice.testnet"),
+        vec![acc("alice.testnet")],
+        vec![id.clone(), id],
+        vec![U128(pepe(20_000_000)), U128(pepe(20_000_000))],
+        String::new(),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Feed from your own balance")]
+fn intents_feeding_of_someone_elses_balance_is_refused() {
+    let mut c = setup_intents(DAY);
+    credit(&mut c, "mallory.testnet", DAY);
+    ctx("intents.testnet", DAY);
+    // Mallory is the sender, but the memecoin was Alice's
+    let _ = c.mt_on_transfer(
+        acc("mallory.testnet"),
+        vec![acc("alice.testnet")],
+        vec![format!("nep141:{PEPE_OMFT}")],
+        vec![U128(pepe(20_000_000))],
+        String::new(),
+    );
 }
 
 #[test]

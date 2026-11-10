@@ -77,7 +77,10 @@ async fn offering_claim_redeem() -> anyhow::Result<()> {
         assert!(format!("{:?}", r.into_result().unwrap_err()).contains("MethodNotFound"), "{method} should not exist");
     }
     let again = consume.call("new").args_json(json!({ "config": consume.view("get_config").await?.json::<serde_json::Value>()?, "tribes": [] })).transact().await?;
-    assert!(again.is_failure(), "the contract cannot be launched twice");
+    assert!(
+        format!("{:?}", again.into_result().unwrap_err()).contains("already been initialized"),
+        "the contract cannot be launched twice"
+    );
     owner
         .call(consume.id(), "set_prices")
         .args_json(json!({ "prices": [

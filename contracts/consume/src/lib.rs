@@ -1,6 +1,7 @@
 //! CONSUME: a memecoin that eats other memecoins.
 //!
-//! Feed it a whitelisted memecoin (PEPE, DOGE, SHIB ...) with `ft_transfer_call`.
+//! Feed it a listed memecoin (PEPE, DOGE, SHIB ...): with `mt_transfer_call` on
+//! the NEAR Intents contract, or with `ft_transfer_call` for a plain NEP-141.
 //! The meme goes into the stomach for good. You get a Bond NFT that releases
 //! $CONSUME to whoever holds it, linearly over the vesting period.
 //! Burn $CONSUME with `redeem` to take your share of everything in the stomach.
