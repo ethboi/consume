@@ -72,7 +72,7 @@ impl Contract {
                 meal_usd,
             )
         };
-        let consume = math::consume_at_floor(self.config.start_rate.0, net_usd, self.claims(), self.stomach_usd(Some(now)));
+        let consume = math::consume_at_floor(self.config.start_rate.0, net_usd, self.claims(), self.stomach_usd_for_minting(now));
         require!(consume > 0, "This feeding would mint no $CONSUME");
 
         MealQuote {
@@ -86,6 +86,9 @@ impl Contract {
     }
 
     pub(crate) fn eat(&mut self, token_id: AccountId, payer: AccountId, eater: AccountId, amount: u128, terms: MealTerms) -> u128 {
+        // the Bond pays out $CONSUME, so its first holder is registered for it now,
+        // from the feeder's credit
+        self.register_from_credit(&eater, &payer);
         let storage_before = env::storage_usage();
         let q = self.plan_meal(&token_id, amount);
         require!(q.consume.0 >= terms.min_consume, "Pays less than your minimum, refunded");
@@ -163,7 +166,11 @@ impl Contract {
                 "via_intents": self.tribes.get(&token_id).map(|t| t.via_intents).unwrap_or(false),
             }),
         );
-        // the feeder pays for the storage this feeding created
+        // the feeder pays for the storage this feeding created. These maps only
+        // write on flush, so flush them before measuring.
+        self.vests.flush();
+        self.daily_fed.flush();
+        self.epoch_fed.flush();
         let grown = env::storage_usage().saturating_sub(storage_before) as u128;
         let cost = grown * env::storage_byte_cost().as_yoctonear();
         let credit = *self.meal_credit.get(&payer).unwrap_or(&0);

@@ -6,7 +6,7 @@ Feed it a memecoin from another chain (DOGE, PEPE, SHIB and seven more). It keep
 
 The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list, caps, rates and periods are arguments to `new` and no method changes them afterwards.
 
-> **Status, 2026-11-10.** The contracts and the web app run locally; 42 unit tests and two end-to-end sandbox tests pass. Nothing is deployed yet: no testnet contract, no hosted demo, no video. Those links will be added here. Until then the site shows sample figures and says so on the page.
+> **Status, 2026-11-10.** The contracts and the web app run locally; 50 unit tests and two end-to-end sandbox tests pass. Nothing is deployed yet: no testnet contract, no hosted demo, no video. Those links will be added here. Until then the site shows sample figures and says so on the page.
 
 ## Check it in five minutes
 
@@ -14,7 +14,7 @@ Every claim below can be checked from a clean clone. Prerequisites are under [Tr
 
 | # | Run this, from the repository root | You should see |
 | --- | --- | --- |
-| 1 | `(cd contracts/consume && cargo test)` | `test result: ok. 42 passed; 0 failed` |
+| 1 | `(cd contracts/consume && cargo test)` | `test result: ok. 50 passed; 0 failed` |
 | 2 | `(cd contracts/mock-intents && cargo test)` | `test result: ok. 3 passed; 0 failed` |
 | 3 | `for c in consume mock-meme mock-intents; do (cd contracts/$c && cargo near build non-reproducible-wasm); done` | three `.wasm` files under `contracts/target/near/` |
 | 4 | `(cd contracts/integration-tests && cargo test --test flow)` | `test offering_claim_redeem ... ok`. On a real local NEAR node: feed, refund over the cap, Bond, collect, redeem with exact payouts, a failed payout kept as owed and paid on retry. It also asserts that `set_tribe`, `set_intents_id`, `set_media_base` and `set_owner` do not exist and that `new` cannot be called twice. |
@@ -31,20 +31,20 @@ The track asks for the mechanic to be in the contract and judged on the mechanic
 
 | Rule | What the contract does | Code | Test |
 | --- | --- | --- | --- |
-| **Feed** | Takes a listed memecoin, values it at the posted price, keeps it in the Stomach, refunds anything over the cap, mints a Bond. | `meal.rs` `plan_meal`, `eat` | `a_feeding_mints_a_bond`, `over_the_meal_cap_is_refunded`, `daily_cap_holds`, `stale_price_refused`, `a_feeding_needs_fresh_prices_for_everything_in_the_stomach`, `a_zero_price_is_refused` |
-| **Mint at the backing** | A feeding mints `fed value × $CONSUME with a claim ÷ Stomach value`, so $100 fed buys a claim on $100 of the Stomach, whenever you arrive. The first feeding sets the scale at 1000 $CONSUME per dollar. A feeding can never lower the backing per $CONSUME. | `math.rs` `consume_at_floor`, `lib.rs` `stomach_usd`, `claims` | `minting_at_the_floor_math`, `a_feeding_never_lowers_the_floor`, `a_late_feeder_gets_what_they_fed_less_the_tithe` |
+| **Feed** | Takes a listed memecoin, values it at the posted price, keeps it in the Stomach, refunds anything over the cap, mints a Bond. | `meal.rs` `plan_meal`, `eat` | `a_feeding_mints_a_bond`, `over_the_meal_cap_is_refunded`, `daily_cap_holds`, `stale_price_refused`, `a_round_must_price_every_open_memecoin`, `a_zero_price_is_refused` |
+| **Mint at the backing** | A feeding mints `fed value × $CONSUME with a claim ÷ Stomach value`, so $100 fed buys a claim on $100 of the Stomach, whenever you arrive. The first feeding sets the scale at 1000 $CONSUME per dollar. A feeding can never lower the backing per $CONSUME. | `math.rs` `consume_at_floor`, `lib.rs` `stomach_usd`, `claims` | `minting_at_the_floor_math`, `the_stomach_is_rounded_up_when_a_feeding_is_priced`, `a_feeding_never_lowers_the_floor`, `a_late_feeder_gets_what_they_fed_less_the_tithe` |
 | **Famine** | Each feeding pays a tithe: a part of it that mints nothing and so belongs to everyone already holding. It is 1% at the start and grows by 1% with every $10,000 eaten, to 10% at most. A feeding that crosses a famine pays each tithe on its part on each side. | `math.rs` `tithe_at`, `after_tithe` | `famine_grows_the_tithe_to_its_cap` |
 | **Feast** | The memecoin fed most (by USD) in a week pays no tithe the following week. | `lib.rs` `heaviest_tribe`, `meal.rs` `plan_meal` | `the_feast_waives_the_tithe_next_epoch` |
 | **Bond** | An NFT that releases its $CONSUME linearly over 30 days to whoever holds it. | `vest.rs` `claim` | `claim_releases_linearly_to_the_current_holder` |
 | **Break the seal** | Leave early with what has been released plus half of the rest. The other half is never minted. | `vest.rs` `exit` | `exit_forfeits_half_of_the_locked_part`, `a_broken_seal_raises_the_floor` |
-| **Redeem** | Burn $CONSUME for a pro-rata share of every memecoin in the Stomach, counted against all $CONSUME including what is still locked in Bonds. | `redeem.rs` `redeem` | `redeem_pays_a_fair_share_counting_unvested` |
+| **Redeem** | Burn $CONSUME for a pro-rata share of every memecoin in the Stomach, counted against all $CONSUME including what is still locked in Bonds. | `redeem.rs` `redeem` | `redeem_pays_a_fair_share_counting_unvested`, `a_redemption_that_would_pay_nothing_is_refused`, `a_failed_payout_stays_owed_and_a_paid_one_is_cleared` |
 | **From any chain** | Memecoins arrive from NEAR Intents balances and redemptions are paid back into them. | `intents.rs` `mt_on_transfer` | `intents_feeding_mints_a_bond`, `intents_feeding_from_anyone_else_is_refused`, sandbox `intents.rs` |
 | **Fixed at launch** | The memecoin list, caps, starting rate, tithe schedule, vesting period, forfeit, week length, Intents contract and image base are arguments to `new`. No method changes them. | `lib.rs` `new` | `the_launch_list_is_what_new_was_given`, `launch_refuses_a_memecoin_listed_twice`, sandbox `flow.rs` |
 | **Guardian, not owner** | One role with two switches: seal or unseal a listed memecoin, replace the price feeder. It can be renounced. It cannot list a memecoin, change a number, mint or withdraw. | `lib.rs` `set_tribe_open`, `set_price_feeder`, `set_guardian` | `the_guardian_can_seal_a_memecoin`, `nobody_else_can_seal_a_memecoin`, `a_renounced_guardian_has_no_power_left` |
 
 ## Against the judging criteria
 
-- **Technical implementation.** One contract implements NEP-141 (with NEP-145 and NEP-148), NEP-171 (with NEP-177, NEP-178, NEP-181) and a NEP-245 receiver for NEAR Intents. Amounts use 256-bit intermediates (`math.rs`). 42 unit tests, two sandbox tests on a real node, and a second-model security review whose findings are fixed and tested (see [Security notes](#security-notes)).
+- **Technical implementation.** One contract implements NEP-141 (with NEP-145 and NEP-148), NEP-171 (with NEP-177, NEP-178, NEP-181) and a NEP-245 receiver for NEAR Intents. Amounts use 256-bit intermediates (`math.rs`). 50 unit tests, two sandbox tests on a real node, and two second-model security reviews whose findings are fixed and tested (see [Security notes](#security-notes)).
 - **Design.** A woodcut site drawn entirely in code: the serpent, the Stomach's jars, ten heraldic coins, and Bonds as tarot cards rendered from contract state (`web/src/components`). It works at phone width.
 - **Impact.** A memecoin whose supply only exists because other memecoins were fed to it, and whose every token is a claim on that basket. A redeemer receives the memecoins themselves and can withdraw them to their home chains through NEAR Intents.
 - **Originality.** We surveyed the track on 2026-11-10 and found no other entry that eats other memecoins, redeems by burning for a pro-rata basket, or puts the vesting position in a transferable NFT.
@@ -53,7 +53,7 @@ The track asks for the mechanic to be in the contract and judged on the mechanic
 ## What to know before you trust it
 
 - **Feeding costs the tithe, and the backing is paid in memecoins.** $CONSUME is minted at its backing, so $100 fed buys a claim on $100 of the Stomach less the tithe (1% at the start, up to 10%). Feed and redeem straight away and you are down by the tithe; the reason to feed is that you want the basket, a share of later tithes and broken seals, or you value $CONSUME above its backing. The backing is a share of ten memecoins, not a price in dollars: it falls when they fall.
-- **Prices come from one off-chain account,** the Assayer, which reads NEAR Intents 1Click quotes and posts them. A feeding is valued against every memecoin in the Stomach, so a wrong price on any of them mints too much or too little, up to each memecoin's per-feeding and daily caps. See [Trust assumptions](#trust-assumptions).
+- **Prices come from one off-chain account,** the Assayer, which reads NEAR Intents 1Click quotes and posts them, all in one call. A feeding is valued against every memecoin in the Stomach. The caps limit what a price that is too high on the memecoin being fed can cost. They do not limit a price that is too low on what the Stomach already holds: a feeding made then mints more than its share, whatever its size, and a dishonest Assayer could use that to take most of the Stomach. This is the largest trust in the design. See [Trust assumptions](#trust-assumptions).
 - **A guardian exists.** It can stop a listed memecoin being eaten and replace the Assayer. It cannot do anything else, and it can be renounced.
 - **NEAR Intents has no testnet,** so the testnet flow uses a stand-in contract with the same calls (`contracts/mock-intents`). The route check in the site is the real mainnet API.
 - **Not deployed yet,** as the status note says.
@@ -79,8 +79,8 @@ Rules enforced by the contract:
 - **Mint at the backing:** a feeding mints `net × claims ÷ stomach value`, where `net` is the feeding's USD value after the tithe, `claims` is all $CONSUME in wallets plus all still locked in Bonds, and `stomach value` is every held memecoin at its posted price before the feeding. With an empty Stomach it mints 1000 $CONSUME per dollar. So the backing per $CONSUME is the same before and after a feeding, apart from the tithe, which raises it. A feeding that would mint nothing is refused.
 - **Famine:** the tithe is `min(10%, 1% × (1 + total eaten ÷ $10,000))` of the feeding's value. That part mints nothing. A feeding that crosses a famine pays each tithe on the part on each side.
 - **Feast:** the memecoin fed most (by USD) in a week pays no tithe the following week.
-- **Caps:** each memecoin has a largest feeding and a daily limit, smaller for thin markets (the NEAR-native memecoins). They limit how much a bad price can cost per day; they do not make a bad price harmless.
-- **Stale prices are refused:** a feeding reverts if the price of the memecoin fed, or of any memecoin in the Stomach, is more than 15 minutes old. Redemption needs no prices.
+- **Caps:** each memecoin has a largest feeding and a daily limit, smaller for thin markets (the NEAR-native memecoins). They limit how much of an overpriced memecoin can be fed in a day. They do not limit a feeding made while the Stomach is underpriced (see [Trust assumptions](#trust-assumptions)).
+- **Stale prices are refused:** a feeding reverts if the price of the memecoin fed, or of any memecoin in the Stomach, is more than 15 minutes old. A round of prices must cover every memecoin that is open or held, so a feeding never reads a half-updated Stomach. Redemption needs no prices.
 
 ## The ten memecoins
 
@@ -119,8 +119,12 @@ Feeding, the Bond, collecting and redeeming are the real contract, and the same 
 
 There are four things you trust, and none of them is "the Stomach is safe no matter what":
 
-1. **The Assayer (price feeder)** posts USD prices, read from NEAR Intents 1Click dry quotes. It cannot move anything in the Stomach, but a wrong price on the memecoin fed, or on any memecoin already held, over- or under-pays feedings, up to each memecoin's per-feeding and daily caps. Overpaid $CONSUME is a claim on everyone else's share. Prices older than 15 minutes are refused, so a stopped Assayer stops feedings, not redemptions.
-2. **The guardian** has three methods and no others: `set_tribe_open` (seal or unseal a memecoin that is already on the list), `set_price_feeder` (replace the Assayer) and `set_guardian` (pass the role on, or renounce it with `null`). It cannot add a memecoin, change a cap, a rate or a period, repoint the Intents contract, mint $CONSUME or withdraw from the Stomach: those methods do not exist. Its real power is the second one. A dishonest guardian could appoint a dishonest Assayer, with the damage bounded by the caps as in point 1. Once the guardian is renounced, the Assayer can never be replaced. Until it is renounced the guardian is the deployer's account; the README will say here when that changes.
+1. **The Assayer (price feeder)** posts USD prices, read from NEAR Intents 1Click dry quotes. It cannot move anything out of the Stomach itself, but its prices decide how much every feeding mints, and overpaid $CONSUME is a claim on everyone else's share. This is the largest trust in the design.
+   - A price too high on the memecoin being fed overpays that feeding. That memecoin's per-feeding and daily caps limit this.
+   - A price too low on memecoins already held underprices the Stomach, and a feeding of any size then mints more than its share. The caps do not limit this. What slows it: the $CONSUME arrives as a Bond over 30 days, and breaking the seal forfeits half of what is locked, so feeding, breaking the seal and redeeming at once only pays when the Stomach is posted at under half its real value. Someone willing to hold the Bond for the 30 days gains from any underpricing larger than the tithe.
+   - With an honest Assayer the error is how far prices move in the 15 minutes a price may be used. A dishonest or broken Assayer could post prices that let one feeding claim most of the Stomach. The contract has no limit on how far a price may move between rounds.
+   - A round must price every memecoin that is open or held, in one call, so a feeding never reads a half-updated Stomach. Prices older than 15 minutes are refused, so a stopped Assayer stops feedings, not redemptions.
+2. **The guardian** has three methods and no others: `set_tribe_open` (seal or unseal a memecoin that is already on the list), `set_price_feeder` (replace the Assayer) and `set_guardian` (pass the role on, or renounce it with `null`). It cannot add a memecoin, change a cap, a rate or a period, repoint the Intents contract, mint $CONSUME or withdraw from the Stomach: those methods do not exist. Its real power is the second one. A dishonest guardian could appoint a dishonest Assayer, with the damage described in point 1. Once the guardian is renounced, the Assayer can never be replaced. Until it is renounced the guardian is the deployer's account; the README will say here when that changes.
 3. **NEAR Intents and the listed token contracts** themselves (`intents.near` and the bridged tokens on mainnet; the stand-ins on testnet). The Stomach's Intents memecoins sit in CONSUME's balance on the Intents contract. Only the Intents contract can feed an Intents memecoin, and which contract that is was fixed at launch.
 4. **The deployment keys.** Until the contract account's full-access keys are deleted, whoever holds them can deploy different code. The README will say here when that has been done.
 
@@ -128,12 +132,20 @@ There are four things you trust, and none of them is "the Stomach is safe no mat
 
 Protections in the contract, each with a unit test:
 
-- **No cashable sponsorship:** when collecting registers you on $CONSUME at the contract's expense, that registration can never be unregistered for a refund.
-- **Bonds are locked mid-transfer:** while an `nft_transfer_call` is unresolved, the Bond cannot be collected or broken, so a receiver cannot drain it and hand it back.
-- **Feeders pay their own storage** through prepaid credit, so feedings cannot run the contract out of NEAR.
-- **No silent zero payouts, minimum output and deadline** on feedings. A memecoin's decimals and caps are fixed at launch.
+- **Bonds are locked mid-transfer:** while an `nft_transfer_call` is unresolved, the Bond cannot be collected or broken, so a receiver cannot drain it and hand it back. A locked Bond cannot start a second `nft_transfer_call` either, because that one would resolve first and lift the lock (`bond_in_flight_cannot_be_claimed`, `a_bond_in_flight_cannot_start_another_transfer_call`).
+- **The contract pays for nobody's storage,** so it cannot be run out of NEAR. Feeders prepay credit, and a feeding is charged for every byte it writes (`feeding_charges_every_byte_it_stores`). A feeder's $CONSUME registration comes out of that credit at the token's own registration price, and someone who receives a Bond later pays theirs the same way (`the_feeder_is_registered_from_their_own_credit`, `a_bond_received_later_pays_its_own_registration`). An account's first credit deposit also pays for its own record (`a_first_credit_deposit_pays_for_its_record`).
+- **Prices arrive in full rounds:** `set_prices` refuses a round that leaves out a memecoin that is open or held, and refuses a zero price (`a_round_must_price_every_open_memecoin`, `a_sealed_memecoin_is_left_out_of_a_round_only_when_none_is_held`, `a_zero_price_is_refused`).
+- **Rounding goes against the feeder:** the Stomach is valued rounded up when a feeding is priced against it, and a Stomach worth under a micro-dollar counts as one (`the_stomach_is_rounded_up_when_a_feeding_is_priced`, `minting_at_the_floor_math`).
+- **No silent zero payouts:** a feeding that would mint nothing and a redemption that would pay nothing are refused. A payout that fails stays owed, in a record that is kept while the payout is in flight (`a_redemption_that_would_pay_nothing_is_refused`, `a_failed_payout_stays_owed_and_a_paid_one_is_cleared`).
+- **Minimum value and deadline** on feedings (`min_net_usd_is_enforced`, `deadline_is_enforced`). A memecoin's decimals and caps are fixed at launch.
 - **Intents feedings only from the Intents contract**, one memecoin per call and only `nep141:` tokens. A memecoin set to Intents cannot be fed as a plain NEP-141 (or the other way round), and both that setting and the Intents contract are fixed at launch, so the Stomach's custody cannot be moved.
-- The testnet stand-in tokens disable unregistering, so their free registrations cannot be cashed out either.
+- The testnet stand-in tokens disable unregistering, so their free registrations cannot be cashed out.
+
+Known and not fixed:
+
+- **Memecoins sent to the contract with a plain transfer** (`ft_transfer` or `mt_transfer`, not the `_call` forms) are not counted in the Stomach, back nothing and cannot be recovered. Feed through the site, or with `ft_transfer_call` / `mt_transfer_call`.
+- **No limit on price moves between rounds,** as described under [Trust assumptions](#trust-assumptions).
+- Two payouts of the same memecoin to the same account in flight at once, where the first lands and the second fails, need a little free NEAR on the contract to write the owed record back. Fees keep the contract above that, and nothing a user does lowers it.
 
 ## Try it
 
@@ -168,7 +180,7 @@ Run everything locally, from the repository root:
 (cd web && pnpm install && pnpm dev)
 ```
 
-Expected: 42 CONSUME unit tests and 3 mock-intents unit tests pass; both sandbox tests pass.
+Expected: 50 CONSUME unit tests and 3 mock-intents unit tests pass; both sandbox tests pass.
 
 ### Launch on testnet
 
@@ -210,7 +222,7 @@ Contract method names stay plain (`claim`, `exit`, `redeem`); the site uses the 
 
 near-sdk 5.30 and near-contract-standards, near-workspaces, the `uint` crate, Next.js 16.4, React 19.3 and TypeScript 6, @hot-labs/near-connect, Google Fonts (UnifrakturMaguntia, IM Fell English). All artwork (the serpent, the stomach's jars, the coins, the emblems) is drawn in code for this project; the coin designs are original heraldic devices, not the memecoins' logos.
 
-**AI disclosure:** this project was written with AI coding assistance (Claude Code), and reviewed with a second model (OpenAI Codex) whose security findings are fixed above.
+**AI disclosure:** this project was written with AI coding assistance (Claude Code), and reviewed twice with a second model (OpenAI Codex). Its security findings are fixed above, except those listed as known and not fixed.
 
 ## Also by this author
 

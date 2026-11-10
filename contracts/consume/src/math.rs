@@ -33,6 +33,17 @@ pub fn usd_value(amount: u128, decimals: u8, price_e18: u128) -> u128 {
     r.as_u128()
 }
 
+/// The same, rounded up. The stomach is valued this way when a feeding is
+/// priced against it, so rounding can never mint a feeding more than its share.
+pub fn usd_value_up(amount: u128, decimals: u8, price_e18: u128) -> u128 {
+    let scale = U256::from(10u8).pow(U256::from(decimals)) * U256::from(1_000_000_000_000u64);
+    let r = (U256::from(amount) * U256::from(price_e18) + scale - U256::from(1u8)) / scale;
+    if r > U256::from(u128::MAX) {
+        env::panic_str("overflow");
+    }
+    r.as_u128()
+}
+
 /// Raw token units worth `usd` micro-USD. Inverse of `usd_value` (rounded down).
 pub fn amount_for_usd(usd: u128, decimals: u8, price_e18: u128) -> u128 {
     if price_e18 == 0 {
@@ -83,10 +94,12 @@ pub fn after_tithe(step_bps: u128, max_bps: u128, famine_usd: u128, total_eaten:
 /// the stomach's value before this feeding. An empty stomach (or no claims)
 /// starts at `start_rate` whole $CONSUME per USD.
 pub fn consume_at_floor(start_rate: u128, net_usd: u128, claims: u128, stomach_usd: u128) -> u128 {
-    if claims == 0 || stomach_usd == 0 {
+    if claims == 0 {
         mul_div(net_usd, start_rate * ONE_CONSUME, MICRO_USD)
     } else {
-        mul_div(net_usd, claims, stomach_usd)
+        // a stomach worth under a micro-dollar counts as one: the start rate here
+        // would hand part of the feeding to the claims already out
+        mul_div(net_usd, claims, stomach_usd.max(1))
     }
 }
 

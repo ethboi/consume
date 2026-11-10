@@ -66,7 +66,6 @@ pub(crate) enum StorageKey {
     DailyFed,
     EpochFed,
     Owed,
-    Sponsored,
     InFlight,
     MealCredit,
 }
@@ -197,9 +196,6 @@ pub struct Contract {
     pub(crate) total_forfeited: u128,
     /// $CONSUME burned through redeem.
     pub(crate) total_redeemed: u128,
-    /// Accounts whose $CONSUME registration the contract paid for. They cannot
-    /// unregister, so the sponsored deposit can never be cashed out.
-    pub(crate) sponsored: LookupSet<AccountId>,
     /// Bonds inside an unresolved nft_transfer_call. They cannot be
     /// claimed or exited until the transfer resolves (blocks a receiver from
     /// draining a Bond and then rejecting it).
@@ -263,7 +259,6 @@ impl Contract {
             total_unvested: 0,
             total_forfeited: 0,
             total_redeemed: 0,
-            sponsored: LookupSet::new(StorageKey::Sponsored),
             in_flight: LookupSet::new(StorageKey::InFlight),
             meal_credit: LookupMap::new(StorageKey::MealCredit),
         }
@@ -317,6 +312,14 @@ impl Contract {
             env::predecessor_account_id() == self.config.price_feeder_id,
             "Only the price feeder"
         );
+        // One round prices every memecoin a feeding can read (open, or held in
+        // the stomach), so no feeding ever sees one repriced and another not.
+        for (token_id, tribe) in self.tribes.iter() {
+            require!(
+                !(tribe.open || tribe.stomach.0 > 0) || prices.iter().any(|(p, _)| p == token_id),
+                "A round must price every memecoin that is open or held"
+            );
+        }
         let now = env::block_timestamp();
         for (token_id, price) in prices {
             // a zero price would value the stomach too low and overpay the next feeding
@@ -332,15 +335,28 @@ impl Contract {
 
     /// Prepay NEAR for the storage your feedings create (each Bond NFT
     /// and its records). A feeding is refused if its storage cost exceeds the
-    /// feeder's credit.
+    /// feeder's credit. An account's first deposit also pays for its own credit
+    /// record, which is kept for good.
     #[payable]
     pub fn add_meal_credit(&mut self, account_id: Option<AccountId>) -> U128 {
         let account = account_id.unwrap_or_else(env::predecessor_account_id);
-        let amount = env::attached_deposit().as_yoctonear();
+        let mut amount = env::attached_deposit().as_yoctonear();
         require!(amount > 0, "Attach NEAR to add credit");
-        let credit = self.meal_credit.entry(account).or_insert(0);
-        *credit += amount;
-        U128(*credit)
+        let had = match self.meal_credit.get(&account) {
+            Some(credit) => *credit,
+            None => {
+                // nobody can make the contract store a record for free
+                let before = env::storage_usage();
+                self.meal_credit.insert(account.clone(), 0);
+                self.meal_credit.flush();
+                let cost = env::storage_usage().saturating_sub(before) as u128 * env::storage_byte_cost().as_yoctonear();
+                require!(amount > cost, "Attach more NEAR: the first deposit also pays for its own record");
+                amount -= cost;
+                0
+            }
+        };
+        self.meal_credit.insert(account, had + amount);
+        U128(had + amount)
     }
 
     /// Take back unused storage credit.
@@ -423,6 +439,16 @@ impl Contract {
     /// (a feeding), every memecoin held must have a price no older than
     /// `max_price_age_ns`, because the feeding is priced against all of them.
     pub(crate) fn stomach_usd(&self, fresh_at: Option<u64>) -> u128 {
+        self.value_stomach(fresh_at, false)
+    }
+
+    /// The stomach's value for pricing a feeding: fresh prices only, and each
+    /// memecoin rounded up, so the feeding is never minted more than its share.
+    pub(crate) fn stomach_usd_for_minting(&self, now: u64) -> u128 {
+        self.value_stomach(Some(now), true)
+    }
+
+    fn value_stomach(&self, fresh_at: Option<u64>, round_up: bool) -> u128 {
         let mut total: u128 = 0;
         for t in self.tribes.values() {
             if t.stomach.0 == 0 {
@@ -434,9 +460,30 @@ impl Contract {
                     "A price in the stomach is stale, try again shortly"
                 );
             }
-            total += math::usd_value(t.stomach.0, t.decimals, t.price_e18.0);
+            total += if round_up {
+                math::usd_value_up(t.stomach.0, t.decimals, t.price_e18.0)
+            } else {
+                math::usd_value(t.stomach.0, t.decimals, t.price_e18.0)
+            };
         }
         total
+    }
+
+    /// Register `account` to hold $CONSUME if it is not yet, paid from `payer`'s
+    /// storage credit at the token's own registration price. The contract never
+    /// pays for a registration, and `storage_unregister` refunds this same amount.
+    pub(crate) fn register_from_credit(&mut self, account: &AccountId, payer: &AccountId) {
+        if self.token.accounts.contains_key(account) {
+            return;
+        }
+        let fee = self.token.account_storage_usage as u128 * env::storage_byte_cost().as_yoctonear();
+        let credit = *self.meal_credit.get(payer).unwrap_or(&0);
+        require!(
+            credit >= fee,
+            "Add storage credit first (add_meal_credit): this account is not registered for $CONSUME yet"
+        );
+        self.meal_credit.insert(payer.clone(), credit - fee);
+        self.token.internal_register_account(account);
     }
 
     /// The tithe right now, basis points.

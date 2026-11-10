@@ -66,7 +66,9 @@ impl Contract {
             if owed == 0 {
                 continue;
             }
-            self.owed.remove(&key);
+            // keep the record (at zero) while the payout is in flight, so a failed
+            // payout can always be written back without needing new storage
+            self.owed.insert(key, 0);
             let memo = Some("CONSUME stomach".to_string());
             let via_intents = self.tribes.get(&token).map(|t| t.via_intents).unwrap_or(false);
             let payout = match (via_intents, self.config.intents_id.clone()) {
@@ -111,6 +113,10 @@ impl Contract {
         let amount = amount.0;
         require!(amount > 0, "Nothing to redeem");
         let q = self.quote(amount);
+        require!(
+            q.shares.iter().any(|(_, share)| share.0 > 0),
+            "Too little to redeem: your share of every memecoin rounds to nothing"
+        );
 
         for (token, share) in &q.shares {
             if share.0 == 0 {
@@ -144,10 +150,15 @@ impl Contract {
         amount: U128,
         #[callback_result] result: Result<(), PromiseError>,
     ) -> bool {
+        let key = (account_id, token);
+        let owed = *self.owed.get(&key).unwrap_or(&0);
         if result.is_err() {
-            *self.owed.entry((account_id, token)).or_insert(0) += amount.0;
+            self.owed.insert(key, owed + amount.0);
             false
         } else {
+            if owed == 0 {
+                self.owed.remove(&key);
+            }
             true
         }
     }

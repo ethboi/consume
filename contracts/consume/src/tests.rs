@@ -76,12 +76,21 @@ fn launch_list() -> Vec<TribeInit> {
 fn setup(now: u64) -> Contract {
     ctx("deployer.testnet", now);
     let mut c = Contract::new(config(), launch_list());
+    post(&mut c, now, PEPE_PRICE, DOGE_PRICE);
+    c
+}
+
+const PEPE_PRICE: u128 = 5_000_000_000_000; // 5e-6 USD * 1e18
+const DOGE_PRICE: u128 = 70_000_000_000_000_000; // 0.07 USD * 1e18
+
+/// One round from the Assayer: every listed memecoin, in one call.
+fn post(c: &mut Contract, now: u64, pepe_e18: u128, doge_e18: u128) {
     ctx("feeder.testnet", now);
     c.set_prices(vec![
-        (acc("pepe.testnet"), U128(5_000_000_000_000)),          // 5e-6 USD * 1e18
-        (acc("doge.testnet"), U128(70_000_000_000_000_000)),     // 0.07 USD * 1e18
+        (acc("pepe.testnet"), U128(pepe_e18)),
+        (acc("doge.testnet"), U128(doge_e18)),
+        (acc(PEPE_OMFT), U128(PEPE_PRICE)),
     ]);
-    c
 }
 
 /// What the first $100 feeding mints: 1000 per dollar on an empty stomach, less the 1% tithe.
@@ -89,12 +98,7 @@ const FIRST: u128 = 99_000 * ONE_CONSUME;
 
 /// Re-post the same prices (the Assayer does this every few minutes).
 fn reprice(c: &mut Contract, now: u64) {
-    ctx("feeder.testnet", now);
-    c.set_prices(vec![
-        (acc("pepe.testnet"), U128(5_000_000_000_000)),
-        (acc("doge.testnet"), U128(70_000_000_000_000_000)),
-        (acc(PEPE_OMFT), U128(5_000_000_000_000)),
-    ]);
+    post(c, now, PEPE_PRICE, DOGE_PRICE);
 }
 
 /// The floor as a fraction: (stomach value in micro-USD, all $CONSUME with a claim).
@@ -138,6 +142,16 @@ fn feed(c: &mut Contract, token: &str, from: &str, amount: u128, now: u64) -> u1
 }
 
 #[test]
+fn the_stomach_is_rounded_up_when_a_feeding_is_priced() {
+    // a few raw units of PEPE are worth far less than a micro-dollar
+    assert_eq!(math::usd_value(1_900, 18, PEPE_PRICE), 0);
+    assert_eq!(math::usd_value_up(1_900, 18, PEPE_PRICE), 1);
+    // exact values are not pushed up
+    assert_eq!(math::usd_value_up(pepe(20_000_000), 18, PEPE_PRICE), 100 * USD);
+    assert_eq!(math::usd_value_up(0, 18, PEPE_PRICE), 0);
+}
+
+#[test]
 fn usd_value_math() {
     // 20,000,000 PEPE at $0.000005 = $100
     assert_eq!(math::usd_value(pepe(20_000_000), 18, 5_000_000_000_000), 100 * USD);
@@ -162,8 +176,11 @@ fn famine_grows_the_tithe_to_its_cap() {
 
 #[test]
 fn minting_at_the_floor_math() {
-    // empty stomach: the start rate
+    // nothing minted yet: the start rate
     assert_eq!(math::consume_at_floor(1000, 99 * USD, 0, 0), FIRST);
+    // claims out but a stomach worth under a micro-dollar: the feeding takes
+    // (nearly) all of it, it is not shared with the old claims at the start rate
+    assert_eq!(math::consume_at_floor(1000, 99 * USD, 5 * ONE_CONSUME, 0), 99 * USD * 5 * ONE_CONSUME);
     // 1M $CONSUME backed by $2,000: $50 is 2.5% of the stomach, so it mints 2.5% of the claims
     assert_eq!(math::consume_at_floor(1000, 50 * USD, 1_000_000 * ONE_CONSUME, 2_000 * USD), 25_000 * ONE_CONSUME);
 }
@@ -224,6 +241,8 @@ fn claim_releases_linearly_to_the_current_holder() {
     // Alice sells the NFT to Carol on day 1
     ctx_yocto("alice.testnet", DAY);
     c.nft_transfer(acc("carol.testnet"), "1".into(), None, None);
+    // Carol is new to $CONSUME: her registration comes out of her own storage credit
+    credit(&mut c, "carol.testnet", DAY);
     // halfway through the vest
     ctx("carol.testnet", DAY + 15 * DAY);
     let got = c.claim("1".into());
@@ -314,8 +333,8 @@ fn a_feeding_never_lowers_the_floor() {
     ];
     for (i, (token, amount, price)) in moves.into_iter().enumerate() {
         let now = DAY + (i as u64 + 1) * 60_000_000_000;
-        reprice(&mut c, now);
-        c.set_prices(vec![(acc(token), U128(price))]);
+        let (p, d) = if token == "pepe.testnet" { (price, DOGE_PRICE) } else { (PEPE_PRICE, price) };
+        post(&mut c, now, p, d);
         // the floor is measured at the prices the feeding is made at
         let before = floor(&c);
         feed(&mut c, token, "bob.testnet", amount, now);
@@ -372,15 +391,31 @@ fn a_broken_seal_raises_the_floor() {
 }
 
 #[test]
-#[should_panic(expected = "A price in the stomach is stale")]
-fn a_feeding_needs_fresh_prices_for_everything_in_the_stomach() {
+#[should_panic(expected = "A round must price every memecoin that is open or held")]
+fn a_round_must_price_every_open_memecoin() {
     let mut c = setup(DAY);
+    // DOGE alone: a feeding could be minted against a half-repriced stomach
+    ctx("feeder.testnet", DAY);
+    c.set_prices(vec![(acc("doge.testnet"), U128(DOGE_PRICE))]);
+}
+
+#[test]
+fn a_sealed_memecoin_is_left_out_of_a_round_only_when_none_is_held() {
+    let mut c = setup(DAY);
+    ctx("guardian.testnet", DAY);
+    c.set_tribe_open(acc("doge.testnet"), false);
+    // sealed and never eaten: no feeding reads its price
+    ctx("feeder.testnet", DAY);
+    c.set_prices(vec![(acc("pepe.testnet"), U128(PEPE_PRICE)), (acc(PEPE_OMFT), U128(PEPE_PRICE))]);
     feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
-    // an hour on, only DOGE has a new price: the PEPE in the stomach cannot be valued
-    let later = DAY + 3_600_000_000_000;
-    ctx("feeder.testnet", later);
-    c.set_prices(vec![(acc("doge.testnet"), U128(70_000_000_000_000_000))]);
-    feed(&mut c, "doge.testnet", "bob.testnet", doge(1_000), later);
+    // sealed but held: every feeding is priced against it, so it must be in the round
+    ctx("guardian.testnet", DAY);
+    c.set_tribe_open(acc("pepe.testnet"), false);
+    ctx("feeder.testnet", DAY);
+    let refused = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        c.set_prices(vec![(acc(PEPE_OMFT), U128(PEPE_PRICE))]);
+    }));
+    assert!(refused.is_err(), "a held memecoin was left out of a round");
 }
 
 #[test]
@@ -412,15 +447,128 @@ fn feeding_charges_storage_to_the_feeder() {
 }
 
 #[test]
-#[should_panic(expected = "sponsored and cannot be refunded")]
-fn sponsored_account_cannot_unregister() {
+fn feeding_charges_every_byte_it_stores() {
+    let mut c = setup(DAY);
+    credit(&mut c, "alice.testnet", DAY);
+    let credit_before = c.get_meal_credit(acc("alice.testnet")).0;
+    // write out every map, as the end of a call does on chain
+    fn flush(c: &mut Contract) {
+        c.vests.flush();
+        c.daily_fed.flush();
+        c.epoch_fed.flush();
+        c.meal_credit.flush();
+        c.tribes.flush();
+    }
+    ctx("pepe.testnet", DAY);
+    flush(&mut c);
+    let before = env::storage_usage();
+    let _ = c.ft_on_transfer(acc("alice.testnet"), U128(pepe(20_000_000)), String::new());
+    flush(&mut c);
+    let grown = (env::storage_usage() - before) as u128;
+    let paid = credit_before - c.get_meal_credit(acc("alice.testnet")).0;
+    assert!(grown > 0);
+    assert!(
+        paid >= grown * env::storage_byte_cost().as_yoctonear(),
+        "the feeder paid for {paid} yocto of storage, the feeding stored {grown} bytes"
+    );
+}
+
+#[test]
+fn the_feeder_is_registered_from_their_own_credit() {
     use near_contract_standards::storage_management::StorageManagement;
+    let mut c = setup(DAY);
+    assert!(c.storage_balance_of(acc("alice.testnet")).is_none());
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    // registered at the feeding, so collecting later needs nothing more
+    assert!(c.storage_balance_of(acc("alice.testnet")).is_some());
+    ctx("alice.testnet", 40 * DAY);
+    assert_eq!(c.claim("1".into()).0, FIRST);
+}
+
+#[test]
+#[should_panic(expected = "not registered for $CONSUME yet")]
+fn a_bond_received_later_pays_its_own_registration() {
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    ctx_yocto("alice.testnet", DAY);
+    c.nft_transfer(acc("carol.testnet"), "1".into(), None, None);
+    // Carol has no storage credit and never registered: the contract does not pay for her
+    ctx("carol.testnet", 20 * DAY);
+    c.claim("1".into());
+}
+
+#[test]
+fn a_first_credit_deposit_pays_for_its_record() {
+    let mut c = setup(DAY);
+    let deposit = |c: &mut Contract, who: &str, yocto: u128| {
+        let mut b = VMContextBuilder::new();
+        b.current_account_id(acc("consume.testnet"))
+            .predecessor_account_id(acc("mallory.testnet"))
+            .block_timestamp(DAY)
+            .attached_deposit(NearToken::from_yoctonear(yocto))
+            .account_balance(NearToken::from_near(100));
+        testing_env!(b.build());
+        c.add_meal_credit(Some(acc(who))).0
+    };
+    // one yocto cannot open a record at the contract's cost
+    let dust = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| deposit(&mut c, "victim1.testnet", 1)));
+    assert!(dust.is_err(), "a one-yocto deposit opened a credit record");
+    // a real first deposit is credited less its record, later ones in full
+    let tenth = NearToken::from_millinear(100).as_yoctonear();
+    let first = deposit(&mut c, "victim2.testnet", tenth);
+    assert!(first < tenth && first > tenth * 9 / 10, "first deposit credited {first}");
+    assert_eq!(deposit(&mut c, "victim2.testnet", tenth), first + tenth);
+}
+
+#[test]
+#[should_panic(expected = "This Bond is mid-transfer")]
+fn a_bond_in_flight_cannot_start_another_transfer_call() {
+    let mut c = setup(DAY);
+    feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
+    ctx_yocto("alice.testnet", 10 * DAY);
+    let _ = c.nft_transfer_call(acc("bob.testnet"), "1".into(), None, None, String::new());
+    assert!(c.in_flight.contains("1"));
+    // Bob holds it until the transfer resolves. A second transfer-call from him
+    // would resolve first and lift the lock, letting him collect and hand it back.
+    ctx_yocto("bob.testnet", 10 * DAY);
+    let _ = c.nft_transfer_call(acc("carol.testnet"), "1".into(), None, None, String::new());
+}
+
+#[test]
+#[should_panic(expected = "Too little to redeem")]
+fn a_redemption_that_would_pay_nothing_is_refused() {
+    let mut c = setup(DAY);
+    feed(&mut c, "doge.testnet", "alice.testnet", doge(1_000), DAY);
+    ctx("alice.testnet", 40 * DAY);
+    c.claim("1".into());
+    // one unit of $CONSUME is worth less than one unit of DOGE: burning it would pay nothing
+    ctx_yocto("alice.testnet", 40 * DAY);
+    c.redeem(U128(1));
+}
+
+#[test]
+fn a_failed_payout_stays_owed_and_a_paid_one_is_cleared() {
+    use near_sdk::PromiseError;
     let mut c = setup(DAY);
     feed(&mut c, "pepe.testnet", "alice.testnet", pepe(20_000_000), DAY);
     ctx("alice.testnet", 40 * DAY);
     c.claim("1".into());
     ctx_yocto("alice.testnet", 40 * DAY);
-    c.storage_unregister(None);
+    assert_eq!(c.redeem(U128(FIRST / 2)), 1);
+    let share = pepe(10_000_000);
+    // in flight: nothing shows as owed, but the record is still there to write back to
+    assert!(c.get_owed(acc("alice.testnet")).is_empty());
+    assert!(c.owed.contains_key(&(acc("alice.testnet"), acc("pepe.testnet"))));
+    // the transfer fails (say Alice is not registered on PEPE): owed again
+    ctx("consume.testnet", 40 * DAY);
+    assert!(!c.on_withdraw(acc("alice.testnet"), acc("pepe.testnet"), U128(share), Err(PromiseError::Failed)));
+    assert_eq!(c.get_owed(acc("alice.testnet")), vec![(acc("pepe.testnet"), U128(share))]);
+    // she retries and it lands: the record goes
+    ctx("alice.testnet", 40 * DAY);
+    assert_eq!(c.withdraw_owed(), 1);
+    ctx("consume.testnet", 40 * DAY);
+    assert!(c.on_withdraw(acc("alice.testnet"), acc("pepe.testnet"), U128(share), Ok(())));
+    assert!(!c.owed.contains_key(&(acc("alice.testnet"), acc("pepe.testnet"))));
 }
 
 #[test]
@@ -449,8 +597,7 @@ fn min_net_usd_is_enforced() {
     let mut c = setup(DAY);
     credit(&mut c, "alice.testnet", DAY);
     // quoted at $100, $99 after the tithe; then PEPE's posted price drops 10%
-    ctx("feeder.testnet", DAY);
-    c.set_prices(vec![(acc("pepe.testnet"), U128(4_500_000_000_000))]);
+    post(&mut c, DAY, 4_500_000_000_000, DOGE_PRICE);
     ctx("pepe.testnet", DAY);
     let msg = format!(r#"{{"min_net_usd":"{}"}}"#, 98 * USD);
     let _ = c.ft_on_transfer(acc("alice.testnet"), U128(pepe(20_000_000)), msg);
@@ -463,8 +610,7 @@ fn min_net_usd_ignores_the_rest_of_the_stomach() {
     let quoted = c.quote_meal(acc("pepe.testnet"), U128(pepe(20_000_000)));
     // DOGE gains 20% while Alice's wallet is open: her $100 now mints fewer
     // $CONSUME, each backed by more, and is still counted at $99
-    ctx("feeder.testnet", DAY);
-    c.set_prices(vec![(acc("doge.testnet"), U128(84_000_000_000_000_000))]);
+    post(&mut c, DAY, PEPE_PRICE, 84_000_000_000_000_000);
     let now = c.quote_meal(acc("pepe.testnet"), U128(pepe(20_000_000)));
     assert!(now.consume.0 < quoted.consume.0 * 99 / 100, "a count-based minimum would have refunded her");
     credit(&mut c, "alice.testnet", DAY);
@@ -500,10 +646,7 @@ fn json_msg_can_name_a_recipient() {
 const PEPE_OMFT: &str = "eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near";
 
 fn setup_intents(now: u64) -> Contract {
-    let mut c = setup(now);
-    ctx("feeder.testnet", now);
-    c.set_prices(vec![(acc(PEPE_OMFT), U128(5_000_000_000_000))]);
-    c
+    setup(now)
 }
 
 fn feed_intents(c: &mut Contract, caller: &str, from: &str, token_id: &str, amount: u128, msg: &str, now: u64) -> Vec<U128> {
@@ -646,8 +789,7 @@ fn a_replaced_price_feeder_can_no_longer_post_prices() {
 #[should_panic(expected = "A price must be more than zero")]
 fn a_zero_price_is_refused() {
     let mut c = setup(DAY);
-    ctx("feeder.testnet", DAY);
-    c.set_prices(vec![(acc("pepe.testnet"), U128(0))]);
+    post(&mut c, DAY, 0, DOGE_PRICE);
 }
 
 #[test]

@@ -51,17 +51,14 @@ impl Contract {
         (claimable, locked)
     }
 
-    /// Mint $CONSUME to an account, registering it on the token if needed
-    /// (the contract covers that storage).
+    /// Mint $CONSUME to an account. A feeder is registered for it when they
+    /// feed; anyone who received the Bond later pays their own registration,
+    /// from their storage credit.
     pub(crate) fn mint_consume(&mut self, to: &AccountId, amount: u128, memo: &str) {
         if amount == 0 {
             return;
         }
-        if !self.token.accounts.contains_key(to) {
-            // sponsored: the contract pays, so this account may never unregister
-            self.token.internal_register_account(to);
-            self.sponsored.insert(to.clone());
-        }
+        self.register_from_credit(to, to);
         self.token.internal_deposit(to, amount);
         FtMint { owner_id: to, amount: U128(amount), memo: Some(memo) }.emit();
     }

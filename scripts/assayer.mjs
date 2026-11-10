@@ -90,7 +90,7 @@ async function once(opts) {
   const rows = await readPrices();
   const priced = rows.filter((r) => r.price);
   for (const r of rows) console.log(`${r.symbol.padEnd(12)} ${r.price ? "$" + r.price.toPrecision(6) : "no price".padEnd(9)}  ${r.source}`);
-  if (priced.length < rows.length) console.error("Some memecoins have no price. Feedings will stop once theirs is 15 minutes old.");
+  if (priced.length < rows.length) console.error("Some memecoins have no price. The contract refuses a round that leaves out a memecoin that is open or held, so feedings stop within 15 minutes until every one has a price or the guardian seals one that is not held.");
   const prices = priced.map((r) => [r.token, e18(r.price)]);
   if (!opts.send) {
     console.log(JSON.stringify({ prices }));

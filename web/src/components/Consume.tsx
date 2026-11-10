@@ -727,7 +727,8 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
           <summary>Limits and storage</summary>
           <p>
             Anything over a memecoin’s feeding limit comes back to you. Each Bond takes a little NEAR for storage, paid from a refundable credit
-            {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR)` : ""}. Your first feeding adds 0.1 NEAR to it.{" "}
+            {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR)` : ""}. Your first feeding adds 0.1 NEAR to it, and a little
+            of that pays to register you for $CONSUME and to open the credit itself.{" "}
             {credit.data !== undefined && credit.data > BigInt(0) && (
               <button className="link-button" disabled={busy} onClick={withdrawCredit}>
                 Take back unused credit
@@ -1135,7 +1136,7 @@ function Rule({ snap }: { snap: Snapshot }) {
       <div className="trust">
         <h3>Who you trust</h3>
         <p>
-          <strong>The Assayer</strong> sets prices from NEAR Intents quotes. A bad price can overpay, up to each memecoin&apos;s daily limit.
+          <strong>The Assayer</strong> sets prices from NEAR Intents quotes. Its prices decide what every feeding mints, so a dishonest Assayer could mint itself most of the Stomach. This is the biggest trust here.
         </p>
         <p>
           <strong>The guardian</strong> can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were
@@ -1185,14 +1186,15 @@ function Rule({ snap }: { snap: Snapshot }) {
             <h3>Feasts and limits</h3>
             <p>
               The memecoin fed most in a week pays no tithe the next week. Each memecoin has a largest feeding and a daily limit; thin
-              markets get small ones so a bad price cannot be used to empty the Stomach.
+              markets get small ones, so little of an overpriced memecoin can be fed in a day.
             </p>
           </div>
           <div>
             <h3>The Assayer</h3>
             <p>
               Prices come from one price-feeder account, the Assayer, which reads NEAR Intents quotes. Feedings are refused when any price they
-              depend on is more than 15 minutes old. A wrong price can overpay feedings up to the daily limits, but it can never move what is in the Stomach.
+              depend on is more than 15 minutes old. It cannot move what is in the Stomach, but its prices decide what a feeding mints. The limits cap a price that is too high on the
+              memecoin fed. They do not cap a price that is too low on what the Stomach holds: a feeding made then mints more than its share.
             </p>
           </div>
           <div>
@@ -1200,8 +1202,8 @@ function Rule({ snap }: { snap: Snapshot }) {
             <p>
               The ten memecoins, their limits, the tithe and its famines, the feast and the 30 days were set when the contract launched, and it has
               no way to change them. One role is left, the guardian, with two powers: seal or unseal a memecoin on the list, and replace the
-              Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer,
-              within the daily limits. The contract account&apos;s keys are to be deleted once it is set up.
+              Assayer. It cannot mint or withdraw, and it can give the role up for good. A bad guardian could still appoint a dishonest Assayer.
+              The contract account&apos;s keys are to be deleted once it is set up.
             </p>
           </div>
         </div>

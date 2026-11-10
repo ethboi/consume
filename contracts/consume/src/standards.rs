@@ -80,9 +80,6 @@ impl StorageManagement for Contract {
     #[payable]
     fn storage_unregister(&mut self, force: Option<bool>) -> bool {
         let who = near_sdk::env::predecessor_account_id();
-        // The contract paid this registration; refunding it would let anyone cash
-        // out the sponsorship again and again.
-        near_sdk::require!(!self.sponsored.contains(&who), "This registration was sponsored and cannot be refunded");
         // Only empty accounts may leave: a forced unregister would burn $CONSUME
         // outside `redeem`.
         if let Some(balance) = self.token.accounts.get(&who) {
@@ -134,7 +131,9 @@ impl NonFungibleTokenCore for Contract {
         msg: String,
     ) -> PromiseOrValue<bool> {
         // lock until nft_resolve_transfer: the receiver must not claim or exit
-        // and then hand the Bond back
+        // and then hand the Bond back. A Bond already locked cannot start a
+        // second transfer-call, whose resolve would lift the lock early.
+        near_sdk::require!(!self.in_flight.contains(&token_id), "This Bond is mid-transfer");
         self.in_flight.insert(token_id.clone());
         self.nft.nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
     }
