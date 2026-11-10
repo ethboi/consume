@@ -9,7 +9,7 @@ const fellSc = IM_Fell_English_SC({ weight: "400", subsets: ["latin"], variable:
 
 const DESCRIPTION =
   "A memecoin that eats other memecoins. Feed it DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach, and every $CONSUME is a claim on it. Built on NEAR.";
-const SHARE_TITLE = "CONSUME: where memecoins go to be eaten";
+const SHARE_TITLE = "CONSUME: the memecoin that eats memecoins";
 
 // Links in the share card (opengraph-image.png, twitter-image.png) must be
 // absolute. Set NEXT_PUBLIC_SITE_URL to serve the site from another address.

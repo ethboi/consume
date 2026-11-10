@@ -39,7 +39,7 @@ export default function ShareCard() {
         </div>
       </div>
       <div className="share-copy">
-        <h1>Where memecoins go to be eaten.</h1>
+        <h1>The memecoin that eats memecoins.</h1>
         <p>Feed it yours, earn $CONSUME, and burn it any time for your share of the Stomach.</p>
         <p className="share-where">
           <span>consume.cash</span>

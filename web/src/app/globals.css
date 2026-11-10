@@ -452,38 +452,8 @@ input {
   color: var(--paper);
 }
 
-/* the one orchestrated moment: the serpent closes on load */
-.ouro-animate .ouro-outline {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: draw 2.4s cubic-bezier(0.6, 0, 0.3, 1) 0.2s forwards;
-}
-.ouro-animate .ouro-cuts,
-.ouro-head.ouro-animate {
-  opacity: 0;
-  animation: appear 0.9s ease 2.2s forwards;
-}
-@keyframes draw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-@keyframes appear {
-  to {
-    opacity: 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ouro-animate .ouro-outline {
-    animation: none;
-    stroke-dashoffset: 0;
-  }
-  .ouro-animate .ouro-cuts,
-  .ouro-head.ouro-animate {
-    animation: none;
-    opacity: 1;
-  }
-}
+/* the serpent is whole from the first frame. Its outline used to be traced in
+   on load, which showed a blank, headless ring with a thin line creeping round it. */
 
 /* ---------- chapters ---------- */
 
@@ -2829,11 +2799,14 @@ details.all-rules summary {
 .masthead::after {
   content: "";
   position: absolute;
-  left: -100vmax;
-  right: -100vmax;
+  left: 0;
+  right: 0;
   bottom: 0;
   height: 4px;
   background: var(--rubric);
+  /* full bleed like the bar itself: painted, so it never widens the page */
+  box-shadow: 0 0 0 100vmax var(--rubric);
+  clip-path: inset(0 -100vmax);
 }
 .masthead-mark {
   color: var(--paper);
@@ -3531,6 +3504,7 @@ details.all-rules summary {
   align-items: center;
   gap: 18px;
   padding: 16px 22px 18px 18px;
+  min-height: 128px;
   background: var(--ink);
   color: var(--paper);
 }
@@ -3560,9 +3534,12 @@ details.all-rules summary {
   letter-spacing: 0.03em;
   color: #e2533f;
 }
-.yield-amount.empty {
-  font-style: italic;
-  color: rgba(239, 233, 220, 0.5);
+.yield-title {
+  display: block;
+  margin-bottom: 3px;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  line-height: 1.15;
 }
 .yield-sub {
   font-size: var(--t-sm);
@@ -5089,4 +5066,575 @@ section[inert] > :not(header) {
 }
 .roll-shows + .empty {
   margin: 18px 0 8px;
+}
+
+/* ================= phone pass: less air between things, same content ================= */
+@media (max-width: 600px) {
+  /* sections sit closer together */
+  .folio .chapter {
+    padding-top: 34px;
+  }
+  .folio .chapter.band {
+    padding-top: 36px;
+    padding-bottom: 32px;
+    margin-top: 18px;
+    margin-bottom: 18px;
+  }
+  /* every chapter heading the same way: emblem beside the title, lede under both */
+  .folio .chapter > header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 6px 12px;
+    margin-bottom: 20px;
+  }
+  .folio .chapter > header > .emblem,
+  .folio .band > header .emblem.emblem-feed {
+    width: 46px;
+    height: 46px;
+    margin: 0;
+  }
+  .folio .band > header .emblem.emblem-feed {
+    width: 60px;
+    height: 60px;
+    margin: -6px 0;
+  }
+  .folio .chapter > header > :not(.emblem):not(h2) {
+    grid-column: 1 / -1;
+  }
+  .folio .chapter h2 {
+    font-size: 2rem;
+    line-height: 1.1;
+  }
+  .folio .chapter > header .stomach-total {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  /* hero: the four steps as a list, a shorter pitch */
+  .folio .hero.split .hero-grid {
+    padding-top: 24px;
+    row-gap: 24px;
+  }
+  .folio .hero-copy {
+    padding: 22px 20px 20px;
+    box-shadow: 8px 8px 0 var(--ink);
+  }
+  .folio .hero-copy h1 {
+    margin-bottom: 12px;
+  }
+  .folio .hero-explain {
+    font-size: 1.0625rem;
+    line-height: 1.45;
+    margin-bottom: 16px;
+  }
+  .folio .howto {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
+    padding: 2px 0;
+    margin-bottom: 18px;
+  }
+  .folio .howto li {
+    grid-template-columns: 36px 26px minmax(0, 1fr);
+    justify-items: start;
+    align-items: center;
+    text-align: left;
+    column-gap: 10px;
+    row-gap: 1px;
+    padding: 9px 0;
+    border-left: 0;
+    border-top: 1px solid rgba(20, 17, 16, 0.3);
+  }
+  .folio .howto li:first-child {
+    border-top: 0;
+  }
+  .folio .howto .emblem,
+  .folio .howto li > svg {
+    grid-row: 1 / span 2;
+    width: 36px;
+    height: 36px;
+    margin: 0;
+  }
+  .folio .howto b {
+    justify-self: center;
+  }
+  .folio .howto span {
+    font-size: 1rem;
+  }
+  .folio .howto i {
+    grid-column: 3;
+    margin-top: 0;
+  }
+  .folio .hero.split .hero-actions {
+    gap: 14px;
+  }
+  .folio .tally {
+    padding: 18px 6px;
+    row-gap: 16px;
+  }
+  .folio .tally .tile {
+    padding: 2px 14px;
+    gap: 2px;
+  }
+  .folio .tally .value {
+    font-size: 1.7rem;
+  }
+  .folio .tally .note {
+    font-size: 0.875rem;
+    line-height: 1.3;
+  }
+
+  /* the Stomach: shorter rows in the table */
+  #crucible .ledger th,
+  #crucible .ledger td {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+  #crucible .ledger td .with-coin {
+    gap: 0 8px;
+    line-height: 1.2;
+  }
+
+  /* the Feast */
+  .folio .feast-layout {
+    padding-bottom: 22px;
+  }
+  .folio .feast-plate {
+    padding: 20px;
+    gap: 16px;
+  }
+
+  /* from any chain: four memecoins fit on one road */
+  .folio .roads {
+    padding: 16px 14px;
+    margin-bottom: 24px;
+  }
+  .folio .roads .town {
+    padding-bottom: 10px;
+  }
+  .folio .roads .town-coins {
+    gap: 4px;
+  }
+  .folio .roads .town-coin {
+    width: min(70px, calc((100% - 12px) / 4));
+  }
+  /* a road of three or fewer keeps full-width places, so the longest name has room */
+  .folio .roads .town-coins:not(:has(> :nth-child(4))) .town-coin {
+    width: 70px;
+  }
+  .folio .roads .town-coin .sym.long {
+    font-size: 0.56rem;
+    letter-spacing: -0.02em;
+  }
+  .folio .roads-mid {
+    padding: 22px 0 26px;
+  }
+
+  /* the Rule */
+  .folio .charter {
+    padding-top: 18px;
+  }
+  .folio .articles li,
+  .folio .articles li:first-child,
+  .folio .articles li:last-child {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .folio .articles li:first-child {
+    padding-top: 0;
+  }
+  /* numeral, title and emblem share one line */
+  .folio .articles li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    column-gap: 10px;
+    align-items: baseline;
+  }
+  .folio .article-top {
+    display: contents;
+  }
+  .folio .article-top b {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .folio .article-top svg {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+    width: 44px;
+    height: 44px;
+  }
+  .folio .articles h3 {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 2rem;
+    margin: 0;
+  }
+  .folio .articles p {
+    grid-column: 1 / -1;
+    margin-top: 6px;
+  }
+
+  /* redeem: the example follows the form without a gap */
+  .folio .leaf.transmute {
+    row-gap: 16px;
+  }
+  .folio .redeem-in .hint {
+    margin-bottom: 0;
+  }
+
+  /* the Ledger: its four filters on one line */
+  .folio .roll-note {
+    font-size: 1.0625rem;
+    line-height: 1.45;
+  }
+  .folio .roll-shows {
+    gap: 6px;
+  }
+  .folio .roll-shows button {
+    padding: 5px 8px;
+  }
+}
+/* the narrowest phones: the top bar keeps its button whole */
+@media (max-width: 350px) {
+  .folio .masthead {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .folio .masthead-mark span {
+    font-size: 1.6rem;
+  }
+}
+/* one column: the serpent and its memecoins come first, the pitch card under them */
+@media (max-width: 900px) {
+  .folio .hero.split .hero-art {
+    order: -1;
+  }
+}
+
+/* ---- the four steps, set as four small plates: numeral, picture, name, gloss ---- */
+.folio .howto span {
+  font-family: var(--font-display);
+}
+.folio .howto i {
+  text-wrap: balance;
+}
+@media (min-width: 601px) {
+  .folio .howto {
+    padding: 14px 0 16px;
+    container-type: inline-size;
+  }
+  .folio .howto li {
+    grid-template-rows: auto 62px auto auto;
+    gap: 0;
+    padding: 0 8px;
+  }
+  .folio .howto b {
+    grid-row: 1;
+    font-size: 0.95rem;
+    letter-spacing: 0.06em;
+  }
+  .folio .howto .emblem,
+  .folio .howto li > svg {
+    grid-row: 2;
+    align-self: center;
+    width: 54px;
+    height: 54px;
+    margin: 0;
+  }
+  /* the wax seal is solid where the others are line, so it is set a little smaller */
+  .folio .howto li > svg:not(.emblem) {
+    width: 46px;
+    height: 46px;
+  }
+  .folio .howto span {
+    grid-row: 3;
+    /* the longest name, Redeem, is 3.2em wide: it always fits its quarter of the card */
+    font-size: min(1.8rem, calc((25cqw - 18px) / 3.3));
+    line-height: 1.1;
+  }
+  .folio .howto i {
+    grid-row: 4;
+    margin-top: 3px;
+  }
+}
+@media (max-width: 600px) {
+  .folio .howto span {
+    font-size: 1.45rem;
+    line-height: 1.1;
+  }
+}
+
+/* the Stomach's table needs about 560px beside the picture: below 1000px wide
+   the two no longer fit side by side, so the table goes under the picture */
+@media (max-width: 1000px) {
+  .folio .crucible-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- a pass over the chapters: each one closes on its own bottom edge ---- */
+
+/* the Stomach: the backing is the chapter's last line, under picture and table both, with its sum */
+.folio .crucible-layout {
+  row-gap: 22px;
+}
+.folio .crucible-layout .backing {
+  grid-column: 1 / -1;
+  margin: 0;
+  max-width: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 26px;
+  padding: 13px 20px 14px;
+  background: var(--ink);
+  color: var(--paper);
+}
+.folio #crucible {
+  padding-bottom: 30px;
+}
+.folio .backing-name {
+  font-family: var(--font-sc);
+  font-size: 1.2rem;
+}
+.folio .backing-sum {
+  font-style: italic;
+  font-size: var(--t-sm);
+  color: rgba(239, 233, 220, 0.72);
+  font-variant-numeric: lining-nums;
+}
+.folio .backing strong {
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1.1;
+  color: #e2533f;
+  font-variant-numeric: lining-nums;
+}
+@media (max-width: 860px) {
+  .folio .crucible-layout .backing {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 11px 14px 12px;
+  }
+  .folio .backing-sum {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+/* a memecoin it holds none of steps back, so what it does hold reads first */
+.folio .ledger tr.holds-none td:nth-child(2),
+.folio .ledger tr.holds-none td:nth-child(3) {
+  color: rgba(103, 93, 82, 0.7);
+}
+
+/* your Bonds, before a wallet is connected: the newest Bonds there are, and what a Bond lets its holder do */
+.folio .bond-show {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 26px clamp(22px, 4vw, 52px);
+  align-items: center;
+  padding-bottom: 38px;
+}
+.folio .bond-shelf {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), 132px);
+  gap: 18px 16px;
+}
+.folio .bond-shelf li.broken .ind-card {
+  opacity: 0.55;
+}
+.folio .bond-shelf .ind-card {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.folio .bond-shelf p {
+  margin: 7px 0 0;
+  display: grid;
+  gap: 1px;
+  max-width: none;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  color: rgba(239, 233, 220, 0.72);
+}
+.folio .bond-shelf p .no {
+  font-size: 0.9rem;
+  font-family: var(--font-sc);
+  color: #e2533f;
+}
+.folio .bond-shelf p > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--paper);
+}
+.folio .bond-show-yours {
+  margin: 18px 0 0;
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-style: italic;
+  color: rgba(239, 233, 220, 0.8);
+}
+.folio .bond-show h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.8rem;
+  line-height: 1.1;
+  color: var(--paper);
+}
+.folio .bond-show-what {
+  margin: 8px 0 14px;
+  max-width: 58ch;
+  color: rgba(239, 233, 220, 0.8);
+  font-variant-numeric: lining-nums;
+}
+.folio .bond-show-how {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  max-width: 620px;
+  border-top: 1px solid rgba(239, 233, 220, 0.28);
+  color: rgba(239, 233, 220, 0.8);
+}
+.folio .bond-show-how li {
+  padding: 6px 0 7px;
+  border-bottom: 1px solid rgba(239, 233, 220, 0.28);
+}
+.folio .bond-show-how b {
+  font-family: var(--font-sc);
+  font-weight: 400;
+  color: var(--paper);
+}
+.folio .bond-show .empty {
+  margin: 0;
+  padding: 0;
+}
+/* three or more cards go above the words on a narrower page; one or two stay beside them down to a phone */
+@media (max-width: 1100px) {
+  .folio .bond-show:not(.few) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 601px) and (max-width: 1100px) {
+  .folio .bond-show:not(.few) .bond-shelf {
+    grid-template-columns: repeat(auto-fill, minmax(112px, 132px));
+  }
+}
+@media (max-width: 700px) {
+  .folio .bond-show.few {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .folio .bond-show {
+    padding-bottom: 26px;
+  }
+  .folio .bond-show .bond-shelf {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px 12px;
+  }
+  .folio .bond-show h3 {
+    font-size: 1.5rem;
+  }
+}
+
+/* Redeem: the note on locked $CONSUME sits at the foot of the share it explains */
+.folio .redeem-out {
+  display: flex;
+  flex-direction: column;
+}
+.folio .redeem-out .r-foot {
+  margin: auto 0 0;
+  padding-top: 18px;
+  max-width: 60ch;
+}
+
+/* Feed the Serpent: the small print closes the left column, level with the button on the right */
+@media (min-width: 901px) {
+  .folio .leaf.offering {
+    grid-template-rows: auto 1fr;
+  }
+  .folio .leaf.offering > .feed-pick {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .folio .leaf.offering > .feed-main {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+  .folio .leaf.offering > details.fine {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: end;
+    margin-top: 0;
+  }
+}
+
+/* the Rule: on a wide page the line under the three rules runs on one line */
+@media (min-width: 901px) {
+  .folio .charter-fold p {
+    max-width: none;
+  }
+}
+
+/* the Ledger: on a wide page the filters sit beside the note they follow */
+@media (min-width: 901px) {
+  .folio .roll-wrap {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 32px;
+    align-items: end;
+  }
+  .folio .roll-wrap > * {
+    grid-column: 1 / -1;
+  }
+  .folio .roll-wrap > .roll-note {
+    grid-column: 1;
+    margin-bottom: 16px;
+  }
+  .folio .roll-wrap > .roll-shows {
+    grid-column: 2;
+    margin-bottom: 16px;
+  }
+}
+
+/* a long memecoin name breaks at its hyphen whenever its coin's column is too narrow for it */
+.folio .pick-name.long {
+  white-space: normal;
+  hyphens: manual;
+}
+@media (max-width: 360px) {
+  .folio .pick label {
+    font-size: 0.72rem;
+  }
+  .folio .pick-name.long {
+    font-size: 0.58rem;
+  }
+}
+
+/* the footer: one line of credit, three links */
+.folio .colophon nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 22px;
+}
+
+/* on the black band the connect button is vermilion */
+.folio .bond-show-yours .press {
+  background: var(--rubric);
+  border-color: var(--rubric);
+  padding: 7px 18px;
+  font-style: normal;
+}
+.folio .bond-show-yours .press:hover:not(:disabled) {
+  background: var(--paper);
+  border-color: var(--paper);
+  color: var(--ink);
 }

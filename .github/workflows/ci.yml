@@ -73,6 +73,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: Embed the card fonts (pnpm dev and pnpm build do this themselves)
+        run: node scripts/embed-fonts.mjs
       - name: Types
         run: pnpm exec tsc --noEmit
       - name: Lint

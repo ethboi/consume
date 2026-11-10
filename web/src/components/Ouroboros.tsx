@@ -3,7 +3,7 @@
 // whose open jaws close on the tapering tail. Everything is computed here so the
 // mark scales cleanly from a 24px favicon to the hero.
 
-type Props = { size?: number; className?: string; detailed?: boolean; solid?: boolean; animate?: boolean; title?: string };
+type Props = { size?: number; className?: string; detailed?: boolean; solid?: boolean; title?: string };
 
 const CX = 200;
 const CY = 200;
@@ -144,7 +144,7 @@ export function SerpentMark({ fill, stroke, strokeWidth, eye }: { fill: string; 
   );
 }
 
-export function Ouroboros({ size = 400, className, detailed = true, solid = false, animate = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
+export function Ouroboros({ size = 400, className, detailed = true, solid = false, title = "Ouroboros, the serpent that eats its tail" }: Props) {
   // woodcut: the uncut wood prints as paper, the lines as ink.
   // solid: a one-colour silhouette for small sizes, where line work would fill in
   const fill = solid ? "currentColor" : detailed ? "var(--paper)" : "none";
@@ -162,8 +162,8 @@ export function Ouroboros({ size = 400, className, detailed = true, solid = fals
       strokeLinejoin="round"
     >
       <title>{title}</title>
-      <g className={animate ? "ouro-body ouro-animate" : "ouro-body"}>
-        <path d={BODY} fill={fill} strokeWidth={solid ? 2 : detailed ? 3.6 : 9} pathLength={1} className="ouro-outline" />
+      <g className="ouro-body">
+        <path d={BODY} fill={fill} strokeWidth={solid ? 2 : detailed ? 3.6 : 9} className="ouro-outline" />
         {detailed && !solid && (
           <g className="ouro-cuts">
             <path d={HATCH} strokeWidth={1.9} strokeLinecap="butt" />
@@ -172,7 +172,7 @@ export function Ouroboros({ size = 400, className, detailed = true, solid = fals
           </g>
         )}
       </g>
-      <g className={animate ? "ouro-head ouro-animate" : "ouro-head"} transform={HEAD_AT}>
+      <g className="ouro-head" transform={HEAD_AT}>
         <SerpentHead fill={fill} stroke={(solid ? 2 : detailed ? 3.4 : 8) / HEAD_K} detailed={detailed && !solid} />
         {/* on the silhouette the eye is a hole */}
         {solid && <circle cx={196} cy={46} r={4.2} fill="var(--eye, #141110)" stroke="none" />}

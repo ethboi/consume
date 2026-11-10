@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { HERESIES as THE_TEN } from "@/lib/heresies";
 import { cardData } from "@/lib/bond-card";
 import { DEMO_MINE, DEMO_NOW_MS } from "@/lib/demo";
@@ -141,36 +141,35 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <span className="boss bl" aria-hidden="true" />
             <span className="boss br" aria-hidden="true" />
             <h1 id="mark">
-              <span className="sr-only">Consume: </span>Where memecoins go to be eaten.
+              <span className="sr-only">Consume: </span>The memecoin that eats memecoins.
             </h1>
             <p className="hero-explain">
-              A memecoin on NEAR, backed by every memecoin it eats. Feed it yours from any chain, earn $CONSUME, and burn
-              $CONSUME any time for your share of the pile.
+              Feed it yours from any chain. Earn $CONSUME, backed by everything it has eaten.
             </p>
             <ol className="howto" aria-label="How it works">
               <li>
                 <CoinsEmblem />
                 <b>I</b>
-                <span>Feed it a memecoin</span>
+                <span>Feed</span>
                 <i>DOGE, PEPE and eight more</i>
               </li>
               <li>
                 <Seal size={40} />
                 <b>II</b>
-                <span>Get a Bond</span>
+                <span>Bond</span>
                 <i>an NFT that pays you</i>
               </li>
               <li>
                 <HourglassEmblem />
                 <b>III</b>
-                <span>Collect $CONSUME</span>
-                <i>a little each day for 30 days</i>
+                <span>Collect</span>
+                <i>paid over 30 days</i>
               </li>
               <li>
                 <ScalesEmblem />
                 <b>IV</b>
-                <span>Redeem for memecoins</span>
-                <i>burn $CONSUME, take your share</i>
+                <span>Redeem</span>
+                <i>for your share of the Stomach</i>
               </li>
             </ol>
             <div className="hero-actions">
@@ -186,7 +185,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <Woodblock>
               <div className="hero-sigil">
                 <Glory />
-                <Ouroboros animate />
+                <Ouroboros />
                 {THE_TEN.map((h, i) => (
                   <span
                     key={h.symbol}
@@ -262,10 +261,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <div className="crucible-layout">
           <div>
             <Stomach jars={held.map(({ h, t, micro }) => ({ symbol: h.symbol, usd: Number(micro) / 1e6, open: t?.open ?? false }))} />
-            <div className="held">
-              <span>Backing for each $CONSUME</span>
-              <strong className="rubric">{floorLabel}</strong>
-            </div>
           </div>
           <div>
             <table className="ledger">
@@ -280,7 +275,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               </thead>
               <tbody>
                 {held.map(({ h, t, micro }) => (
-                  <tr key={h.symbol}>
+                  <tr key={h.symbol} className={micro > BigInt(0) ? "holds" : "holds-none"}>
                     <td>
                       <span className="with-coin">
                         <Coin symbol={h.symbol} size={30} />
@@ -297,6 +292,15 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               </tbody>
             </table>
           </div>
+          <p className="backing">
+            <span className="backing-name">Backing for each $CONSUME</span>
+            <span className="backing-sum">
+              {denom > BigInt(0)
+                ? `${usd(totalMicro, 0)} in the Stomach, shared among ${fromRaw(denom, CONSUME_DEC, 0)} $CONSUME, locked in Bonds or not`
+                : "The Stomach's worth, shared among all $CONSUME, locked in Bonds or not"}
+            </span>
+            <strong>{floorLabel}</strong>
+          </p>
         </div>
       </section>
 
@@ -321,7 +325,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h" inert={unread}>
         <header>
           <HourglassEmblem />
-          <h2 id="bonds-h">Your Bonds</h2>
+          <BondsHeading />
           <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: sell it and the payout goes with it.</p>
         </header>
         <Bonds snap={snap} tick={tick} onDone={done} />
@@ -367,25 +371,17 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
 
       <footer className="colophon invert">
         <span>
-          Built at NEAR HACKATHON by EthBoi (
+          Built at NEAR HACKATHON by{" "}
           <a href="https://x.com/EthBoi_" target="_blank" rel="noreferrer">
             @EthBoi_
-          </a>{" "}
-          on X). {NETWORK === "mainnet"
-            ? "Running on NEAR mainnet."
-            : MOCK_INTENTS
-              ? "Running on NEAR testnet, with a stand-in for NEAR Intents that simulates deposits and withdrawals."
-              : "Running on NEAR testnet with stand-in memecoins from a faucet."}
+          </a>
+          . Running on NEAR {NETWORK === "mainnet" ? "mainnet" : "testnet"}.
         </span>
-        <span>
-          {REPO_URL && (
-            <>
-              Source on <a href={REPO_URL}>GitHub</a>.{" "}
-            </>
-          )}
-          Also by this builder: <a href="https://oneup.markets">OneUp</a>. For agents: an MCP server at <code>/api/mcp</code> and{" "}
-          <a href="/llms.txt">llms.txt</a>.
-        </span>
+        <nav aria-label="More">
+          {REPO_URL && <a href={REPO_URL}>GitHub</a>}
+          <a href="/llms.txt">For agents</a>
+          <a href="https://oneup.markets">OneUp</a>
+        </nav>
       </footer>
 
       {toast && (
@@ -977,21 +973,22 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
         <div className="yield" aria-live="polite">
           <Seal size={66} />
           <div>
-            <span className="yield-label">You get a Bond for</span>
-            <span className={quote ? "yield-amount" : "yield-amount empty"}>
-              {quote ? (
-                <>
+            {quote ? (
+              <>
+                <span className="yield-label">You get a Bond for</span>
+                <span className="yield-amount">
                   {fromRaw(quote.consume, CONSUME_DEC, 0)} <small>$CONSUME</small>
-                </>
-              ) : (
-                "nothing yet"
-              )}
-            </span>
-            <span className="yield-sub">
-              {quote
-                ? `Paid out a little each day for 30 days, ${quote.bonus ? "with no tithe at a feast" : `after a ${usd(quote.tithe_usd)} tithe`}.`
-                : "A Bond pays out $CONSUME a little each day for 30 days."}
-            </span>
+                </span>
+                <span className="yield-sub">
+                  Paid out a little each day for 30 days, {quote.bonus ? "with no tithe at a feast" : `after a ${usd(quote.tithe_usd)} tithe`}.
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="yield-title">You get a Bond</span>
+                <span className="yield-sub">An NFT that pays you $CONSUME each day for 30 days. Feed more and it pays more.</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -1024,21 +1021,21 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             </button>
           )}
         </div>
-
-        <details className="fine">
-          <summary>Limits and storage</summary>
-          <p>
-            Anything over a memecoin’s feeding limit comes back to you. Each Bond takes a little NEAR for storage, paid from a refundable credit
-            {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR)` : ""}. Your first feeding adds 0.1 NEAR to it, and a little
-            of that pays to register you for $CONSUME and to open the credit itself.{" "}
-            {credit.data !== undefined && credit.data > BigInt(0) && (
-              <button className="link-button" disabled={busy} onClick={withdrawCredit}>
-                Take back unused credit
-              </button>
-            )}
-          </p>
-        </details>
       </div>
+
+      <details className="fine">
+        <summary>Limits and storage</summary>
+        <p>
+          Anything over a memecoin’s feeding limit comes back to you. Each Bond takes a little NEAR for storage, paid from a refundable credit
+          {credit.data !== undefined ? ` (yours: ${fromRaw(credit.data, 24, 3)} NEAR)` : ""}. Your first feeding adds 0.1 NEAR to it, and a little
+          of that pays to register you for $CONSUME and to open the credit itself.{" "}
+          {credit.data !== undefined && credit.data > BigInt(0) && (
+            <button className="link-button" disabled={busy} onClick={withdrawCredit}>
+              Take back unused credit
+            </button>
+          )}
+        </p>
+      </details>
 
       {scene && (
         <Feeding
@@ -1092,6 +1089,73 @@ function CollectPreview() {
   }, []);
   if (!scene) return null;
   return <Collecting scene={scene} onClose={() => setScene(null)} />;
+}
+
+/** "Your Bonds" only once there is a wallet whose Bonds they are. */
+function BondsHeading() {
+  const { accountId } = useWallet();
+  return <h2 id="bonds-h">{DEMO || accountId ? "Your Bonds" : "Bonds"}</h2>;
+}
+
+/** Shown where your Bonds would be while no wallet is connected: the newest Bonds there are, as wallets show them. */
+function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: string; tick: number }) {
+  const { ready, connect } = useWallet();
+  const note = (
+    <p className="bond-show-yours">
+      <button className="press" onClick={connect} disabled={!ready}>
+        Connect wallet
+      </button>
+      <span>to see the Bonds you hold.</span>
+    </p>
+  );
+  if (recent.length === 0) return note;
+  const shown = recent.slice(0, 8);
+  const count = Number(minted);
+  return (
+    <div className={shown.length <= 2 ? "bond-show few" : "bond-show"}>
+      <ul className="bond-shelf" style={{ "--n": Math.min(shown.length, 4) } as CSSProperties}>
+        {shown.map((v) => (
+          <li key={v.token_id} className={v.vest.exited ? "broken" : undefined}>
+            <a className="ind-card-link" href={`/bond/${v.token_id}.svg`} target="_blank" rel="noreferrer" title="Open the card full size">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="ind-card"
+                src={`/bond/${v.token_id}.svg?v=${tick}`}
+                width={CARD_W}
+                height={CARD_H}
+                alt={`Bond ${v.token_id}, the NFT card. Opens full size.`}
+              />
+            </a>
+            <p>
+              <span>
+                <span className="no">№ {v.token_id}</span> held by
+              </span>
+              <span title={v.owner_id}>{shortAccount(v.owner_id)}</span>
+            </p>
+          </li>
+        ))}
+      </ul>
+      <div>
+        <h3>{shown.length === 1 ? "The first Bond" : "The newest Bonds"}</h3>
+        <p className="bond-show-what">
+          {count > shown.length ? `${count} Bonds so far, the newest ${shown.length} shown here. ` : ""}
+          These belong to the accounts named under them, not to you. Every feeding makes one, and whoever holds it can:
+        </p>
+        <ol className="bond-show-how">
+          <li>
+            <b>Collect</b> what has been released, as often as they like.
+          </li>
+          <li>
+            <b>Sell or send</b> the card, and what is still to come goes with it.
+          </li>
+          <li>
+            <b>Break the seal</b> to leave early, giving up half of what is still locked.
+          </li>
+        </ol>
+        {note}
+      </div>
+    </div>
+  );
 }
 
 function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Done }) {
@@ -1178,7 +1242,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
     }
   };
 
-  if (!DEMO && !accountId) return <p className="empty">Connect a wallet to see the Bonds you hold.</p>;
+  if (!DEMO && !accountId) return <BondShelf recent={snap.recent} minted={snap.stats.vests_minted} tick={tick} />;
   if (!DEMO && live.error)
     return (
       <p className="empty">
@@ -1442,7 +1506,6 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           </p>
         )}
-        <p className="hint">Locked $CONSUME counts too, so nobody can empty it first.</p>
       </div>
 
       <div className="redeem-out" aria-live="polite">
@@ -1467,6 +1530,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
         ) : (
           <p className="hint">{q.loading ? "Weighing the Stomach…" : "The Stomach is empty, so there is nothing to take yet."}</p>
         )}
+        <p className="hint r-foot">A share is counted against all $CONSUME, locked in Bonds or not, so nobody can empty the Stomach first.</p>
       </div>
     </div>
   );
