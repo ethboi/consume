@@ -117,7 +117,8 @@ type Tx = {
   receipts: { execution_outcome?: { block_timestamp: number | string; outcome: Outcome } }[];
 };
 
-async function post<T>(net: LedgerNet, path: string, body: object): Promise<T> {
+/** One question to the indexer. Also used by round.ts. */
+export async function post<T>(net: LedgerNet, path: string, body: object): Promise<T> {
   const res = await fetch(`${indexer(net)}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": "consume-site" },

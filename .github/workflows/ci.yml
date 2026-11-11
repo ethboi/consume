@@ -68,6 +68,9 @@ jobs:
       - name: A Bond sold through an approval
         working-directory: contracts/integration-tests
         run: cargo test --test sale
+      - name: A price round that carries the Assayer's quotes
+        working-directory: contracts/integration-tests
+        run: cargo test --test round
 
   web:
     name: Site

@@ -17,11 +17,19 @@
 // run of bad rounds stops feedings and leaves redeeming open: that is the
 // safe way to fail.
 //
+// Each round carries the Assayer's own account of what it read. `set_prices`
+// is sent with a second argument, `round`, beside `prices`: the quote and the
+// list price of every memecoin, and when they were read. The contract has no
+// such parameter and ignores it (contracts/integration-tests/tests/round.rs),
+// so it changes nothing on chain except that the transaction now shows what
+// each posted price was taken from. The site reads it back (/api/round).
+//
 // Signing uses the `near` CLI and the key in your local keychain. No key is
 // read or stored by this script.
 
 import { execFileSync } from "node:child_process";
 import { HERESIES } from "../web/src/lib/heresies.ts";
+import { roundArgs } from "../web/src/lib/round.ts";
 import { flags } from "./launch-args.mjs";
 
 const ONECLICK = "https://1click.chaindefuser.com/v0";
@@ -68,11 +76,6 @@ async function quoteTwice(assetId, raw) {
   return dryQuoteUsd(assetId, raw).catch(() => null);
 }
 
-/** USD per whole token as the contract wants it: scaled by 1e18. */
-const e18 = (price) =>
-  // keep the digits of very small prices; large ones would pass what a double holds exactly
-  (price * 1e18 < Number.MAX_SAFE_INTEGER ? BigInt(Math.round(price * 1e18)) : BigInt(Math.round(price * 1e12)) * 1_000_000n).toString();
-
 /** One row per memecoin. `price` is null when it has no price that can be trusted. */
 export async function readPrices() {
   const res = await fetch(`${ONECLICK}/tokens`, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -80,7 +83,7 @@ export async function readPrices() {
   const tokens = await res.json();
   const one = async (h) => {
     const assetId = `nep141:${h.mainnet}`;
-    const row = { symbol: h.symbol, token: h.mainnet, price: null };
+    const row = { symbol: h.symbol, token: h.mainnet, price: null, listed: null };
     const listed = tokens.find((t) => t.assetId === assetId)?.price || null;
     if (!listed) return { ...row, source: "not listed on 1Click" };
     const whole = 100 / listed;
@@ -93,7 +96,7 @@ export async function readPrices() {
     if (apart > DIVERGENCE) {
       return { ...row, source: `quote $${quoted.toPrecision(6)} and list price $${listed.toPrecision(6)} are ${(apart * 100).toFixed(1)}% apart` };
     }
-    return { ...row, price: quoted, source: "dry quote" };
+    return { ...row, price: quoted, listed, source: "dry quote" };
   };
   // four at a time: asked all at once, 1Click refuses the last few
   const rows = [];
@@ -101,10 +104,10 @@ export async function readPrices() {
   return rows;
 }
 
-function post(contract, signer, network, prices) {
+function post(contract, signer, network, args) {
   execFileSync(
     "near",
-    ["contract", "call-function", "as-transaction", contract, "set_prices", "json-args", JSON.stringify({ prices }),
+    ["contract", "call-function", "as-transaction", contract, "set_prices", "json-args", JSON.stringify(args),
      "prepaid-gas", "30.0 Tgas", "attached-deposit", "0 NEAR", "sign-as", signer, "network-config", network,
      "sign-with-legacy-keychain", "send"],
     { stdio: ["ignore", "ignore", "inherit"] },
@@ -113,6 +116,7 @@ function post(contract, signer, network, prices) {
 
 /** Reads one round and posts it. Throws, posting nothing, unless every memecoin has a price. */
 async function once(opts) {
+  const readAt = new Date();
   const rows = await readPrices();
   for (const r of rows) console.log(`${r.symbol.padEnd(12)} ${r.price ? "$" + r.price.toPrecision(6) : "no price".padEnd(9)}  ${r.source}`);
   const without = rows.filter((r) => !r.price);
@@ -120,13 +124,14 @@ async function once(opts) {
     // the contract would refuse a round that leaves out a memecoin that is open or held
     throw new Error(`round not posted: no trusted price for ${without.map((r) => r.symbol).join(", ")}`);
   }
-  const prices = rows.map((r) => [r.token, e18(r.price)]);
+  // the prices, and beside them the quotes they were taken from
+  const args = roundArgs(rows, readAt);
   if (!opts.send) {
-    console.log(JSON.stringify({ prices }));
+    console.log(JSON.stringify(args));
     return;
   }
-  post(opts.contract, opts.as, opts.network ?? "testnet", prices);
-  console.log(`${new Date().toISOString()} posted ${prices.length} prices to ${opts.contract}`);
+  post(opts.contract, opts.as, opts.network ?? "testnet", args);
+  console.log(`${new Date().toISOString()} posted ${args.prices.length} prices to ${opts.contract}, with the quotes they came from`);
 }
 
 const opts = flags();
