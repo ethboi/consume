@@ -8,7 +8,8 @@
 
 use near_contract_standards::fungible_token::receiver::FungibleTokenReceiver;
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
-use near_sdk::json_types::{U128, U64};
+use near_sdk::json_types::{Base64VecU8, U128, U64};
+use near_sdk::base64::{engine::general_purpose::STANDARD, Engine};
 use near_sdk::{env, near, require, AccountId, PromiseOrValue};
 use near_sdk::serde::Deserialize;
 
@@ -123,6 +124,11 @@ impl Contract {
             bonus: q.bonus,
         };
         self.vests.insert(vest_id.clone(), vest);
+        // NEP-177 hashes immutable media bytes. A live image changes as the
+        // Bond vests, so keep that URL as extra metadata, not hashed media.
+        let image = format!(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'><rect width='400' height='400' fill='#efe9dc'/><g fill='#141110' font-family='serif' text-anchor='middle'><text x='200' y='100' font-size='36'>CONSUME</text><text x='200' y='190' font-size='30'>Bond #{vest_id}</text><text x='200' y='250' font-size='20'>Read current vesting on chain</text></g></svg>"
+        );
         let metadata = TokenMetadata {
             title: Some(format!("Bond #{}: {} {}", vest_id, format_units(q.accepted.0, decimals), symbol)),
             description: Some(format!(
@@ -132,14 +138,17 @@ impl Contract {
                 format_units(q.meal_usd.0, 6),
                 format_units(q.consume.0, 18),
             )),
-            media: self.config.media_base.as_ref().map(|b| format!("{}/{}.svg", b.trim_end_matches('/'), vest_id)),
-            media_hash: None,
+            media: Some(format!("data:image/svg+xml;base64,{}", STANDARD.encode(image.as_bytes()))),
+            media_hash: Some(Base64VecU8(env::sha256(image.as_bytes()))),
             copies: Some(1),
             issued_at: Some((now / 1_000_000).to_string()),
             expires_at: None,
             starts_at: None,
             updated_at: None,
-            extra: None,
+            extra: self.config.media_base.as_ref().map(|b| near_sdk::serde_json::json!({
+                "dynamic_media": format!("{}/{}.svg", b.trim_end_matches('/'), vest_id),
+                "dynamic_media_is_mutable": true,
+            }).to_string()),
             reference: None,
             reference_hash: None,
         };

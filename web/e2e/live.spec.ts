@@ -23,7 +23,7 @@ type FeedQuote = { memecoin: string; accepted: string; value_usd: number; tithe_
 type Call = { receiver_id: string; method: string; args: Record<string, unknown>; deposit_yocto: string; gas_tgas: number; why: string };
 type Prepared = { signs_nothing: string; summary: string; quote: FeedQuote; calls: Call[]; near_cli: string[] };
 type Totals = { consume_minted: string; consume_burned: string; consume_forfeited: string };
-type LedgerAnswer = { contract_totals: Totals; entries_add_up_to: Totals; every_mint_and_burn_is_listed: boolean; entries_found: number };
+type LedgerAnswer = { contract_totals: Totals; entries_add_up_to: Totals; listed_totals_match_contract: boolean; entries_found: number };
 
 async function ask(request: APIRequestContext, name: string, args: object = {}) {
   const res = await request.post("/api/mcp", { data: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } } });
@@ -103,7 +103,7 @@ test("a prepared feeding matches its quote and names only the contract and its N
 
 test("the Ledger adds up to the contract's own totals", async ({ page, request }) => {
   const l = await tool<LedgerAnswer>(request, "ledger", { limit: 200 });
-  test.skip(!l.every_mint_and_burn_is_listed, "the history could not be read in full just now, so there is nothing to add up");
+  test.skip(!l.listed_totals_match_contract, "the history could not be read in full just now, so there is nothing to add up");
   expect(l.entries_add_up_to).toEqual(l.contract_totals);
 
   await page.goto("/");

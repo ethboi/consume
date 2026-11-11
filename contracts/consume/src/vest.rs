@@ -21,6 +21,14 @@ pub struct VestView {
 }
 
 impl Contract {
+    /// Invalidate marketplace offers when value changes, preserving the
+    /// counter so subsequent approvals cannot reuse an old offer's ID.
+    fn invalidate_bond_approvals(&mut self, token_id: &String, owner: &AccountId) {
+        if let Some(approvals) = self.nft.approvals_by_id.as_mut().and_then(|ids| ids.remove(token_id)) {
+            near_contract_standards::non_fungible_token::refund_approved_account_ids(owner.clone(), &approvals).detach();
+        }
+    }
+
     fn vest_owner(&self, token_id: &String) -> AccountId {
         self.nft.owner_by_id.get(token_id).unwrap_or_else(|| env::panic_str("No such Vest NFT"))
     }
@@ -78,6 +86,7 @@ impl Contract {
         self.vests.insert(token_id.clone(), vest);
         self.total_unvested -= claimable;
         self.mint_consume(&owner, claimable, "vest claim");
+        self.invalidate_bond_approvals(&token_id, &owner);
         emit_event(
             "claim",
             near_sdk::serde_json::json!({ "vest_id": token_id, "owner": owner, "amount": U128(claimable) }),
@@ -107,6 +116,7 @@ impl Contract {
         vest.exited = true;
         self.vests.insert(token_id.clone(), vest);
         self.mint_consume(&owner, payout, "vest exit");
+        self.invalidate_bond_approvals(&token_id, &owner);
         emit_event(
             "exit",
             near_sdk::serde_json::json!({

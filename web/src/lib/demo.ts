@@ -189,7 +189,8 @@ const otherEntries: LedgerEntry[] = [
 
 export const DEMO_LEDGER: Ledger = {
   entries: [...fedEntries, ...otherEntries].sort((x, y) => y.at - x.at),
-  complete: true,
+  discovery_limits_reached: false,
+  history_completeness: "unknown",
   accounts: 0,
   read_at: new Date(DEMO_NOW_MS).toISOString(),
 };

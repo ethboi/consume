@@ -406,7 +406,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
               nearhackathon.com
             </a>
-            . The track asks for three things, and each one is here.
+            . This entry includes three of the track’s suggested project elements.
           </p>
         </div>
         <ul className="entry-asks">
@@ -1213,7 +1213,16 @@ function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: strin
               <span>
                 <span className="no">№ {v.token_id}</span> held by
               </span>
-              <span title={v.owner_id}>{shortAccount(v.owner_id)}</span>
+              <span title={v.owner_id}>
+                {/* the name breaks after a dot, not at a hyphen */}
+                {shortAccount(v.owner_id, 32)
+                  .split(/(?<=\.)/)
+                  .map((part, i) => (
+                    <span key={i} className="part">
+                      {part}
+                    </span>
+                  ))}
+              </span>
             </p>
           </li>
         ))}
@@ -1571,9 +1580,14 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
     setError(null);
     try {
       const tokens = quote.shares.filter(([, v]) => BigInt(v) > BigInt(0)).map(([k]) => k);
+      const credit = BigInt(await view<string>(CONSUME_CONTRACT, "get_meal_credit", { account_id: accountId }));
+      const storage: Call[] = credit < CREDIT_LOW
+        ? [{ receiverId: CONSUME_CONTRACT, methodName: "add_meal_credit", args: {}, deposit: CREDIT_TOP_UP, gas: TGAS(10) }]
+        : [];
       const results = await send([
         ...(await registrationCalls(tokens, accountId)),
-        { receiverId: CONSUME_CONTRACT, methodName: "redeem", args: { amount: raw.toString() }, deposit: ONE_YOCTO, gas: TGAS(300) },
+        ...storage,
+        { receiverId: CONSUME_CONTRACT, methodName: "redeem", args: { amount: raw.toString() }, deposit: ONE_YOCTO, gas: TGAS(290) },
       ]);
       // what the contract says it burned and gave, which can differ from the quote shown before signing
       const ev = eventData<RedeemEvent>(results, "redeem");
@@ -1665,6 +1679,10 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           </p>
         )}
+        <p className="hint">
+          If storage credit is low, redeeming adds 0.1 NEAR to it. Payout records use part of that credit;
+          unused credit can be taken back in the feeding panel.
+        </p>
       </div>
 
       <div className="redeem-out" aria-live="polite">
@@ -1732,7 +1750,7 @@ function Entries({ recent }: { recent: VestView[] }) {
                   {v.vest.exited && <em className="tag">seal broken</em>}
                 </span>
               </td>
-              <td>{shortAccount(v.owner_id)}</td>
+              <td>{shortAccount(v.owner_id, 32)}</td>
               <td className="num">{h ? compact(v.vest.eaten, h.decimals) : ""}</td>
               <td className="num">{usd(v.vest.meal_usd, 0)}</td>
               <td className="num">{fromRaw(v.vest.total, CONSUME_DEC, 0)}</td>

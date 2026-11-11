@@ -114,10 +114,25 @@ impl FungibleTokenMetadataProvider for Contract {
 
 // ---------- Vest NFTs (NEP-171) ----------
 
+// Nonrefundable reserve per transfer, paid by the initiating owner/operator.
+// With <=64-byte account IDs and <=20-byte numeric Bond IDs, 1 KiB covers
+// owner/enumeration growth, the transfer-call lock and restoring the former
+// owner's index on rejection. Approval refunds are funded by nft_approve.
+// Precharging avoids netting refunded approvals against holder storage.
+pub(crate) const BOND_TRANSFER_STORAGE_BYTES: u64 = 1024;
+
+impl Contract {
+    fn reserve_bond_transfer_storage(&mut self, token_id: &String) {
+        near_sdk::require!(!self.in_flight.contains(token_id), "This Bond is mid-transfer");
+        self.charge_storage(&near_sdk::env::predecessor_account_id(), BOND_TRANSFER_STORAGE_BYTES);
+    }
+}
+
 #[near]
 impl NonFungibleTokenCore for Contract {
     #[payable]
     fn nft_transfer(&mut self, receiver_id: AccountId, token_id: TokenId, approval_id: Option<u64>, memo: Option<String>) {
+        self.reserve_bond_transfer_storage(&token_id);
         self.nft.nft_transfer(receiver_id, token_id, approval_id, memo)
     }
 
@@ -133,7 +148,7 @@ impl NonFungibleTokenCore for Contract {
         // lock until nft_resolve_transfer: the receiver must not claim or exit
         // and then hand the Bond back. A Bond already locked cannot start a
         // second transfer-call, whose resolve would lift the lock early.
-        near_sdk::require!(!self.in_flight.contains(&token_id), "This Bond is mid-transfer");
+        self.reserve_bond_transfer_storage(&token_id);
         self.in_flight.insert(token_id.clone());
         self.nft.nft_transfer_call(receiver_id, token_id, approval_id, memo, msg)
     }

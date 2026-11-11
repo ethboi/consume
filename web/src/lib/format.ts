@@ -52,8 +52,9 @@ export function usdValue(raw: bigint | string, decimals: number, priceE18: bigin
   return (r * p) / pow10(decimals) / pow10(12);
 }
 
-export function shortAccount(a: string): string {
-  return a.length > 26 ? `${a.slice(0, 10)}…${a.slice(-8)}` : a;
+/** A long account name is cut in the middle. Lists pass a larger `max`, so that a subaccount such as doge-maxi.consumecash.testnet is shown whole. */
+export function shortAccount(a: string, max = 26): string {
+  return a.length > max ? `${a.slice(0, 10)}…${a.slice(-8)}` : a;
 }
 
 export function daysLeft(startNs: string, durationNs: string, nowMs = Date.now()): number {

@@ -29,7 +29,7 @@ type MealEvent = { vest_id: string | number; eater: string; tribe: string; eaten
 type ClaimEvent = { vest_id: string | number; owner: string; amount: string };
 type ExitEvent = { vest_id: string | number; owner: string; payout: string; forfeited: string };
 type RedeemEvent = { account: string; burned: string; shares: [string, string][] };
-type Ledger = { entries: LedgerEntry[]; complete: boolean };
+type Ledger = { entries: LedgerEntry[]; discovery_limits_reached: boolean; history_completeness: string };
 
 const stats = () => view<Stats>(CONSUME, "get_stats");
 const tribes = () => view<[string, Tribe][]>(CONSUME, "get_tribes");
@@ -514,7 +514,7 @@ test("what backs each $CONSUME never fell", async () => {
 
 test("the Ledger lists every feeding, mint and burn, and adds up to the contract's totals", async () => {
   // the Ledger is read from an indexer and kept for half a minute, so a new entry can take that long
-  let ledger: Ledger = { entries: [], complete: false };
+  let ledger: Ledger = { entries: [], discovery_limits_reached: false, history_completeness: "unknown" };
   await expect
     .poll(
       async () => {
@@ -524,7 +524,8 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
       { timeout: 75_000, intervals: [2_000] },
     )
     .toBe(9);
-  expect(ledger.complete).toBe(true);
+  expect(ledger.discovery_limits_reached).toBe(false);
+  expect(ledger.history_completeness).toBe("unknown");
   const count = (kind: string) => ledger.entries.filter((e) => e.kind === kind).length;
   expect([count("feed"), count("collect"), count("break"), count("redeem")]).toEqual([3, 4, 1, 1]);
 
@@ -579,8 +580,8 @@ test("the MCP server answers from the same contract", async () => {
   const a = await mcp<Account>("account", { account_id: ALICE });
   expect(JSON.stringify(a)).toContain(ALICE);
 
-  const l = await mcp<{ every_mint_and_burn_is_listed: boolean; entries_found: number }>("ledger");
-  expect([l.every_mint_and_burn_is_listed, l.entries_found]).toEqual([true, 9]);
+  const l = await mcp<{ listed_totals_match_contract: boolean; entries_found: number }>("ledger");
+  expect([l.listed_totals_match_contract, l.entries_found]).toEqual([true, 9]);
 
   // an unknown Bond is an answer, not a crash
   const res = await page.request.post("/api/mcp", { data: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "bond", arguments: { bond_id: "999" } } } });

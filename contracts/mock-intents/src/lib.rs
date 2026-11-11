@@ -12,6 +12,8 @@
 //! `nep141:eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near` for PEPE.
 
 use near_sdk::json_types::U128;
+
+include!("sponsorship_tests.rs");
 use near_sdk::serde_json::json;
 use near_sdk::store::LookupMap;
 use near_sdk::{
@@ -19,6 +21,9 @@ use near_sdk::{
 };
 
 const COOLDOWN_NS: u64 = 60 * 60 * 1_000_000_000;
+// Finite sponsorship: <=2.622 NEAR including code, below the 3 NEAR launch funding.
+// Existing records remain usable at the cap.
+const MAX_SPONSORED_STORAGE: u64 = 256 * 1024;
 const GAS_ON_TRANSFER: Gas = Gas::from_tgas(80);
 const GAS_RESOLVE: Gas = Gas::from_tgas(10);
 
@@ -84,6 +89,8 @@ impl Contract {
     /// Credit the caller as if `token_id` had just arrived from its home chain
     /// through Intents. Once an hour per token.
     pub fn simulate_deposit(&mut self, token_id: String, from_chain: String) -> U128 {
+        self.flush_storage();
+        let before = env::storage_usage();
         let who = env::predecessor_account_id();
         let amount = *self.drip.get(&token_id).unwrap_or_else(|| env::panic_str("This token has no simulated deposits"));
         let key = (who.clone(), token_id.clone());
@@ -93,6 +100,7 @@ impl Contract {
         }
         self.last_deposit.insert(key, now);
         self.credit(&who, &token_id, amount);
+        self.enforce_sponsorship_budget(before);
         event("mt_mint", json!({ "owner_id": who, "token_ids": [token_id], "amounts": [U128(amount)], "memo": format!("simulated deposit from {from_chain}") }));
         U128(amount)
     }
@@ -180,6 +188,19 @@ impl Contract {
         *self.balances.get(&(who.clone(), token_id.to_string())).unwrap_or(&0)
     }
 
+    fn flush_storage(&mut self) {
+        self.balances.flush();
+        self.supply.flush();
+        self.last_deposit.flush();
+        self.drip.flush();
+    }
+
+    fn enforce_sponsorship_budget(&mut self, before: u64) {
+        self.flush_storage();
+        let after = env::storage_usage();
+        require!(after <= before || after <= MAX_SPONSORED_STORAGE, "Testnet storage sponsorship exhausted");
+    }
+
     fn credit(&mut self, who: &AccountId, token_id: &str, amount: u128) {
         *self.balances.entry((who.clone(), token_id.to_string())).or_insert(0) += amount;
         *self.supply.entry(token_id.to_string()).or_insert(0) += amount;
@@ -195,9 +216,12 @@ impl Contract {
     }
 
     fn move_tokens(&mut self, from: &AccountId, to: &AccountId, token_id: &str, amount: u128, memo: Option<&str>) {
+        self.flush_storage();
+        let before = env::storage_usage();
         require!(from != to, "sender and receiver must differ");
         self.debit(from, token_id, amount);
         self.credit(to, token_id, amount);
+        self.enforce_sponsorship_budget(before);
         event(
             "mt_transfer",
             json!({ "old_owner_id": from, "new_owner_id": to, "token_ids": [token_id], "amounts": [U128(amount)], "memo": memo }),
@@ -218,6 +242,7 @@ mod tests {
         let mut b = VMContextBuilder::new();
         b.predecessor_account_id(who.parse().unwrap())
             .current_account_id("intents.testnet".parse().unwrap())
+            .storage_usage(180_000)
             .attached_deposit(NearToken::from_yoctonear(yocto))
             .block_timestamp(now);
         testing_env!(b.build());

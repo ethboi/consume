@@ -15,6 +15,7 @@ const SHUT_TTL_MS = 30_000;
 export type Route = { symbol: string; chain: string; open: boolean; outUsd: number | null; seconds: number | null };
 type Cache = { at: number; routes: Route[] };
 let cache: Cache | null = null;
+let loading: Promise<Cache> | null = null;
 
 const headers = { "Content-Type": "application/json", "User-Agent": "consume-site" };
 
@@ -34,7 +35,7 @@ async function quote(assetId: string, amount: bigint) {
     recipientType: "INTENTS",
     deadline: new Date(Date.now() + 10 * 60_000).toISOString(),
   };
-  const res = await fetch(`${ONECLICK}/quote`, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" });
+  const res = await fetch(`${ONECLICK}/quote`, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store", signal: AbortSignal.timeout(10_000) });
   const json = await res.json().catch(() => null);
   return json?.quote ?? null;
 }
@@ -53,6 +54,7 @@ async function load(): Promise<Route[]> {
   const tokens: { assetId: string; price: number; decimals: number }[] = await fetch(`${ONECLICK}/tokens`, {
     headers,
     cache: "no-store",
+    signal: AbortSignal.timeout(10_000),
   }).then((r) => r.json());
   // a few at a time: ten at once gets the last ones refused
   const routes: Route[] = [];
@@ -82,7 +84,8 @@ export async function GET() {
   const ttl = cache?.routes.every((r) => r.open) ? TTL_MS : SHUT_TTL_MS;
   if (!cache || Date.now() - cache.at > ttl) {
     try {
-      cache = { at: Date.now(), routes: await load() };
+      loading ??= load().then((routes) => ({ at: Date.now(), routes })).finally(() => { loading = null; });
+      cache = await loading;
     } catch (e) {
       if (!cache) return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 502 });
     }

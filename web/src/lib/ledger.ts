@@ -3,9 +3,8 @@
 //
 // The contract keeps totals but no history, and a NEAR node cannot search
 // logs, so the history comes from a public indexer (FastNEAR's transactions
-// API, no key). The indexer only finds the transactions. What is shown is
-// parsed from the logs the CONSUME contract itself wrote in them, so the
-// indexer can leave an entry out but cannot invent one.
+// API, no key). The indexer is trusted for both discovery and receipt contents;
+// the client does not verify receipt proofs independently.
 //
 // How the transactions are found:
 //   1. those whose event logs name the contract: every feeding (the memecoin
@@ -51,8 +50,9 @@ export type LedgerEntry = {
 export type Ledger = {
   /** Newest first. */
   entries: LedgerEntry[];
-  /** False when a limit was reached and older entries may be missing. */
-  complete: boolean;
+  /** True when account/page limits truncated discovery; false is not completeness. */
+  discovery_limits_reached: boolean;
+  history_completeness: "unknown";
   /** How many feeders and holders were looked up. */
   accounts: number;
   read_at: string;
@@ -157,12 +157,20 @@ function parse(net: LedgerNet, tx: Tx): LedgerEntry[] {
   return out;
 }
 
-// A finished transaction never changes, so what was read from one is kept.
+// Bound cached indexer responses; these are not cryptographic receipt proofs.
 const read = new Map<string, LedgerEntry[]>();
+const MAX_CACHED_TRANSACTIONS = 4096;
 
 async function entriesOf(net: LedgerNet, hashes: string[]): Promise<LedgerEntry[]> {
   const key = (h: string) => `${net.network}:${net.consume}:${h}`;
-  const missing = hashes.filter((h) => !read.has(key(h)));
+  // Keep this request's results independently: concurrent cache eviction must
+  // not omit already-read entries from its response.
+  const found = new Map<string, LedgerEntry[]>();
+  for (const h of hashes) {
+    const hit = read.get(key(h));
+    if (hit) found.set(h, hit);
+  }
+  const missing = hashes.filter((h) => !found.has(h));
   const batches: string[][] = [];
   for (let i = 0; i < missing.length; i += BATCH) batches.push(missing.slice(i, i + BATCH));
   // a few requests at a time
@@ -170,11 +178,17 @@ async function entriesOf(net: LedgerNet, hashes: string[]): Promise<LedgerEntry[
     await Promise.all(
       batches.slice(i, i + 4).map(async (batch) => {
         const got = await post<{ transactions: Tx[] }>(net, "/v0/transactions", { tx_hashes: batch });
-        for (const tx of got.transactions) read.set(key(tx.transaction.hash), parse(net, tx));
+        for (const tx of got.transactions) {
+          const entries = parse(net, tx);
+          found.set(tx.transaction.hash, entries);
+          read.set(key(tx.transaction.hash), entries);
+          // Enforce on every insertion, even if a later batch fails.
+          while (read.size > MAX_CACHED_TRANSACTIONS) read.delete(read.keys().next().value!);
+        }
       }),
     );
   }
-  return hashes.flatMap((h) => read.get(key(h)) ?? []);
+  return hashes.flatMap((h) => found.get(h) ?? []);
 }
 
 async function load(net: LedgerNet, holders: string[]): Promise<Ledger> {
@@ -194,7 +208,8 @@ async function load(net: LedgerNet, holders: string[]): Promise<Ledger> {
   for (const e of [...first, ...rest]) byId.set(e.id, e);
   return {
     entries: [...byId.values()].sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1)),
-    complete: !named.more && !called.more && known.length <= MAX_ACCOUNTS && theirs.every((t) => !t.more),
+    discovery_limits_reached: named.more || called.more || known.length > MAX_ACCOUNTS || theirs.some((t) => t.more),
+    history_completeness: "unknown",
     accounts: accounts.length,
     read_at: new Date().toISOString(),
   };
@@ -213,6 +228,7 @@ export function readLedger(net: LedgerNet, holders: string[] = []): Promise<Ledg
   if (hit && Date.now() - hit.at < TTL_MS) return hit.ledger;
   const ledger = load(net, holders);
   kept.set(key, { at: Date.now(), ledger });
+  while (kept.size > 32) kept.delete(kept.keys().next().value!);
   // a failed reading is not kept: the next visitor asks again
   ledger.catch(() => kept.get(key)?.ledger === ledger && kept.delete(key));
   return ledger;

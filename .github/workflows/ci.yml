@@ -27,11 +27,14 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: contracts
-      - name: CONSUME (54 tests)
+      - name: CONSUME unit tests
         working-directory: contracts/consume
         run: cargo test
-      - name: NEAR Intents stand-in (3 tests)
+      - name: NEAR Intents stand-in
         working-directory: contracts/mock-intents
+        run: cargo test
+      - name: NEP-141 stand-in
+        working-directory: contracts/mock-meme
         run: cargo test
 
   sandbox:
@@ -81,6 +84,8 @@ jobs:
         run: node scripts/embed-fonts.mjs
       - name: Types
         run: pnpm exec tsc --noEmit
+      - name: Web unit regressions
+        run: pnpm test
       - name: Lint
         run: pnpm exec eslint src
       - name: Build

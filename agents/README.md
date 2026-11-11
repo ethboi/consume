@@ -41,7 +41,7 @@ Both read the public testnet deployment (`consume.consumecash.testnet`). To poin
 | `feast_race` | This week's standings, who is feasting now, time left |
 | `quote_feeding` | What a feeding would earn right now, by amount or by dollar value |
 | `quote_redeem` | What burning some $CONSUME would pay, memecoin by memecoin |
-| `account` | An account's NEAR, $CONSUME, memecoins ready to feed, Bonds and anything owed |
+| `account` | An account's NEAR, $CONSUME, memecoins ready to feed, all Bonds (paged at a single finalized block) and anything owed |
 | `bond` | One Bond: collected, ready, locked, and what breaking the seal would give and forfeit |
 | `recent_feedings` | The latest feedings, newest first |
 | `ledger` | The log of every feeding, every $CONSUME minted and every $CONSUME burned, each with its transaction, and whether the entries add up to the totals the contract keeps (when they do not, the list is short: its limits are in the main README under "Every mint and burn, logged") |
@@ -74,11 +74,11 @@ node agents/bots.mjs kingmaker --as you.testnet --symbol SHITZU --budget 50
 | Bot | What it does |
 | --- | --- |
 | `herald` | Reads only. Reports the Stomach, the backing, the Feast race, and what needs attention: old prices, a close race, a week about to end, a tithe step coming |
-| `collector` | Collects the $CONSUME your Bonds have released, for every Bond with at least `--min` ready |
-| `feeder` | Feeds a set dollar amount. With no `--symbol` it feeds the memecoin that is feasting (no tithe), or else the one you hold most of. `--max-tithe 5` waits while the tithe is above 5% |
+| `collector` | Collects the $CONSUME your Bonds have released, for every Bond with at least `--min` ready. `--as` takes several accounts with commas between them, each signing for its own Bonds |
+| `feeder` | Feeds a set dollar amount. With no `--symbol` it feeds the memecoin that is feasting (no tithe), or else the one you hold most of. `--chain Solana` feeds only the memecoins of one home chain (Dogecoin, Ethereum, Solana or NEAR), one picked at random each round; `--wander` picks at random from all ten. `--max-tithe 5` waits while the tithe is above 5% |
 | `kingmaker` | Plays the Feast race: in the last `--within` hours of the week (default 6) it feeds just enough of one memecoin to take the lead, if that fits `--budget`. Earlier it waits. `--now` feeds at once |
 
-Common flags: `--send` to sign, `--every 600` to keep running, `--json` for one JSON object per round, `--bring` to take test memecoins first (testnet), `--contract`, `--intents`, `--network`, `--rpc` for another deployment. On mainnet `--send` also needs `--mainnet`.
+Common flags: `--send` to sign, `--every 600` to keep running, `--jitter 300` to wait a random time of up to that many seconds before each round (so several bots do not act in the same minute), `--json` for one JSON object per round, `--bring` to take test memecoins first (testnet), `--contract`, `--intents`, `--network`, `--rpc` for another deployment. On mainnet `--send` also needs `--mainnet`.
 
 What a dry run looks like:
 
@@ -94,6 +94,27 @@ Three things the bots are careful about:
 - A feeding the contract refuses still succeeds as a transaction, because the memecoins are returned. So after a feeding the bot looks for the new Bond and says plainly if there is none.
 - No bot ever breaks a seal or redeems. Those are for a person, or for an agent that has been told to.
 
+## The bots on testnet
+
+Since 2026-11-11 the feeder and the collector run against the public testnet deployment. `agents/testnet-bots.config.cjs` is the pm2 file that starts them, with the exact flags. Each signs as a subaccount of `consumecash.testnet`, the deployer's account, so the Ledger on the site shows whose they are. This is the project's own activity with free test memecoins, not usage by anyone else.
+
+| Account (`.consumecash.testnet`) | Feeds | A feeding | About every |
+| --- | --- | --- | --- |
+| `glutton` | any of the ten, picked at random | $5 | 2 hours |
+| `pilgrim` | any of the ten, picked at random | $1.50 | 6 hours |
+| `miser` | any of the ten, picked at random | $2 | 12 hours |
+| `courtier` | the memecoin that is feasting, so it pays no tithe | $3 | 6 hours |
+| `doge-maxi` | DOGE only | $4 | 4 hours |
+| `eth-maxi` | SHIB, PEPE, SPX or TURBO | $4 | 3 hours |
+| `sol-maxi` | PENGU or BOME | $3 | 4 hours |
+| `near-maxi` | BLACKDRAGON, SHITZU or NearKat | $2 | 3 hours |
+
+One collector collects for all of them but the miser, and for `consumecash.testnet` itself, from every Bond with 500 $CONSUME ready. The miser collects at 50. None of them breaks a seal or redeems.
+
 ## Why the kingmaker is here
 
 The Feast is a game: the most fed memecoin of the week pays no tithe the next. The cheapest way to play it is to wait until the last hours and feed just past the leader, and the simulation in `sim/` shows that a reigning Feast tends to keep its crown. We would rather ship that strategy in the open, where every community can run it, than leave it to whoever writes the script first. What it can take is bounded: the winner skips the tithe, earns exactly at the backing like everyone else, and is still held to that memecoin's daily cap.
+
+Local changes pending deployment: collector pagination includes fully released Bonds without hiding later claimable ones. Redemption plans fund payout storage before burning; spent record storage is permanent and unused credit remains withdrawable. Bond claims/exits invalidate marketplace approvals. The `ledger` result now uses `listed_totals_match_contract`; matching totals do not authenticate indexer receipts or prove complete history.
+
+Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_completeness` is `unknown` because former Bond holders may be missed even when every discovered page was read.
