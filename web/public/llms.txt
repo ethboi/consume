@@ -56,7 +56,7 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 - Bots that use these calls (dry run unless told to sign): `agents/bots.mjs` in the repository
 - A 60 day simulation of supply and backing under four scenarios: `sim/` in the repository
 
-Release behavior (2026-11-11): `account` pages all Bonds at one finalized block. `prepare_redeem` tops up storage credit when needed; payout records remain funded permanently. Claims and exits clear approvals, and transfers charge a fixed 1,024-byte reserve to the initiating owner/operator. New Bond media has a hash; the changing image URL is in `extra.dynamic_media`. The active testnet contracts were upgraded without initialization; existing Bond metadata was preserved.
+Release behavior (2026-11-11): `account` pages all Bonds at one finalized block. `prepare_redeem` tops up storage credit when needed; payout records remain funded permanently. Claims and exits clear approvals, and transfers charge a fixed 1,024-byte reserve to the initiating owner/operator. New Bond media has a hash; the changing image URL is in `extra.dynamic_media`. The active testnet contracts were upgraded without initialization; existing Bond metadata was preserved. A second upgrade of the CONSUME contract the same day added the Feast rule: no memecoin feasts two weeks running.
 
 License: AGPL-3.0-only for original CONSUME code and documentation; third-party materials retain their terms.
 

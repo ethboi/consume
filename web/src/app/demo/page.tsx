@@ -26,7 +26,7 @@ export default function DemoPage() {
     </section>
     <section aria-labelledby="demo-proof"><h2 id="demo-proof">Check the evidence</h2>
       <p><a href={`${repo}#seen-on-testnet`}>Public testnet transactions</a> show feeding, collection, early exit and redemption. Bond 26 also has a verified <a href="https://testnet.nearblocks.io/txns/96Uyw8uJV6F2V49bTwDiBih5gSBkXPo2k7ctekSjREjY">transfer</a> and <a href="https://testnet.nearblocks.io/txns/4hN5JL3JGMNWh6cLbuWDFFtTaqFcCE7WpwmGn4ny2VYt">collection by its recipient</a>, sent through the NEAR CLI between builder-owned accounts. <a href={`${repo}/blob/main/docs/DEMO.md`}>The demo notes</a> distinguish live evidence from sandbox tests and include the recording script.</p>
-      <p>The <a href={`${repo}/actions`}>automated checks</a> exercise the site and deployed contracts on a local NEAR sandbox with a test wallet. They are not a recording of a third-party wallet session. A public video is not yet available.</p>
+      <p>The <a href={`${repo}/actions`}>automated checks</a> exercise the site and deployed contracts on a local NEAR sandbox with a test wallet. They are not a recording of a third-party wallet session. A two-minute demo film is in the <a href="https://x.com/EthBoi_/status/2120534208674447732">demo post on X</a>.</p>
       <p>Prices, the guardian and upgrade keys are currently controlled by the builder. Read <a href={`${repo}#what-to-know-before-you-trust-it`}>the trust assumptions</a> before evaluating the design.</p>
     </section>
     <Link className="press" href="/#feed">Try the live testnet demo</Link>

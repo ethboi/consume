@@ -8,9 +8,9 @@ The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list
 
 ![The CONSUME site: the serpent ringed by the ten memecoins, the four steps, and the live figures from testnet](docs/site.png)
 
-> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 20 web unit tests, the sandbox tests (three files) and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. The rule that no memecoin feasts two weeks running is in the contract source and its tests; the testnet contract still runs the 2026-11-11 build from before that rule until it is upgraded, and this line will say when. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. No video yet. The contract account still holds its own full-access key, so its code could still be replaced. Key removal is a separate launch decision, not a submission prerequisite.
+> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 20 web unit tests, the sandbox tests (three files) and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. The rule that no memecoin feasts two weeks running is live on testnet: the contract was upgraded in place on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/BPkQwiMUJmjb7VqY9LWLjS6JjtrnwNNYpbkQuob5J1ay)) with its state unchanged. The first Feast is crowned on 2026-11-12, so the first week in which the rule can change who feasts starts on 2026-11-19. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. A two-minute demo film is in the [demo post on X](https://x.com/EthBoi_/status/2120534208674447732), posted 2026-11-11. The contract account still holds its own full-access key, so its code could still be replaced. Key removal is a separate launch decision, not a submission prerequisite.
 
-> **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
+> **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. A second upgrade of the CONSUME contract later the same day added the rule that no memecoin feasts two weeks running. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
 
 ## Try it in two minutes
 
@@ -24,7 +24,7 @@ Allow about two minutes **after funding a NEAR testnet wallet**. All memecoins h
 4. **Collect or exit.** Switch to the recipient. Vesting is continuous over 30 days, so a brief wait makes a small amount collectible. Collect pays the current holder; its first $CONSUME registration is paid separately. To finish immediately, **Break the seal early** shows what you receive and the half of still-locked tokens you forfeit before confirmation.
 5. **Redeem.** Burn some collected $CONSUME for the displayed basket. Expect test memecoins in your Intents balance and a burn in the Ledger. Redemption may add **0.1 NEAR** storage credit if low. Spent storage is not refundable; unused credit can be withdrawn from the feeding panel.
 
-The guide and [demo notes](docs/DEMO.md) distinguish public testnet evidence from local browser tests. A public video and independent-user feedback are not yet available.
+The guide and [demo notes](docs/DEMO.md) distinguish public testnet evidence from local browser tests. A two-minute demo film is in the [demo post on X](https://x.com/EthBoi_/status/2120534208674447732). Independent-user feedback is not yet available.
 
 ## Why participate?
 
@@ -197,7 +197,7 @@ The cheapest way to win the Feast is to wait for the last hours of the week and 
 - **What it wins:** for the next week, and that week only, that memecoin's feedings pay no tithe. That is for everyone who feeds it, not for the account that won it.
 - **What holders lose:** only the tithe they would have been paid. A feeding with no tithe still earns exactly at the backing, so it takes nothing out of anyone's share. It is held to the memecoin's daily cap: at most $35,000 a week for the largest five, which is $350 of tithe at 1% and $3,500 at 10%.
 
-An earlier build let a memecoin feast week after week, and the simulation showed the weak point: with 30% of feeders choosing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four. The contract source now holds the rule that closes it: **no memecoin feasts two weeks running** (`lib.rs` `feast_for`). If the memecoin that is feasting is fed the most again, the Feast passes to the most fed of the others, and to no memecoin if no other was fed. The same simulation with the rule:
+An earlier build let a memecoin feast week after week, and the simulation showed the weak point: with 30% of feeders choosing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four. The contract now holds the rule that closes it: **no memecoin feasts two weeks running** (`lib.rs` `feast_for`). If the memecoin that is feasting is fed the most again, the Feast passes to the most fed of the others, and to no memecoin if no other was fed. The same simulation with the rule:
 
 - The crown changed hands every week, and 4 to 6 different memecoins feasted in each scenario.
 - The largest memecoin ended at 21% to 27% of the Stomach. Without the rule it was 24% to 44%.
@@ -205,7 +205,7 @@ An earlier build let a memecoin feast week after week, and the simulation showed
 
 What the rule does not stop: two well fed memecoins can pass the crown back and forth (DOGE and SPX did for four weeks of steady feeding), and a last-hour bid still works among the memecoins that are not feasting.
 
-The rule needs no migration. Each week's Feast is stored under its own key at that week's first feeding, which costs that feeder 59 bytes of storage (0.00059 NEAR) from their prepaid credit, and the contract's main record is unchanged. `integration-tests/tests/feast.rs` rehearses the upgrade of a contract that was launched and fed on the build from before the rule (`CONSUME_OLD_WASM`). The live testnet contract was launched on that earlier build; the status at the top of this file says which build it runs now.
+The rule needs no migration. Each week's Feast is stored under its own key at that week's first feeding, which costs that feeder 59 bytes of storage (0.00059 NEAR) from their prepaid credit, and the contract's main record is unchanged. `integration-tests/tests/feast.rs` rehearses the upgrade of a contract that was launched and fed on the build from before the rule (`CONSUME_OLD_WASM`). The live testnet contract was launched on that earlier build and was upgraded this way on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/BPkQwiMUJmjb7VqY9LWLjS6JjtrnwNNYpbkQuob5J1ay)): its totals, its 28 Bonds and its main record read the same before and after ([release evidence](docs/RELEASE-2026-11-11.md)).
 
 ## Every mint and burn, logged
 
@@ -264,7 +264,7 @@ We read the public project list at nearhackathon.com on 2026-11-10 (436 entries,
 - **Config.** `web/.env.example` for the site. The hosted site counts visits with Vercel Analytics (only when built on Vercel) and with Google Analytics (only when `NEXT_PUBLIC_GA_ID` is set), both in `web/src/app/layout.tsx`; neither loads in a local build or in the browser tests. Every launch argument is built by `scripts/launch-args.mjs`, and the whole testnet launch is printed as commands by `scripts/testnet-launch.mjs`.
 - **Sensible errors.** The contract refunds what is over a cap instead of failing, keeps a failed payout as owed, and refuses in plain words ("Price is stale, try again shortly"). The site falls back to a second RPC node (`web/src/lib/near.ts`) and, when the indexer is down, to the latest feedings as the contract holds them (`web/src/components/Ledger.tsx`).
 - **Docs.** This README, [agents/README.md](agents/README.md), [sim/README.md](sim/README.md) and [`llms.txt`](web/public/llms.txt).
-- **Not done.** No video yet. Not deployed to mainnet, so the path through the real Intents contract is untested. The contract account's key is not yet deleted. All of this is said where it applies, and in [What to know before you trust it](#what-to-know-before-you-trust-it).
+- **Not done.** Not deployed to mainnet, so the path through the real Intents contract is untested. The contract account's key is not yet deleted. All of this is said where it applies, and in [What to know before you trust it](#what-to-know-before-you-trust-it).
 
 ### Also, for the human jury
 
@@ -374,7 +374,7 @@ Deployment and compatibility notes:
 - The active testnet WASM was compared byte for byte with the verified local builds after the 2026-11-11 upgrades. Source revision, SHA-256 hashes and transaction links are recorded in [release evidence](docs/RELEASE-2026-11-11.md). This establishes this release’s deployed bytes; it is not a claim of a reproducible build or of provenance for older deployments.
 - Stored state layout and storage-key ordering are unchanged. Existing owed records become permanent at their current funding level; the historical subsidy is not retroactively charged. Existing NFT metadata is not rewritten.
 - New launches allow at most ten tribes so all payout promises fit within 300 Tgas. This constructor bound does not repair historical states with more than ten tribes; those need a separate batched-payout migration before upgrading.
-- The testnet traffic described above comes from builder-operated bots. It demonstrates operation, not independent user adoption. The repository is public. A public demo post and saved hackathon submission are not yet verified; a video is optional for the hosted demo.
+- The testnet traffic described above comes from builder-operated bots. It demonstrates operation, not independent user adoption. The repository is public. The [demo post](https://x.com/EthBoi_/status/2120534208674447732) with the demo film went up on X on 2026-11-11. A saved hackathon submission is not yet verified.
 
 Known and not fixed:
 
@@ -384,7 +384,7 @@ Known and not fixed:
 
 ## Try it
 
-On testnet: open [consume.cash](https://consume.cash) (or [consume-ivory.vercel.app](https://consume-ivory.vercel.app)) and connect a testnet wallet. The contract is `consume.consumecash.testnet`; the NEAR Intents stand-in is `intents.consumecash.testnet`; the guardian and the Assayer are `consumecash.testnet`. Video: not yet.
+On testnet: open [consume.cash](https://consume.cash) (or [consume-ivory.vercel.app](https://consume-ivory.vercel.app)) and connect a testnet wallet. The contract is `consume.consumecash.testnet`; the NEAR Intents stand-in is `intents.consumecash.testnet`; the guardian and the Assayer are `consumecash.testnet`. Video: the two-minute demo film in the [demo post on X](https://x.com/EthBoi_/status/2120534208674447732).
 
 To run it yourself:
 
