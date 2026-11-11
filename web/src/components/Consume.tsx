@@ -45,6 +45,7 @@ import { Feast } from "./Feast";
 import { feastOf } from "@/lib/feast";
 import { Ledger } from "./Ledger";
 import { RoundFold } from "./Round";
+import { Tour } from "./Tour";
 import { Simulation } from "./Simulation";
 import { SendBond } from "./SendBond";
 import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
@@ -188,11 +189,10 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <a className="press big" href="#feed">
                 Feed the Serpent
               </a>
-              <a className="text-link" href="#rule">
-                <span aria-hidden="true">☞</span> How it works
-              </a>
+              <Tour />
             </div>
             <nav className="judge-links" aria-label="Explore the project">
+              <a href="#rule">How it works</a>
               <a href="/demo">Demo: two-minute guide</a>
               <a href={REPO_URL}>Source on GitHub</a>
             </nav>
