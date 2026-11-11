@@ -6,7 +6,7 @@ Three sets of tests drive the site in a real browser (Playwright, Chromium by de
 cd web
 node e2e/run.mjs            # sample, then chain
 node e2e/run.mjs sample     # 21 tests, about a minute
-node e2e/run.mjs chain      # 35 tests, a few minutes
+node e2e/run.mjs chain      # 36 tests, a few minutes
 node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 ```
 
@@ -50,7 +50,7 @@ Each step of the story is checked twice: what the page shows, and what the contr
 - **The wallet.** No real wallet is used. The test wallet passes what it is asked to sign to the stage, which signs as a sandbox account. Those keys exist only inside the sandbox. What the tests prove is the site's side: which transactions it asks for, with which arguments, deposits and gas, and what it does with the result or a refusal.
 - **RPC faults.** Two transfer tests intercept the recipient lookup to delay it or return an RPC error. All ownership, credit, registration and transaction-result assertions still read the real sandbox. The rollback test changes ownership after preflight and lets the contract reject the actual transaction.
 - **NEAR Intents.** The sandbox runs `contracts/mock-intents`, the same stand-in the testnet deployment uses. The real Intents contract is not in these tests.
-- **The Ledger's source.** On a public network the Ledger reads transactions from an indexer (FastNEAR). A sandbox has none, so `harness.mjs` answers in the indexer's shape with the sandbox's own transactions, read unchanged from its RPC. The Ledger code that turns them into entries, `src/lib/ledger.ts`, is the real one.
+- **The Ledger's source.** On a public network the Ledger reads transactions from an indexer (FastNEAR). A sandbox has none, so `harness.mjs` answers in the indexer's shape with the sandbox's own transactions, read unchanged from its RPC. The Ledger code that turns them into entries, `src/lib/ledger.ts`, is the real one. The price round is read the same way: the test sends a round with quotes as the price feeder, and `src/lib/round.ts` finds it through the same stand-in.
 - **The builder's account.** The Ledger tells the builder's accounts by name: the account the contract sits under, and every account under it. On a sandbox every account sits under `test.near`, so the run names `alice.test.near` as the builder (`CONSUME_BUILDER_ACCOUNT`), and the Ledger has both kinds of entry to show.
 - **Two launch numbers are changed.** A Bond pays out over 30 minutes here, not 30 days, so a few seconds release something to collect. Prices stay valid for 24 hours, not 15 minutes, because no Assayer runs on the stage. Every other launch argument is the real one.
 - **The wallet list.** The wallet connector fetches a list of public wallets from GitHub. The sample and chain sets answer that request with an empty list and refuse every other request to the outside, then check that none was made.
@@ -77,6 +77,6 @@ The chain story is told in order on one chain, and a test deposit can be taken o
 
 `.github/workflows/ci.yml` runs the sample set in the site job and the chain set in a job of its own, on every push. The live set is not in CI.
 
-CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 21 sample and 35 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
+CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 21 sample and 36 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
 
 To reproduce the CI browser choice locally, install Chrome and run `E2E_CHANNEL=chrome node e2e/run.mjs sample chain`. Leaving `E2E_CHANNEL` unset continues to use Playwright's bundled Chromium.

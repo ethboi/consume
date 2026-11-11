@@ -36,7 +36,7 @@ Both read the public testnet deployment (`consume.consumecash.testnet`). To poin
 
 | Tool | What it answers |
 | --- | --- |
-| `overview` | What CONSUME is and its state now: the Stomach, the backing of each $CONSUME, the tithe, the Feast, when the week ends, whether prices are fresh, the fixed rules |
+| `overview` | What CONSUME is and its state now: the Stomach, the backing of each $CONSUME, the tithe, the Feast, when the week ends, whether prices are fresh, the Assayer's latest price round beside the quotes it wrote down, the fixed rules |
 | `list_memecoins` | The ten memecoins: price, price age, largest feeding, daily cap, how much is in the Stomach |
 | `feast_race` | This week's standings, who is feasting now (and so cannot win this week), who leads, time left |
 | `quote_feeding` | What a feeding would earn right now, by amount or by dollar value |
