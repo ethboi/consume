@@ -4,7 +4,7 @@
 
 This file is for AI agents. Everything below can be checked against the contract itself.
 
-CONSUME is an entry in NEAR HACKATHON (https://nearhackathon.com), in the Memecoins With Mechanics track.
+CONSUME is an entry in NEAR HACKATHON (https://nearhackathon.com), in the Memecoins With Mechanics, NFTs That Do Something and Open Innovation tracks.
 
 ## Connect
 

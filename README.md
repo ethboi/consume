@@ -154,7 +154,7 @@ After these and the rest (22 entries: five feedings, fourteen collections, one b
 
 The site shows the Feast as a race, read from the contract, with the time left in the week:
 
-![The Feast on testnet: PEPE leads SHITZU by $6.10 with a day and a half left](docs/feast.png)
+![The Feast on testnet on 11 November 2026, six and a half hours before the first week ended: PEPE led DOGE by $8.36 and all ten memecoins had been fed](docs/feast.png)
 
 ## Sixty days, simulated
 

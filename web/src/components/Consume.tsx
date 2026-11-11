@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
-import { HERESIES as THE_TEN } from "@/lib/heresies";
+import { HERESIES as THE_TEN, printed } from "@/lib/heresies";
 import { cardData } from "@/lib/bond-card";
 import { DEMO_MINE, DEMO_NOW_MS } from "@/lib/demo";
 import {
@@ -409,7 +409,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <div className="entry-head">
           <h2 id="entry-h">Made for NEAR HACKATHON</h2>
           <p>
-            CONSUME is built for Memecoins With Mechanics and NFTs That Do Something at{" "}
+            CONSUME is entered in the Memecoins With Mechanics, NFTs That Do Something and Open Innovation tracks at{" "}
             <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
               nearhackathon.com
             </a>
@@ -604,9 +604,6 @@ async function registrationCalls(tokens: string[], accountId: string) {
   }
   return calls;
 }
-
-// where a long name may break on a narrow screen (a soft hyphen, unseen until it is needed)
-const SOFT: Record<string, string> = { BLACKDRAGON: "BLACK­DRAGON" };
 
 /** Positions on the amount slider, which runs on a log scale: a dollar and a thousand both get room. */
 const SLIDER_STEPS = 240;
@@ -899,7 +896,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
                 <span className="pick-coin">
                   <Coin symbol={x.symbol} size={52} />
                 </span>
-                <span className={x.symbol.length > 8 ? "pick-name long" : "pick-name"}>{SOFT[x.symbol] ?? x.symbol}</span>
+                <span className={x.symbol.length > 8 ? "pick-name long" : "pick-name"}>{printed(x.symbol)}</span>
                 {held !== null && (
                   <span className={held > BigInt(0) ? "pick-held" : "pick-held none"}>
                     <span className="sr-only">You have </span>

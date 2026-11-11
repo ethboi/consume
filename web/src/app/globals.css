@@ -6297,3 +6297,36 @@ section[inert] > :not(header) {
 .demo-steps { padding-left: 1.4rem; }
 .demo-steps li { padding-left: .5rem; margin: 1.5rem 0; }
 .demo-guide section { margin: 2rem 0; border-top: 1px solid currentColor; }
+
+/* phones: the longest name and the sealed slip are cut larger where there is room */
+@media (max-width: 600px) {
+  /* the long name's tag grows into the gaps beside it */
+  .jar-tag.long {
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(1.16);
+  }
+  .jar-tag.long rect {
+    stroke-width: 1.3;
+  }
+  .jar-sealed-tag {
+    font-size: 17px;
+  }
+  /* on the road map the long name takes two lines, as it does under its coin in the picker */
+  .folio .roads .town-coin .sym.long {
+    font-size: 0.72rem;
+    line-height: 1.12;
+    letter-spacing: 0;
+    padding: 3px 0 2px;
+    text-align: center;
+    hyphens: manual;
+  }
+  .folio .pick-name.long {
+    font-size: 0.72rem;
+  }
+}
+@media (max-width: 360px) {
+  .folio .pick-name.long {
+    font-size: min(0.66rem, 2.95vw);
+  }
+}

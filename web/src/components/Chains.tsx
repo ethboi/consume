@@ -5,7 +5,7 @@
 // Serpent. Under each memecoin is a live check that its road is open right now.
 
 import type { CSSProperties } from "react";
-import { HERESIES } from "@/lib/heresies";
+import { HERESIES, printed } from "@/lib/heresies";
 import { useLive } from "@/lib/live";
 import { DEMO, INTENTS_CONTRACT, MOCK_INTENTS } from "@/lib/near";
 import { Coin } from "./Coin";
@@ -109,7 +109,7 @@ export function Chains() {
                   return (
                     <span key={h.symbol} className="town-coin">
                       <Coin symbol={h.symbol} size={48} />
-                      <span className={h.symbol.length > 8 ? "sym long" : "sym"}>{h.symbol}</span>
+                      <span className={h.symbol.length > 8 ? "sym long" : "sym"}>{printed(h.symbol)}</span>
                       <span className={r && !r.open ? "out shut" : "out"}>
                         {!r ? " " : r.open && r.outUsd !== null ? `$${r.outUsd.toFixed(2)}` : "no road"}
                       </span>

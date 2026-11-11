@@ -32,3 +32,9 @@ export const HERESIES: Heresy[] = [
 ];
 
 export const bySymbol = (s: string) => HERESIES.find((h) => h.symbol === s);
+
+// where a long name may break on a narrow screen (a soft hyphen, unseen until it is needed)
+const SOFT: Record<string, string> = { BLACKDRAGON: "BLACK­DRAGON" };
+
+/** A memecoin's name as it is printed under its coin: the same letters, free to break where the column is narrow. */
+export const printed = (symbol: string) => SOFT[symbol] ?? symbol;

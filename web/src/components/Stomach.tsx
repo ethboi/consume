@@ -277,10 +277,12 @@ export function Stomach({ jars }: { jars: Jar[] }) {
                 )}
                 {/* the tag hanging from the shelf: name, then what the jar is worth */}
                 <path d={`M${cx - 14},${base + 13} v7 M${cx + 14},${base + 13} v7`} stroke="var(--ink)" strokeWidth={1.2} />
-                <rect x={cx - lw / 2} y={base + 19} width={lw} height={23} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1.5} />
-                <text x={cx} y={base + 35.5} className={long ? "jar-label long" : "jar-label"} fontSize={long ? 11.5 : 14}>
-                  {jar.symbol}
-                </text>
+                <g className={long ? "jar-tag long" : "jar-tag"}>
+                  <rect x={cx - lw / 2} y={base + 19} width={lw} height={23} fill="var(--paper)" stroke="var(--ink)" strokeWidth={1.5} />
+                  <text x={cx} y={base + 35.5} className={long ? "jar-label long" : "jar-label"} fontSize={long ? 11.5 : 14}>
+                    {jar.symbol}
+                  </text>
+                </g>
                 <text x={cx} y={base + 61} className="jar-worth" fontSize={15.5}>
                   {worth(jar.usd)}
                 </text>
