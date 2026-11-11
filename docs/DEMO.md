@@ -26,7 +26,7 @@ The follow-up local regression pass adds [14 transfer tests](../web/e2e/transfer
 - [The README’s testnet receipts](../README.md#seen-on-testnet) cover feeding, collection, early exit and redemption through the deployed test Intents contract.
 - [The release record](RELEASE-2026-11-11.md) identifies the currently deployed contract bytes and preserved state.
 - [The browser suite](../web/e2e/chain.spec.ts) exercises the web interface against those contract sources on a local NEAR sandbox. Its injected wallet signs with sandbox keys. This establishes interface behavior, not third-party wallet compatibility or public-chain execution.
-- The transfer interface supports direct transfers, with recipient validation, a review step, funded storage and an explorer receipt. It does not perform a sale. Marketplace compatibility remains unverified.
+- The transfer interface supports direct transfers, with recipient validation, a review step, funded storage and an explorer receipt. It does not perform a sale. A sale through an approved account is tested on a local sandbox (`contracts/integration-tests/tests/sale.rs`); no marketplace contract has been tried.
 
 The hosted page and this guide must not describe unrecorded actions as proof. On 2026-11-11 the builder ran a $1 test PEPE feeding and an ownership handoff on the public testnet, using the NEAR CLI and existing project keychains:
 

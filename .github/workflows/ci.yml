@@ -65,6 +65,9 @@ jobs:
       - name: The Feast over four weeks
         working-directory: contracts/integration-tests
         run: cargo test --test feast
+      - name: A Bond sold through an approval
+        working-directory: contracts/integration-tests
+        run: cargo test --test sale
 
   web:
     name: Site
