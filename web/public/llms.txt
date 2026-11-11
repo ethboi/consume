@@ -67,4 +67,6 @@ Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_co
 
 Public source: https://github.com/ethboi/consume
 Demo guide: https://consume.cash/demo (testnet, with costs and expected outcomes).
+How it works: https://consume.cash/how-it-works (the rules, who holds the Assayer and guardian roles today, and which memecoins NEAR Intents will carry right now).
+The Simulation: https://consume.cash/simulation (sixty simulated days under four scenarios; every figure there is simulated).
 Direct Bond transfers: the website offers Send this Bond, validates the recipient, reviews costs, and groups a required credit top-up with nft_transfer in one transaction. Transfer spends a nonrefundable 0.01024 NEAR from the initiating account’s meal credit, plus 1 yoctoNEAR attached and gas. The recipient may need separate FT registration before claiming. There is no prepare_transfer MCP tool. A sale through an approved account (nft_approve, then nft_transfer by the approved account) is tested on a local sandbox in contracts/integration-tests/tests/sale.rs; no marketplace contract has been tried and none has listed a Bond.
