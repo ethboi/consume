@@ -176,7 +176,7 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
 
 function Row({ e }: { e: LedgerEntry }) {
   const h = e.token ? heresyForToken(e.token) : undefined;
-  const who = <b title={e.account}>{shortAccount(e.account)}</b>;
+  const who = <b title={e.account}>{shortAccount(e.account, 32)}</b>;
   return (
     <li className={`roll-${e.kind}`}>
       <time dateTime={new Date(e.at).toISOString()}>{when(e.at)}</time>

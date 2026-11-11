@@ -5465,6 +5465,10 @@ section[inert] > :not(header) {
   overflow-wrap: anywhere;
   color: var(--paper);
 }
+.folio .bond-shelf p .part {
+  display: inline-block;
+  max-width: 100%;
+}
 .folio .bond-show-yours {
   margin: 18px 0 0;
   max-width: none;

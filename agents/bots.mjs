@@ -8,11 +8,15 @@
 //
 //   node agents/bots.mjs collector --as you.testnet [--min 100]
 //       Collects the $CONSUME your Bonds have released, for every Bond with
-//       at least --min ready (default 1).
+//       at least --min ready (default 1). --as takes several accounts with
+//       commas between them, each signing for its own Bonds.
 //
-//   node agents/bots.mjs feeder --as you.testnet --usd 25 [--symbol PEPE] [--max-tithe 5] [--bring]
+//   node agents/bots.mjs feeder --as you.testnet --usd 25 [--symbol PEPE] [--chain Solana] [--wander] [--max-tithe 5] [--bring]
 //       Feeds a set dollar amount. With no --symbol it feeds the memecoin
 //       that is feasting (no tithe), or else the one you hold most of.
+//       --chain feeds only the memecoins of one home chain (Dogecoin,
+//       Ethereum, Solana or NEAR), one of them picked at random each round,
+//       feasting or not. --wander picks at random from all ten.
 //       --max-tithe skips the feeding while the tithe is above that percent.
 //       --bring (testnet) first takes test memecoins from the stand-in.
 //
@@ -22,7 +26,9 @@
 //       that fits the budget. Earlier than that it waits, since a lead taken
 //       early only tells rivals what to beat. --now feeds at once.
 //
-// Every bot takes --every <seconds> to keep running, --json for one JSON
+// Every bot takes --every <seconds> to keep running (with --jitter <seconds>
+// each round first waits a random time up to that long, so several bots do
+// not all act in the same minute), --json for one JSON
 // object per round, and --contract, --intents, --network and --rpc (or
 // CONSUME_CONTRACT, CONSUME_INTENTS, CONSUME_NETWORK, CONSUME_RPC) to point
 // at another deployment. The default is the public testnet one.
@@ -124,17 +130,24 @@ async function herald(ctx) {
 
 async function collector(ctx) {
   const { net, opts, log } = ctx;
-  const who = need(opts, "as", "the account that holds the Bonds");
+  const accounts = need(opts, "as", "the account that holds the Bonds").split(",").map((x) => x.trim()).filter(Boolean);
   const min = Number(opts.min ?? 1);
-  const a = await account(net, { account_id: who });
-  const ready = a.bonds.filter((b) => !b.seal_broken && Number(b.consume_ready_to_collect) >= min);
-  if (ready.length === 0) idle(`${who} has ${a.bonds.length} Bond${a.bonds.length === 1 ? "" : "s"} and none has ${min} $CONSUME ready to collect.`);
   const done = [];
-  for (const b of ready) {
-    const p = await planCollect(net, { account_id: who, bond_id: b.bond_id });
-    done.push({ bond_id: b.bond_id, ready: b.consume_ready_to_collect, ...carryOut(ctx, who, p.plan) });
+  let bonds = 0;
+  for (const who of accounts) {
+    const a = await account(net, { account_id: who });
+    bonds += a.bonds.length;
+    const ready = a.bonds.filter((b) => !b.seal_broken && Number(b.consume_ready_to_collect) >= min);
+    for (const b of ready) {
+      const p = await planCollect(net, { account_id: who, bond_id: b.bond_id });
+      done.push({ account: who, bond_id: b.bond_id, ready: b.consume_ready_to_collect, ...carryOut(ctx, who, p.plan) });
+    }
   }
-  return { account: who, collected: done };
+  if (done.length === 0) {
+    const whose = accounts.length === 1 ? `${accounts[0]} has` : `The ${accounts.length} accounts have`;
+    idle(`${whose} ${bonds} Bond${bonds === 1 ? "" : "s"} and none has ${min} $CONSUME ready to collect.`);
+  }
+  return { accounts, collected: done };
 }
 
 // ---------- feeder ----------
@@ -148,8 +161,19 @@ async function feeder(ctx) {
 
   const before = await account(net, { account_id: who });
   let symbol = opts.symbol === undefined || opts.symbol === true ? null : String(opts.symbol);
+  const chain = opts.chain === undefined || opts.chain === true ? null : String(opts.chain);
   if (symbol) log(`Feeding ${symbol}, as asked.`);
-  else if (o.feast_now) {
+  else if (chain || opts.wander) {
+    const all = await memecoins(net);
+    const mine = chain ? all.filter((m) => m.home_chain.toLowerCase() === chain.toLowerCase()) : all;
+    if (mine.length === 0) throw new Error(`CONSUME eats no memecoin from "${chain}". Its memecoins come from ${[...new Set(all.map((m) => m.home_chain))].join(", ")}.`);
+    const open = mine.filter((m) => m.open_for_feeding);
+    const which = chain ? `${mine[0].home_chain} memecoins` : "memecoins";
+    if (open.length === 0) idle(`None of the ${mine.length} ${which} is open for feeding.`);
+    symbol = open[Math.floor(Math.random() * open.length)].symbol;
+    if (open.length === 1) log(`Feeding ${symbol}: it is the only one of the ${which} open for feeding.`);
+    else log(`Feeding ${symbol}: picked at random from the ${open.length} ${which} open for feeding.`);
+  } else if (o.feast_now) {
     symbol = o.feast_now;
     log(`Feeding ${symbol}: it is feasting, so this pays no tithe.`);
   } else {
@@ -243,7 +267,10 @@ async function main() {
   if (opts.send && net.network === "mainnet" && !opts.mainnet) throw new Error("This would sign on mainnet with real funds. Add --mainnet if that is what you mean.");
 
   const every = Number(opts.every ?? 0);
+  const jitter = every ? Number(opts.jitter ?? 0) : 0;
+  if (!(jitter >= 0)) throw new Error("--jitter must be a number of seconds");
   do {
+    if (jitter) await pause(Math.random() * jitter * 1000);
     const said = [];
     const log = (line) => (opts.json ? said.push(line) : console.log(`${new Date().toISOString()} ${name}  ${line}`));
     const ctx = { net, opts, log };

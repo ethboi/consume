@@ -1213,7 +1213,16 @@ function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: strin
               <span>
                 <span className="no">№ {v.token_id}</span> held by
               </span>
-              <span title={v.owner_id}>{shortAccount(v.owner_id)}</span>
+              <span title={v.owner_id}>
+                {/* the name breaks after a dot, not at a hyphen */}
+                {shortAccount(v.owner_id, 32)
+                  .split(/(?<=\.)/)
+                  .map((part, i) => (
+                    <span key={i} className="part">
+                      {part}
+                    </span>
+                  ))}
+              </span>
             </p>
           </li>
         ))}
@@ -1732,7 +1741,7 @@ function Entries({ recent }: { recent: VestView[] }) {
                   {v.vest.exited && <em className="tag">seal broken</em>}
                 </span>
               </td>
-              <td>{shortAccount(v.owner_id)}</td>
+              <td>{shortAccount(v.owner_id, 32)}</td>
               <td className="num">{h ? compact(v.vest.eaten, h.decimals) : ""}</td>
               <td className="num">{usd(v.vest.meal_usd, 0)}</td>
               <td className="num">{fromRaw(v.vest.total, CONSUME_DEC, 0)}</td>
