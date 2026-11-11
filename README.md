@@ -1,6 +1,6 @@
 # CONSUME
 
-**A memecoin that eats other memecoins.** Built at NEAR HACKATHON, in the Memecoins With Mechanics track. Its Bonds are also entered in NFTs That Do Something.
+**A memecoin that eats other memecoins.** Built for NEAR HACKATHON’s **Memecoins With Mechanics** and **NFTs That Do Something** tracks. These are the intended tracks; this repository does not confirm a saved submission.
 
 Feed it a memecoin from another chain or from NEAR (DOGE, PEPE, SHIB and seven more). The memecoin goes into its Stomach, where nothing takes it out except burning $CONSUME, and you are paid in $CONSUME through a **Bond**, an NFT that releases your $CONSUME over 30 days. Every $CONSUME can later be burned (**Redeem**) for its share of everything in its Stomach. So $CONSUME is a memecoin backed by a growing basket of other memecoins.
 
@@ -8,9 +8,29 @@ The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list
 
 ![The CONSUME site: the serpent ringed by the ten memecoins, the four steps, and the live figures from testnet](docs/site.png)
 
-> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). The release passed 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 13 web unit tests, both sandbox flows and 38 browser tests. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. No video yet. The contract account still holds its own full-access key, so its code could still be replaced; that key is to be deleted after a full run on testnet.
+> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). The release passed 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 13 web unit tests, both sandbox flows and 38 browser tests. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. No video yet. The contract account still holds its own full-access key, so its code could still be replaced. Key removal is a separate launch decision, not a submission prerequisite.
 
 > **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
+
+## Try it in two minutes
+
+[Live demo](https://consume.cash) · [Step-by-step demo guide](https://consume.cash/demo) · [Source](https://github.com/ethboi/consume) · [CI](https://github.com/ethboi/consume/actions)
+
+Allow about two minutes **after funding a NEAR testnet wallet**. All memecoins here are free test tokens; cross-chain arrivals and withdrawals are simulated. A second existing testnet wallet you control lets you try the NFT ownership handoff.
+
+1. **Connect and fund.** Open the site, connect a testnet wallet, and use [near-faucet.io](https://near-faucet.io/) if needed. Have at least **0.2 test NEAR** for a first feeding’s storage and gas. Pick PEPE and press **Bring test PEPE from Ethereum**. Expect a test Intents balance; this is not a real bridge deposit.
+2. **Feed $10.** Read the quote, tithe and Bond amount, then press **Feed the Serpent** and approve. Expect a numbered Bond and a transaction link. At unchanged prices a 1% tithe leaves $9.90 of claim value; the actual $CONSUME count depends on current backing.
+3. **Pass the Bond.** In Bonds, press **Send this Bond**, enter your second testnet account, review and confirm. Expect the same NFT and schedule in the recipient’s wallet. The **0.01024 NEAR** reserve comes from the sender’s storage credit; the form adds **0.1 NEAR** credit if needed and discloses it before signing. This sends the NFT without collecting payment. Marketplace sales have not been verified.
+4. **Collect or exit.** Switch to the recipient. Vesting is continuous over 30 days, so a brief wait makes a small amount collectible. Collect pays the current holder; its first $CONSUME registration is paid separately. To finish immediately, **Break the seal early** shows what you receive and the half of still-locked tokens you forfeit before confirmation.
+5. **Redeem.** Burn some collected $CONSUME for the displayed basket. Expect test memecoins in your Intents balance and a burn in the Ledger. Redemption may add **0.1 NEAR** storage credit if low. Spent storage is not refundable; unused credit can be withdrawn from the feeding panel.
+
+The guide and [demo notes](docs/DEMO.md) distinguish public testnet evidence from local browser tests. A public video and independent-user feedback are not yet available.
+
+## Why participate?
+
+The product hypothesis is a shared memecoin basket with a weekly contest between communities. If DOGE wins the Feast, next week a $10 DOGE feeding earns a claim for the full $10, while a rival paying a 1% tithe earns a $9.90 claim, at unchanged prices. Supporters can defend their coin’s crown or help a challenger take it. Bonds let the resulting vesting claim change hands without resetting the schedule.
+
+The trade-off is a tithe and a 30-day release period. Keeping the original coins avoids both. Early exit forfeits half of what is still locked; NFT transfer does not promise liquidity or a buyer. Later tithes and forfeitures can increase backing per claim, but memecoin prices can fall. This is a community-game hypothesis, not a guaranteed return or evidence of product-market fit. Current bot activity is builder-operated. [The demo notes](docs/DEMO.md#independent-feedback) give a short protocol for collecting real feedback without counting those bots as users.
 
 ## What the track asks for, and where the code answers
 
@@ -89,15 +109,14 @@ Each rule is contract code under `contracts/consume/src/`, and each test named i
 | **Fixed at launch** | The memecoin list, caps, starting rate, tithe schedule, vesting period, forfeit, week length, Intents contract and image base are arguments to `new`. No method changes them. | `lib.rs` `new` | `the_launch_list_is_what_new_was_given`, `launch_refuses_a_memecoin_listed_twice`, `launch_refuses_an_intents_memecoin_without_the_intents_contract`, sandbox `flow.rs` |
 | **Guardian, not owner** | One role with two switches: seal or unseal a listed memecoin, replace the price feeder. It can be renounced. It cannot list a memecoin, change a number, mint or withdraw. | `lib.rs` `set_tribe_open`, `set_price_feeder`, `set_guardian` | `the_guardian_can_seal_a_memecoin`, `nobody_else_can_seal_a_memecoin`, `a_sealed_memecoin_stays_redeemable_and_can_be_unsealed`, `a_replaced_price_feeder_can_no_longer_post_prices`, `a_renounced_guardian_has_no_power_left` |
 
-## Check it in five minutes
+## Reproduce the checks
 
 Every claim below can be checked from a clean clone. Prerequisites are under [Try it](#try-it).
 
 | # | Run this, from the repository root | You should see |
 | --- | --- | --- |
 | 1 | `(cd contracts/consume && cargo test)` | `test result: ok. 64 passed; 0 failed` |
-| 2 | `(cd contracts/mock-intents && cargo test)
-(cd contracts/mock-meme && cargo test)` | `test result: ok. 3 passed; 0 failed` |
+| 2 | `(cd contracts/mock-intents && cargo test)`; `(cd contracts/mock-meme && cargo test)` | mock-intents: **7 passed**; mock-meme: **3 passed** |
 | 3 | `for c in consume mock-meme mock-intents; do (cd contracts/$c && cargo near build non-reproducible-wasm); done` | three `.wasm` files under `contracts/target/near/` |
 | 4 | `(cd contracts/integration-tests && cargo test --test flow)` | `test offering_claim_redeem ... ok`. On a real local NEAR node: feed, refund over the cap, Bond, collect, redeem with exact payouts, a failed payout kept as owed and paid on retry. It also asserts that `set_tribe`, `set_intents_id`, `set_media_base` and `set_owner` do not exist and that a second `new` is refused as already initialized. |
 | 5 | `(cd contracts/integration-tests && cargo test --test intents)` | `test feed_and_redeem_through_intents ... ok`. Through the NEAR Intents stand-in: a simulated arrival from the home chain, a feeding by `mt_transfer_call`, the part over the cap refunded into the Intents balance, collect, a redemption paid by `mt_transfer`, and a simulated withdrawal. |
@@ -109,15 +128,17 @@ Every claim below can be checked from a clean clone. Prerequisites are under [Tr
 | 11 | `node agents/bots.mjs herald` | A report read from the live testnet contract: the Stomach, the backing, the Feast race and anything that needs attention. It signs nothing. |
 | 12 | `curl -s -X POST http://localhost:3000/api/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"feast_race","arguments":{}}}'` | The same server over HTTP, from the site started in step 6: this week's Feast standings on testnet. |
 | 13 | `echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ledger","arguments":{}}}' \| node agents/mcp.mjs` | The log of every feeding, mint and burn on the live testnet contract (within the limits given in that section), each with its transaction, and `listed_totals_match_contract: true` when aggregate totals agree; `history_completeness` remains `unknown`. See [Every mint and burn, logged](#every-mint-and-burn-logged). |
-| 14 | `(cd web && pnpm install && pnpm exec playwright install chromium && node e2e/run.mjs sample)` | `20 passed`. The site, built with no contract set, driven in a real browser: every section adds up from its sample data, the quote follows the contract's rule, every button that would sign is off, the previews send nothing, the simulation's table matches `sim/out/summary.md` cell for cell, and nothing runs off the side of a phone. |
-| 15 | `(cd web && node e2e/run.mjs chain)`, after steps 3 and 14 | `18 passed`. The whole product through the site itself: a local NEAR sandbox, the contract as built in step 3, the site built against it, and a browser with a test wallet. Connect, feed, a refused signature, the Bond and its picture, a feeding over the limit, Collect all, Break the seal, Redeem, an agent feeding with the calls the MCP server prepares, and the Ledger. Each step is checked on the page and against the contract's own views, and the run fails if the backing of a $CONSUME ever falls. What is a stand-in there is listed in [web/e2e/README.md](web/e2e/README.md). |
+| 14 | `(cd web && pnpm install && pnpm exec playwright install chromium && node e2e/run.mjs sample)` | `21 passed`. The site, built with no contract set, driven in a real browser: every section adds up from its sample data, the quote follows the contract's rule, every button that would sign is off, the previews send nothing, the simulation's table matches `sim/out/summary.md` cell for cell, and nothing runs off the side of a phone. |
+| 15 | `(cd web && node e2e/run.mjs chain)`, after steps 3 and 14 | `21 passed`. The whole product through the site itself: a local NEAR sandbox, the contract as built in step 3, the site built against it, and a browser with a test wallet. Connect, feed, a refused signature, the Bond and its picture, a feeding over the limit, Collect all, Break the seal, Redeem, an agent feeding with the calls the MCP server prepares, and the Ledger. Each step is checked on the page and against the contract's own views, and the run fails if the backing of a $CONSUME ever falls. What is a stand-in there is listed in [web/e2e/README.md](web/e2e/README.md). |
 | 16 | `(cd web && node e2e/run.mjs live)` | `8 passed` while the public site and the Assayer are up. Read-only checks of [consume.cash](https://consume.cash): the page agrees with what the contract reports, prices are fresh, and the Ledger adds up. It connects no wallet and signs nothing. |
 
-Step 4 downloads a NEAR sandbox node and builds OpenSSL on first run, which takes a few minutes. Step 6 needs network access for `pnpm install` and for the site's three typefaces, which come from Google Fonts when it first starts. Steps 7, 11, 12, 13 and 16 need network access (NEAR Intents 1Click, a public testnet RPC and, for step 13, FastNEAR's public transactions API). Steps 9 to 11 and 13 need Node.js 22.18 or newer and nothing installed. Steps 14 to 16 run in Chromium, which the command in step 14 downloads (`E2E_CHANNEL=chrome` uses an installed Chrome instead); steps 14 and 15 stay on the local machine once that is done.
+Step 4 downloads a NEAR sandbox node and builds OpenSSL on first run, which takes a few minutes. Step 6 needs network access for uncached dependencies. Page and card fonts are bundled from installed `@fontsource` packages; startup and build do not fetch Google Fonts. Steps 7, 11, 12, 13 and 16 need network access (NEAR Intents 1Click, a public testnet RPC and, for step 13, FastNEAR's public transactions API). Steps 9 to 11 and 13 need Node.js 22.18 or newer and nothing installed. Steps 14 to 16 run in Chromium, which the command in step 14 downloads (`E2E_CHANNEL=chrome` uses an installed Chrome instead); steps 14 and 15 stay on the local machine once that is done.
 
 ## Seen on testnet
 
-Every action has been run on the live contract, [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), on 2026-11-10. Each row is a transaction anyone can open. All of them were sent by the builder's own account, `consumecash.testnet`; nobody else has used it yet.
+**NFT handoff, 2026-11-11:** [Bond 26’s transfer and recipient collection](docs/DEMO.md#what-is-verified) show that ownership carries the payout. The public receipts and before/after JSON verify the unchanged schedule, the 0.01024 NEAR reserve and payment to the new holder. This proof used the NEAR CLI between builder-owned testnet accounts; the web flow is tested separately on a sandbox.
+
+The following original economic actions were run on the live contract, [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), on 2026-11-10. Each row is a transaction anyone can open. All of them were sent by the builder's own account, `consumecash.testnet`; nobody else has used it yet.
 
 | Action | What happened | Transaction |
 | --- | --- | --- |
@@ -200,17 +221,17 @@ What has been tested: every tool by hand over stdio and HTTP against the live te
 
 ## Against the judging criteria
 
-The four criteria and weights are the ones Loops House lists for this hackathon. Under each: what there is, and the file to open.
+The [official FAQ](https://nearhackathon.com/#faq) describes AI screening for reproducibility and README claims, followed by human judging. It points to technical implementation, design, impact, originality and sustainability as preparation guidance. The categories below organize the evidence; no numerical judging weights are claimed.
 
-### Technical implementation (30)
+### Technical implementation
 
 - **Architecture.** One contract, split by job: `lib.rs` (state, launch, the guardian, views), `meal.rs` (feeding), `vest.rs` (Bonds), `redeem.rs` (redeeming and payouts), `intents.rs` (the NEAR Intents receiver), `standards.rs` (the NEP interfaces), `math.rs` (arithmetic). The site keeps no database and reads the contract. The agent tools are written once (`web/src/lib/mcp.ts`) and served three ways: HTTP, stdio, and the bots.
-- **Correctness.** Amounts use 256-bit intermediates and round against the feeder (`math.rs`). 64 unit tests (`contracts/consume/src/tests.rs` and its regression include) and two end-to-end tests on a real local node (`contracts/integration-tests/tests/flow.rs`, `intents.rs`), the first of which includes a payout that fails and is paid on retry. `new` checks every launch argument before it stores anything (`lib.rs` `new`). The simulation is a port of the same arithmetic (`sim/model.mjs`) that checks the backing after every action and stops if it falls, and before each run it checks itself against the $94.74 example in this README (`sim/sim.mjs` `selfCheck`). CI runs the unit tests, both sandbox tests, the simulation, the MCP handshake, the site's type check, lint and build, and the browser tests on every push (`.github/workflows/ci.yml`). The browser tests (`web/e2e`) drive the built site in Chromium: 18 against the contract on a local sandbox with a test wallet, each step checked on the page and against the contract's own views, and 20 on sample figures.
+- **Correctness.** Amounts use 256-bit intermediates and round against the feeder (`math.rs`). 64 unit tests (`contracts/consume/src/tests.rs` and its regression include) and two end-to-end tests on a real local node (`contracts/integration-tests/tests/flow.rs`, `intents.rs`), the first of which includes a payout that fails and is paid on retry. `new` checks every launch argument before it stores anything (`lib.rs` `new`). The simulation is a port of the same arithmetic (`sim/model.mjs`) that checks the backing after every action and stops if it falls, and before each run it checks itself against the $94.74 example in this README (`sim/sim.mjs` `selfCheck`). CI runs the unit tests, both sandbox tests, the simulation, the MCP handshake, the site's type check, lint and build, and the browser tests on every push (`.github/workflows/ci.yml`). The browser tests (`web/e2e`) drive the built site in Chromium: 21 against the contract on a local sandbox with a test wallet, each step checked on the page and against the contract's own views, and 21 on sample figures.
 - **Integrations wired up.** NEP-141 with NEP-145 and NEP-148, NEP-171 with NEP-177, NEP-178 and NEP-181, with their standard events (`standards.rs`, `vest.rs`, `redeem.rs`, `meal.rs`). A NEP-245 receiver for NEAR Intents, with payouts by `mt_transfer` (`intents.rs`, `redeem.rs`). NEAR Intents 1Click quotes for prices and routes (`scripts/assayer.mjs`, `web/src/app/api/routes`). A wallet selector (`web/src/components/Wallet.tsx`).
 - **Data handling.** A redemption's payouts are cross-contract calls: what is due is written down as owed before anything is sent, and the callback writes back any payout whose transfer failed, so none is lost (`redeem.rs` `start_withdrawals`, `on_withdraw`). Every byte a feeding stores is charged to the feeder's prepaid credit (`meal.rs` `eat`). Prices are accepted only as full rounds and refused when stale (`lib.rs` `set_prices`, `meal.rs` `plan_meal`). Off the chain: the site asks a second public RPC node when the first refuses (`web/src/lib/near.ts`), the HTTP MCP server keeps no state, caps a request at 64 KiB and a batch at 20 calls (`web/src/app/api/mcp/route.ts`), and the Ledger reports indexer pagination and whether aggregate totals agree (`web/src/lib/ledger.ts`).
 - **Reviewed.** Two security reviews by a second model. What they found is fixed and tested, or listed as known under [Security notes](#security-notes).
 
-### Innovation & creativity (25)
+### Innovation and creativity
 
 The idea: a memecoin with no supply of its own. Every $CONSUME exists because another memecoin was fed to it, and every $CONSUME is a claim on that basket. The mechanisms that are not the obvious ones:
 
@@ -219,15 +240,15 @@ The idea: a memecoin with no supply of its own. Every $CONSUME exists because an
 - **A forfeit is never minted.** Breaking a seal does not move tokens to anyone. Half of the locked $CONSUME is simply never created, which raises every remaining share at once (`vest.rs` `exit`).
 - **Redeeming counts locked supply.** A share of the Stomach is measured against all $CONSUME, including what Bonds have not released, so nobody can empty the Stomach ahead of the Bonds still vesting (`lib.rs` `claims`, `redeem.rs` `quote`).
 - **The Feast sets communities against each other.** The holders of ten other memecoins compete each week to be the one eaten most (`lib.rs` `heaviest_tribe`). An example bot is included in this repository for inspection (`agents/bots.mjs`).
-- **A memecoin for agents too.** Everything the site does is an MCP tool that returns unsigned calls (`web/src/lib/mcp.ts`).
+- **A memecoin for agents too.** Feeding, collection, early exit and redemption have MCP tools that return unsigned calls (`web/src/lib/mcp.ts`).
 
 We read the public project list at nearhackathon.com on 2026-11-10 (436 entries, 25 in this track) and the demo posts it links. As far as those show, no other entry eats other memecoins, redeems by burning for a pro-rata basket, or puts the vesting position in a transferable NFT.
 
-### Sponsor / track fit (25)
+### Track fit
 
 [What the track asks for, and where the code answers](#what-the-track-asks-for-and-where-the-code-answers) maps the track's own words to code. What NEAR in particular makes possible is under [How NEAR is used](#how-near-is-used): NEAR Intents puts memecoins from Dogecoin, Ethereum and Solana in one account's balance, so one contract can hold a cross-chain basket, and cheap storage makes one NFT per feeding practical. Bonds also answer the NFTs That Do Something track: an NFT that owns a vesting position and changes as it pays out.
 
-### Execution & completeness (20)
+### Execution and completeness
 
 - **A working path, end to end.** Feed, Bond, collect, break the seal and redeem have each been run on the live testnet contract ([Seen on testnet](#seen-on-testnet)). The sandbox tests walk the same path on a local node in CI, and the browser tests walk it through the site itself, from the wallet picker to the Ledger (`web/e2e/chain.spec.ts`).
 - **Usable.** A site at [consume.cash](https://consume.cash) with a wallet, a slider that stops at what you hold, the Feast as a live race, the Ledger of every mint and burn, and Bonds as cards. Without a contract configured it runs on sample figures and says so (`web/src/lib/demo.ts`).
@@ -344,7 +365,7 @@ Deployment and compatibility notes:
 - The active testnet WASM was compared byte for byte with the verified local builds after the 2026-11-11 upgrades. Source revision, SHA-256 hashes and transaction links are recorded in [release evidence](docs/RELEASE-2026-11-11.md). This establishes this release’s deployed bytes; it is not a claim of a reproducible build or of provenance for older deployments.
 - Stored state layout and storage-key ordering are unchanged. Existing owed records become permanent at their current funding level; the historical subsidy is not retroactively charged. Existing NFT metadata is not rewritten.
 - New launches allow at most ten tribes so all payout promises fit within 300 Tgas. This constructor bound does not repair historical states with more than ten tribes; those need a separate batched-payout migration before upgrading.
-- The testnet traffic described above comes from builder-operated bots. It demonstrates operation, not independent user adoption. The video, accessible submission repository and public announcement still require release work.
+- The testnet traffic described above comes from builder-operated bots. It demonstrates operation, not independent user adoption. The repository is public. A public demo post and saved hackathon submission are not yet verified; a video is optional for the hosted demo.
 
 Known and not fixed:
 
@@ -390,7 +411,7 @@ Run everything locally, from the repository root:
 # web app (shows sample figures until a contract is configured)
 (cd web && pnpm install && pnpm dev)
 
-# the site in a real browser: 20 tests on sample figures, then 18 on a local
+# the site in a real browser: 21 tests on sample figures, then 21 on a local
 # sandbox with the contract and a test wallet (needs the wasm files built above)
 (cd web && pnpm exec playwright install chromium && node e2e/run.mjs)
 
@@ -404,7 +425,7 @@ node agents/bots.mjs herald
 
 `.github/workflows/ci.yml` runs all of this except the bot on every push: the unit tests, both sandbox tests, the site's type check, lint and build, both sets of browser tests, the simulation, and the MCP server's handshake.
 
-Expected: 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, plus 13 web unit tests pass; both sandbox tests pass; 20 and 18 browser tests pass.
+Expected: 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, plus 13 web unit tests pass; both sandbox tests pass; 21 and 21 browser tests pass.
 
 ### Launch on testnet
 
@@ -461,13 +482,13 @@ Contract method names stay plain (`claim`, `exit`, `redeem`); the site uses the 
 
 ## Built with
 
-near-sdk 5.30 and near-contract-standards, near-workspaces, the `uint` crate, Next.js 16.4, React 19.3 and TypeScript 6, @hot-labs/near-connect, Google Fonts (UnifrakturMaguntia, IM Fell English, IM Fell English SC). All artwork (the serpent, the stomach's jars, the coins, the emblems) is drawn in code for this project; the coin designs are original heraldic devices, not the memecoins' logos.
+near-sdk 5.30 and near-contract-standards, near-workspaces, the `uint` crate, Next.js 16.4, React 19.3 and TypeScript 6, @hot-labs/near-connect, and locally bundled @fontsource typefaces (UnifrakturMaguntia, IM Fell English, IM Fell English SC and Almendra capitals). All artwork (the serpent, the stomach's jars, the coins, the emblems) is drawn in code for this project; the coin designs are original heraldic devices, not the memecoins' logos.
 
-**AI disclosure:** this project was written with AI coding assistance (Claude Code), and reviewed twice with a second model (OpenAI Codex). Its security findings are fixed above, except those listed as known and not fixed.
+**AI disclosure:** this project was written with AI coding assistance (Claude Code), and reviewed twice with a second model (OpenAI Codex). The release fixes and later demo/transfer work were also implemented with OpenAI Codex. Known limitations and the scope of verification are listed above; this is not an independent professional audit.
 
 ## Also by this author
 
-Second entry by the same builder, independent of and sharing no code with **OneUp** (https://oneup.markets), a perps DEX also entered in NEAR HACKATHON.
+Second entry by the same builder, independent of and sharing no code with **OneUp** (https://oneup.markets), a perps DEX built for NEAR HACKATHON.
 
 ## License
 

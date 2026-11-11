@@ -590,6 +590,85 @@ test("the MCP server answers from the same contract", async () => {
   expect(body.result.content[0].text).toBe("There is no Bond 999");
 });
 
+test("sending a Bond rejects invalid, self and nonexistent recipients before signing", async () => {
+  await page.reload();
+  const sent = wallet.signed.length;
+  await bondCard(1).getByRole("button", { name: "Send this Bond" }).click();
+  const form = page.getByRole("form", { name: "Send Bond 1", exact: true });
+  for (const [recipient, message] of [["bad..account", "complete NEAR account"], [ALICE, "already hold this Bond"], ["missing.test.near", "does not exist"]]) {
+    await form.getByLabel("Recipient’s NEAR account").fill(recipient);
+    await form.getByRole("button", { name: "Review transfer" }).click();
+    await expect(form.getByRole("alert")).toContainText(message);
+  }
+  expect(wallet.signed).toHaveLength(sent);
+  expect((await bond("1"))!.owner_id).toBe(ALICE);
+});
+
+test("sending a Bond reviews costs, survives wallet refusal and funds the transfer atomically", async () => {
+  // Force the same low-credit case a returning user can encounter.
+  await send(ALICE, [{ receiverId: CONSUME, actions: [{ type: "FunctionCall", params: { methodName: "withdraw_meal_credit", args: {}, deposit: "0", gas: TGAS(30) } }] }]);
+  expect(await view<string>(CONSUME, "get_meal_credit", { account_id: ALICE })).toBe("0");
+  const before = (await bond("1"))!;
+  const form = page.getByRole("form", { name: "Send Bond 1", exact: true });
+  await form.getByLabel("Recipient’s NEAR account").fill(BOB);
+  const sent = wallet.signed.length;
+  await form.getByRole("button", { name: "Review transfer" }).click();
+  await expect(form).toContainText(BOB);
+  await expect(form).toContainText("0.01024 NEAR");
+  await expect(form).toContainText("first adds 0.1 NEAR");
+  expect(wallet.signed).toHaveLength(sent);
+  wallet.refuseNext();
+  await form.getByRole("button", { name: "Confirm and send Bond" }).click();
+  await expect(form.getByRole("alert")).toContainText("The wallet did not sign");
+  expect((await bond("1"))!.owner_id).toBe(ALICE);
+  expect(await view<string>(CONSUME, "get_meal_credit", { account_id: ALICE })).toBe("0");
+
+  await form.getByRole("button", { name: "Confirm and send Bond" }).click();
+  await expect(toast()).toContainText(`Bond 1 sent to ${BOB}`);
+  await expect(bondCard(1)).toHaveCount(0);
+  const { transactions } = wallet.last();
+  expect(transactions).toHaveLength(1);
+  expect(transactions[0].receiverId).toBe(CONSUME);
+  expect(transactions[0].actions.map((a) => [a.params.methodName, a.params.deposit])).toEqual([
+    ["add_meal_credit", "100000000000000000000000"], ["nft_transfer", ONE_YOCTO],
+  ]);
+  expect(transactions[0].actions[1].params.args).toEqual({ receiver_id: BOB, token_id: "1" });
+  expect(await view<string>(CONSUME, "get_meal_credit", { account_id: ALICE })).toBe("89760000000000000000000");
+  const after = (await bond("1"))!;
+  expect(after.owner_id).toBe(BOB);
+  expect(after.vest).toEqual(before.vest);
+});
+
+test("the recipient collects from the transferred Bond and the former holder cannot", async ({ browser }) => {
+  const recipientContext = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+  try {
+    const recipientPage = await recipientContext.newPage();
+    const blocked = await stayLocal(recipientPage);
+    await roads(recipientPage);
+    const recipientWallet = await giveWallet(recipientPage, BOB);
+    await recipientPage.goto("/");
+    await recipientPage.locator("header .sign-button").click();
+    await recipientPage.locator(".hot-connector-popup .connect-item", { hasText: "Test wallet" }).click();
+    const card = recipientPage.locator("#bonds article.ind").filter({ has: recipientPage.locator("h3", { hasText: /№ 1$/ }) });
+    await expect(card).toBeVisible();
+    const formerBalance = await consumeOf(ALICE);
+    const recipientBalance = await consumeOf(BOB);
+    const [refusedClaim] = await send(ALICE, [{ receiverId: CONSUME, actions: [{ type: "FunctionCall", params: { methodName: "claim", args: { token_id: "1" }, deposit: "0", gas: TGAS(50) } }] }]);
+    expect(events<ClaimEvent>([refusedClaim], "claim")).toEqual([]);
+    await card.getByRole("button", { name: "Collect", exact: true }).click();
+    await expect(recipientPage.locator("dialog.collecting")).toHaveAttribute("data-stage", "received");
+    const [paid] = events<ClaimEvent>(recipientWallet.last().outcomes, "claim");
+    expect(paid.owner).toBe(BOB);
+    expect(String(paid.vest_id)).toBe("1");
+    expect(big(paid.amount)).toBeGreaterThan(ZERO);
+    expect(await consumeOf(BOB)).toBe(recipientBalance + big(paid.amount));
+    expect(await consumeOf(ALICE)).toBe(formerBalance);
+    expect(blocked).toEqual([]);
+  } finally {
+    await recipientContext.close();
+  }
+});
+
 test("sign out: the page goes back to what anyone sees", async () => {
   await signButton().click();
   await expect(signButton()).toHaveAccessibleName("Connect wallet");

@@ -1,0 +1,137 @@
+{
+  "network": "testnet",
+  "contract": "consume.consumecash.testnet",
+  "sender": "consumecash.testnet",
+  "recipient": "pilgrim.consumecash.testnet",
+  "mechanism": "NEAR CLI with existing project keychains; not a third-party browser wallet session",
+  "created_at": "2026-11-11T13:20:47.976Z",
+  "transactions": [
+    {
+      "signer": "consumecash.testnet",
+      "receiver": "intents.consumecash.testnet",
+      "method": "simulate_deposit",
+      "args": {
+        "token_id": "nep141:eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near",
+        "from_chain": "Ethereum"
+      },
+      "deposit_yocto": "0",
+      "hash": "EcZTigy9b6FUBs5ZxPQBSXxbZkoDr8L8Gc37UKjZ7LMA",
+      "status": 0
+    },
+    {
+      "signer": "consumecash.testnet",
+      "receiver": "intents.consumecash.testnet",
+      "method": "mt_transfer_call",
+      "args": {
+        "receiver_id": "consume.consumecash.testnet",
+        "token_id": "nep141:eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near",
+        "amount": "200846410897461448498303",
+        "msg": "{\"min_net_usd\":\"980100\",\"deadline_ns\":\"1794403857598000000\"}"
+      },
+      "deposit_yocto": "1",
+      "hash": "2B1eepnMtrvRwpDarzNBWgn1N9Qxnm44rbtUftpqw7ny",
+      "status": 0
+    },
+    {
+      "signer": "consumecash.testnet",
+      "receiver": "consume.consumecash.testnet",
+      "method": "nft_transfer",
+      "args": {
+        "receiver_id": "pilgrim.consumecash.testnet",
+        "token_id": "26"
+      },
+      "deposit_yocto": "1",
+      "hash": "96Uyw8uJV6F2V49bTwDiBih5gSBkXPo2k7ctekSjREjY",
+      "status": 0
+    },
+    {
+      "signer": "pilgrim.consumecash.testnet",
+      "receiver": "consume.consumecash.testnet",
+      "method": "claim",
+      "args": {
+        "token_id": "26"
+      },
+      "deposit_yocto": "0",
+      "hash": "4hN5JL3JGMNWh6cLbuWDFFtTaqFcCE7WpwmGn4ny2VYt",
+      "status": 0
+    }
+  ],
+  "quote": {
+    "memecoin": "PEPE",
+    "offered": "200846.410897",
+    "accepted": "200846.410897",
+    "refunded_over_the_cap": "0",
+    "value_usd": 1,
+    "tithe_usd": 0.01,
+    "feast_no_tithe": false,
+    "consume_in_the_bond": "822.5734",
+    "released_over_days": 30
+  },
+  "bond_id": "26",
+  "before_transfer": {
+    "token_id": "26",
+    "owner_id": "consumecash.testnet",
+    "vest": {
+      "tribe": "eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near",
+      "eaten": "200846410897461448498303",
+      "meal_usd": "1000000",
+      "total": "822573471592270280921",
+      "released": "0",
+      "start_ns": "1794403263595973195",
+      "duration_ns": "2592000000000000",
+      "exited": false,
+      "bonus": false
+    },
+    "claimable": "1732207604674744",
+    "locked": "822571739384665606177",
+    "exit_payout": "411287601899937477833"
+  },
+  "sender_credit_before": "106970000000000000000000",
+  "after_transfer": {
+    "token_id": "26",
+    "owner_id": "pilgrim.consumecash.testnet",
+    "vest": {
+      "tribe": "eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near",
+      "eaten": "200846410897461448498303",
+      "meal_usd": "1000000",
+      "total": "822573471592270280921",
+      "released": "0",
+      "start_ns": "1794403263595973195",
+      "duration_ns": "2592000000000000",
+      "exited": false,
+      "bonus": false
+    },
+    "claimable": "4829221553800158",
+    "locked": "822568642370716480763",
+    "exit_payout": "411289150406912040540"
+  },
+  "sender_credit_after": "96730000000000000000000",
+  "recipient_balance_before": "0",
+  "sender_balance_before": "6845238038745295444820",
+  "claim_event": {
+    "vest_id": "26",
+    "owner": "pilgrim.consumecash.testnet",
+    "amount": "9801989231199044"
+  },
+  "after_claim": {
+    "token_id": "26",
+    "owner_id": "pilgrim.consumecash.testnet",
+    "vest": {
+      "tribe": "eth-0x6982508145454ce325ddbe47a25d4ec3d2311933.omft.near",
+      "eaten": "200846410897461448498303",
+      "meal_usd": "1000000",
+      "total": "822573471592270280921",
+      "released": "9801989231199044",
+      "start_ns": "1794403263595973195",
+      "duration_ns": "2592000000000000",
+      "exited": false,
+      "bonus": false
+    },
+    "claimable": "1478019782177783",
+    "locked": "822562191583256904094",
+    "exit_payout": "411282573811410629830"
+  },
+  "recipient_balance_after": "9801989231199044",
+  "sender_balance_after": "6845238038745295444820",
+  "verified": true
+}

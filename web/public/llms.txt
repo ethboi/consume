@@ -61,3 +61,7 @@ Release behavior (2026-11-11): `account` pages all Bonds at one finalized block.
 License: AGPL-3.0-only for original CONSUME code and documentation; third-party materials retain their terms.
 
 Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_completeness` is `unknown` because former Bond holders may be missed even when every discovered page was read.
+
+Public source: https://github.com/ethboi/consume
+Demo guide: https://consume.cash/demo (testnet, with costs and expected outcomes).
+Direct Bond transfers: the website offers Send this Bond, validates the recipient, reviews costs, and groups a required credit top-up with nft_transfer in one transaction. Transfer spends a nonrefundable 0.01024 NEAR from the initiating account’s meal credit, plus 1 yoctoNEAR attached and gas. The recipient may need separate FT registration before claiming. There is no prepare_transfer MCP tool and no verified marketplace sale integration.

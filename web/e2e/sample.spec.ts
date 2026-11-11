@@ -472,3 +472,13 @@ test("llms.txt and the MCP server name the same fourteen tools", async ({ reques
   // the server speaks JSON-RPC over POST only
   expect((await request.get("/api/mcp")).status()).toBe(405);
 });
+test("source and demo guide are discoverable, and the guide fits a phone", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "Source on GitHub", exact: true })).toHaveAttribute("href", "https://github.com/ethboi/consume");
+  await page.getByRole("link", { name: "Demo: two-minute guide", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Feed. Pass the Bond. Redeem.");
+  await expect(page.locator(".demo-steps > li")).toHaveCount(5);
+  await expect(page.locator("main")).toContainText("marketplace sales have not been verified");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
