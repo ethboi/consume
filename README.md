@@ -2,19 +2,27 @@
 
 **A memecoin that eats other memecoins.** Built for NEAR HACKATHON and entered on 2026-11-11 in the **Memecoins With Mechanics**, **NFTs That Do Something** and **Open Innovation** tracks.
 
+[Live demo](https://consume.cash) · [Demo film, two minutes](https://x.com/EthBoi_/status/2120534208674447732) · [Try it](#try-it-in-two-minutes) · [Reproduce the checks](#reproduce-the-checks) · [Seen on testnet](#seen-on-testnet) · [CI](https://github.com/ethboi/consume/actions)
+
 Feed it a memecoin from another chain or from NEAR (DOGE, PEPE, SHIB and seven more). The memecoin goes into its Stomach, where nothing takes it out except burning $CONSUME, and you are paid in $CONSUME through a **Bond**, an NFT that releases your $CONSUME over 30 days. Every $CONSUME can later be burned (**Redeem**) for its share of everything in its Stomach. So $CONSUME is a memecoin backed by a growing basket of other memecoins.
 
-The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list, caps, rates and periods are set by `new` and have no setter in this code. The testnet contract account's only full-access key was deleted on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/8LQwF4z3mxMiYo5uCcKwz5Q9vsfyiVGxFGhhi8WbsKN)), so the code of that deployment can no longer be replaced.
+The memecoins track's own example prompt asks for five things. Each is here, and each has a section further down:
+
+| The track's prompt asks for | In CONSUME | Detail |
+| --- | --- | --- |
+| A NEP-141 token with the mechanic in the contract, not in a backend that can be switched off | The whole mechanic is one NEAR contract (`contracts/consume`). $CONSUME is NEP-141 with no premine: `new` mints nothing. It is minted only when a Bond pays out (`claim`, `exit`) and burned only by `redeem`, for a share of every memecoin in the Stomach. The site keeps no database. The one piece off the chain is the price feed, described under this table. | [The mechanic, and where it lives](#the-mechanic-and-where-it-lives) |
+| Parameters set at launch and readable by anyone, with no admin key that can change them | The memecoin list, caps, rates and periods are arguments to `new`, read back by `get_config` and `get_tribes`, and no method changes them. The contract account's only key was deleted on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/8LQwF4z3mxMiYo5uCcKwz5Q9vsfyiVGxFGhhi8WbsKN)), so the code cannot be replaced either. One role remains, the guardian, with exactly three methods: `set_tribe_open` (close a listed memecoin to new feedings, or reopen it), `set_price_feeder` (replace the Assayer) and `set_guardian` (pass the role on, or renounce it). It cannot mint, withdraw, list a memecoin or change a number. | [Every method that changes state](#every-method-that-changes-state), [Trust assumptions](#trust-assumptions) |
+| Sybil limits, written plainly | Nothing in the contract counts accounts: no airdrop, no reward per account, no referral. Caps are per memecoin and shared by every account, and the Feast is won by dollars. The limit is that one account can use up a memecoin's whole day. | [Sybil limits, plainly](#sybil-limits-plainly) |
+| A page with a log of every mint and burn | The Ledger on [consume.cash](https://consume.cash/#ledger), also JSON at `/api/ledger`. It is read from the events the contract emits, added up, and compared with the contract's own totals. It depends on a public indexer to find the transactions. | [Every mint and burn, logged](#every-mint-and-burn-logged) |
+| 60 days of community behaviour simulated, with supply over time under a few scenarios | `node sim/sim.mjs`: four scenarios on a port of the contract's arithmetic, with the backing checked after every action. CI fails if the published table or charts differ from the run. | [Sixty days, simulated](#sixty-days-simulated) |
+
+**The limit, stated first: one account posts the prices.** A feeding is valued in USD, and the prices come from the Assayer, an account that reads NEAR Intents 1Click quotes and posts them with `set_prices`. The contract takes what that account posts and puts no bound on how far a price may move. The Assayer cannot take anything out of the Stomach, and redeeming needs no price, but a wrong price misprices feedings, and a dishonest Assayer could let one feeding claim most of the Stomach. On testnet today the Assayer and the guardian, which can replace it, are the same builder account, `consumecash.testnet`. The whole of it is under [Trust assumptions](#trust-assumptions).
 
 ![The CONSUME site: the serpent ringed by the ten memecoins, the four steps, and the live figures from testnet](docs/site.png)
 
-> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 20 web unit tests, the sandbox tests (four files) and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. The rule that no memecoin feasts two weeks running is live on testnet: the contract was upgraded in place on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/BPkQwiMUJmjb7VqY9LWLjS6JjtrnwNNYpbkQuob5J1ay)) with its state unchanged. The first Feast is crowned on 2026-11-12, so the first week in which the rule can change who feasts starts on 2026-11-19. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. A two-minute demo film is in the [demo post on X](https://x.com/EthBoi_/status/2120534208674447732), posted 2026-11-11. After that upgrade the contract account's only full-access key was deleted ([transaction](https://explorer.testnet.near.org/transactions/8LQwF4z3mxMiYo5uCcKwz5Q9vsfyiVGxFGhhi8WbsKN)): the account holds no key, so its code can no longer be replaced, by the builder or anyone else. The guardian and the Assayer are still one builder account.
-
-> **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. A second upgrade of the CONSUME contract later the same day added the rule that no memecoin feasts two weeks running. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
-
 ## Try it in two minutes
 
-[Live demo](https://consume.cash) · [Step-by-step demo guide](https://consume.cash/demo) · [Source](https://github.com/ethboi/consume) · [CI](https://github.com/ethboi/consume/actions)
+[Step-by-step demo guide](https://consume.cash/demo) · [Source](https://github.com/ethboi/consume)
 
 Allow about two minutes **after funding a NEAR testnet wallet**. All memecoins here are free test tokens; cross-chain arrivals and withdrawals are simulated. A second existing testnet wallet you control lets you try the NFT ownership handoff.
 
@@ -75,6 +83,34 @@ What this does not cover:
 - **Value at the moment of sale.** A Bond's $CONSUME only leaves it through `claim` and `exit`, and both void the listing, but what a $CONSUME is worth moves with the Stomach. A buyer should read `get_vest` when buying.
 - **Storage.** The account that calls the transfer pays a 0.01024 NEAR reserve from its own storage credit (`standards.rs` `reserve_bond_transfer_storage`), so a marketplace's account needs credit first; anyone can add it with `add_meal_credit({"account_id": ...})`. Without it the transfer is refused and the listing stands. A buyer who has never held $CONSUME pays for their registration from their own credit on first collecting (`a_bond_received_later_pays_its_own_registration`).
 - **A real marketplace.** In the test a plain account stands in for one and calls `nft_transfer` with the approval id. No marketplace contract has listed a Bond on testnet, and `nft_approve` with a `msg` (the `nft_on_approve` callback) is not exercised.
+
+### The third track: Open Innovation
+
+Open Innovation asks for something not seen before: new ways for money, intelligence and ownership to work together, with chain abstraction among its hints. CONSUME is entered there because it does not sit inside either of the other two tracks. It is a memecoin, an NFT position and a cross-chain basket at once, and each part needs the others.
+
+- **Money.** A token with no supply of its own. Every $CONSUME exists because someone fed another community's memecoin to the contract, and it can always be burned for its share of what was fed. Redeeming needs no price, no pool and no buyer (`redeem.rs` `quote`, `redeem`).
+- **Ownership.** The claim on that money is not a balance. It is a Bond, an NFT that can be sent or sold while it is still paying out, whose listing is void the moment its holder takes value out of it ([how control passes](#how-control-passes-on-transfer-and-what-stops-the-seller)).
+- **Intelligence.** An agent can do what a person can. The MCP server (`web/src/lib/mcp.ts`, 14 tools) reads the Stomach, the Feast and the Ledger and returns unsigned calls for a feeding, a collection, a broken seal or a redemption. Eight bot accounts feed and collect on testnet with the same tools ([For agents](#for-agents)).
+- **Chain abstraction.** The ten memecoins live on Dogecoin, Ethereum, Solana and NEAR. NEAR Intents puts them in one balance, so one contract holds the basket and pays redemptions back into it (`intents.rs`). On testnet that leg is a stand-in contract with the same calls, because NEAR Intents has no testnet.
+
+The parts have precedents: baskets redeemed in kind, bonds that vest, NFTs that carry a position. What we have not seen is them joined: a memecoin minted only through transferable vesting NFTs, backed only by other memecoins, fed across chains, with a weekly contest between the communities it eats.
+
+**The case against it,** since the track's example prompt asks for one before building:
+
+1. *A basket of memecoins is a basket of things that fall together.* True, and not answered. The backing is a share of ten memecoins, not a price in dollars. The simulation's fourth scenario shows it: prices down about 70%, backing down to $0.42 from $1.00.
+2. *Nobody needs it: holding the memecoins avoids the tithe and the 30 days.* Partly answered. What a feeder gets that a holder does not is a share of later tithes and broken seals, and the Feast. Whether anyone wants that is not shown: every feeding so far is the builder's own.
+3. *It needs a trusted price.* Answered only in part. Redemption needs none. Feeding does, and that trust is one account ([Trust assumptions](#trust-assumptions)).
+4. *Late feeders pay early ones, which is how a Ponzi works.* Answered by the arithmetic. A feeding earns at the backing, so a later feeder is not diluted and an exit is paid from the Stomach, never from a later deposit. The only transfers are the tithe and broken seals, both stated before signing (`math.rs` `consume_at_floor`; the simulation's run for the exit).
+
+**How it fails,** in the track prompt's terms:
+
+| Failure | What happens |
+| --- | --- |
+| The Assayer stops, or its key is lost | Prices go stale after 15 minutes and every feeding is refused. Collecting, breaking a seal and redeeming go on. The guardian can appoint a new Assayer; with the guardian renounced, feedings would stop for good. |
+| The Assayer turns hostile | It can misprice feedings, up to letting one feeding claim most of the Stomach. It cannot withdraw anything itself. The guardian can replace it. |
+| The guardian turns hostile | It can appoint a hostile Assayer, with the damage above, or close memecoins to feeding. It cannot change a parameter, mint or withdraw. |
+| A fault is found in the contract | It stays. The contract account has no key, so nobody can replace the code. |
+| NEAR Intents or a listed token contract fails | Redemptions of that memecoin fail and are kept as owed (`redeem.rs` `on_withdraw`); the rest are paid. |
 
 ### Every method that changes state
 
@@ -153,6 +189,12 @@ Every claim below can be checked from a clean clone. Prerequisites are under [Tr
 | 16 | `(cd web && node e2e/run.mjs live)` | `8 passed` while the public site and the Assayer are up. Read-only checks of [consume.cash](https://consume.cash): the page agrees with what the contract reports, prices are fresh, and the Ledger adds up. It connects no wallet and signs nothing. |
 
 Step 4 downloads a NEAR sandbox node and builds OpenSSL on first run, which takes a few minutes. Step 6 needs network access for uncached dependencies. Page and card fonts are bundled from installed `@fontsource` packages; startup and build do not fetch Google Fonts. Steps 7, 11, 12, 13 and 16 need network access (NEAR Intents 1Click, a public testnet RPC and, for step 13, FastNEAR's public transactions API). Steps 9 to 11 and 13 need Node.js 22.18 or newer and nothing installed. Steps 14 to 16 run in Chromium, which the command in step 14 downloads (`E2E_CHANNEL=chrome` uses an installed Chrome instead); steps 14 and 15 stay on the local machine once that is done.
+
+## Status
+
+> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 20 web unit tests, the sandbox tests (four files) and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. The rule that no memecoin feasts two weeks running is live on testnet: the contract was upgraded in place on 2026-11-11 ([transaction](https://explorer.testnet.near.org/transactions/BPkQwiMUJmjb7VqY9LWLjS6JjtrnwNNYpbkQuob5J1ay)) with its state unchanged. The first Feast is crowned on 2026-11-12, so the first week in which the rule can change who feasts starts on 2026-11-19. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. A two-minute demo film is in the [demo post on X](https://x.com/EthBoi_/status/2120534208674447732), posted 2026-11-11. After that upgrade the contract account's only full-access key was deleted ([transaction](https://explorer.testnet.near.org/transactions/8LQwF4z3mxMiYo5uCcKwz5Q9vsfyiVGxFGhhi8WbsKN)): the account holds no key, so its code can no longer be replaced, by the builder or anyone else. The guardian and the Assayer are still one builder account.
+
+> **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. A second upgrade of the CONSUME contract later the same day added the rule that no memecoin feasts two weeks running. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
 
 ## Seen on testnet
 
@@ -274,7 +316,7 @@ We read the public project list at nearhackathon.com on 2026-11-10 (436 entries,
 
 ### Track fit
 
-[What the track asks for, and where the code answers](#what-the-track-asks-for-and-where-the-code-answers) maps the track's own words to code. What NEAR in particular makes possible is under [How NEAR is used](#how-near-is-used): NEAR Intents puts memecoins from Dogecoin, Ethereum and Solana in one account's balance, so one contract can hold a cross-chain basket, and cheap storage makes one NFT per feeding practical. Bonds also answer the NFTs That Do Something track: an NFT that owns a vesting position and changes as it pays out.
+[What the track asks for, and where the code answers](#what-the-track-asks-for-and-where-the-code-answers) maps the track's own words to code. What NEAR in particular makes possible is under [How NEAR is used](#how-near-is-used): NEAR Intents puts memecoins from Dogecoin, Ethereum and Solana in one account's balance, so one contract can hold a cross-chain basket, and cheap storage makes one NFT per feeding practical. Bonds also answer the NFTs That Do Something track: an NFT that owns a vesting position and changes as it pays out. The case for Open Innovation, with the case against the idea and how it fails, is under [The third track](#the-third-track-open-innovation).
 
 ### Execution and completeness
 
