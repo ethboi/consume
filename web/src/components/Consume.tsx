@@ -14,6 +14,7 @@ import {
   NETWORK,
   VIA_INTENTS,
   cleanError,
+  daoCouncil,
   fullAccessKeys,
   heresyForToken,
   intentsToken,
@@ -1780,6 +1781,14 @@ const ASSAYER_KEY: Record<string, { made: string; named: string }> = {
   },
 };
 
+// The DAO that was handed the guardian role. Like the Assayer's key, these show only while the chain names it.
+const GUARDIAN_DAO: Record<string, { handed: string; used: string }> = {
+  "consume-guardian.sputnikv2.testnet": {
+    handed: "https://explorer.testnet.near.org/transactions/3PdUM8nJXgu2L4eb8fDMLyXSGjkuNtJ3LHSUroZqhpnC",
+    used: "https://explorer.testnet.near.org/transactions/n77wbaBQSXtMtzprBa8nYM2MnqFXJ6qXcmjTk6fsBU9",
+  },
+};
+
 function Rule({ snap }: { snap: Snapshot }) {
   const c = snap.config;
   const days = Number(BigInt(c.vest_duration_ns) / BigInt(86_400_000_000_000));
@@ -1790,6 +1799,9 @@ function Rule({ snap }: { snap: Snapshot }) {
   const feeder = c.price_feeder_id;
   const guardian = c.guardian_id;
   const limited = feeder ? ASSAYER_KEY[feeder] : undefined;
+  const dao = guardian ? GUARDIAN_DAO[guardian] : undefined;
+  // who votes in the DAO, read from the DAO itself: the page must not go on saying one account when there are more
+  const council = useLive(dao && guardian ? `council-${guardian}` : null, () => daoCouncil(guardian!), 300_000).data;
   return (
     <>
       <div className="charter">
@@ -1943,7 +1955,20 @@ function Rule({ snap }: { snap: Snapshot }) {
               can withdraw.
             </p>
             {guardian === null && <p className="seal-who">Nobody holds it now: the role was given up, so the Assayer can never be swapped.</p>}
-            {guardian && (
+            {guardian && dao && (
+              <p className="seal-who">
+                Today it is <b>{guardian}</b>, a DAO: each use of the role is a public proposal and a vote. See{" "}
+                <a href={dao.handed}>the handover</a> and <a href={dao.used}>the DAO using the role</a>.
+                {council?.length === 1 && (
+                  <>
+                    {" "}
+                    Its council is one account, <b>{council[0]}</b>, so one builder still decides.
+                  </>
+                )}
+                {council && council.length > 1 && <> Its council has {council.length} accounts: {council.join(", ")}.</>}
+              </p>
+            )}
+            {guardian && !dao && (
               <p className="seal-who">
                 Today it is <b>{guardian}</b>
                 {guardian === feeder

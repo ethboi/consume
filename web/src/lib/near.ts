@@ -170,6 +170,15 @@ export async function view<T>(contract: string, method: string, args: object = {
   return JSON.parse(new TextDecoder().decode(bytes)) as T;
 }
 
+/** The accounts that vote in a Sputnik DAO: the members of every role that is a named group. */
+export async function daoCouncil(dao: string): Promise<string[]> {
+  const policy = await view<{ roles: { kind: unknown }[] }>(dao, "get_policy");
+  const members = policy.roles.flatMap((r) =>
+    r.kind && typeof r.kind === "object" && "Group" in r.kind && Array.isArray(r.kind.Group) ? (r.kind.Group as string[]) : [],
+  );
+  return [...new Set(members)];
+}
+
 /** How many full-access keys an account holds. With none, nobody can replace its code. */
 export async function fullAccessKeys(account: string): Promise<number> {
   const json = await query({ request_type: "view_access_key_list", finality: "final", account_id: account });
