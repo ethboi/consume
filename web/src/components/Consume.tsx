@@ -380,7 +380,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
       <section className="chapter" id="sim" aria-labelledby="sim-h">
         <header>
           <AbacusEmblem />
-          <h2 id="sim-h">Sixty days, simulated</h2>
+          <h2 id="sim-h">The Simulation</h2>
           <p>
             Before launch, sixty days of feeding, broken seals and redemptions were run through the contract&apos;s own arithmetic, four ways. Every figure in
             this section is simulated. None of it is the live Stomach.
