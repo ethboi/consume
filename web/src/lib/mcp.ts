@@ -437,6 +437,7 @@ export async function ledger(net: Net, args: { kind?: unknown; limit?: unknown }
       kind: e.kind,
       at: new Date(e.at).toISOString(),
       account: e.account,
+      by_builder: e.by_builder === true,
       ...(e.bond ? { bond_id: e.bond } : {}),
       ...(e.kind === "feed"
         ? {
@@ -464,6 +465,10 @@ export async function ledger(net: Net, args: { kind?: unknown; limit?: unknown }
     history_completeness: read.history_completeness,
     older_entries_may_be_missing: true,
     entries_found: read.entries.length,
+    // who fed it: the builder's own accounts (the builder account and every account under it) apart from everyone else
+    builder_account: read.builder,
+    feedings: { by_builder: read.feedings.builder, by_others: read.feedings.others },
+    accounts_that_fed: { builder: read.feeders.builder, others: read.feeders.others },
     entries,
   };
 }
@@ -802,7 +807,7 @@ export const TOOLS: Tool[] = [
   {
     name: "ledger",
     title: "The Ledger",
-    description: "The log of every feeding, every $CONSUME minted (a Bond collected from, a seal broken) and every $CONSUME burned (a redemption), newest first, each with its transaction. Also says whether the entries add up to the totals the contract keeps.",
+    description: "The log of every feeding, every $CONSUME minted (a Bond collected from, a seal broken) and every $CONSUME burned (a redemption), newest first, each with its transaction. Also says whether the entries add up to the totals the contract keeps, and how many feedings came from the builder's own accounts and how many from everyone else.",
     inputSchema: {
       type: "object",
       properties: {

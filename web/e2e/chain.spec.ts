@@ -29,7 +29,8 @@ type MealEvent = { vest_id: string | number; eater: string; tribe: string; eaten
 type ClaimEvent = { vest_id: string | number; owner: string; amount: string };
 type ExitEvent = { vest_id: string | number; owner: string; payout: string; forfeited: string };
 type RedeemEvent = { account: string; burned: string; shares: [string, string][] };
-type Ledger = { entries: LedgerEntry[]; discovery_limits_reached: boolean; history_completeness: string };
+type Split = { builder: number; others: number };
+type Ledger = { entries: LedgerEntry[]; discovery_limits_reached: boolean; history_completeness: string; builder: string | null; feedings: Split; feeders: Split };
 
 const stats = () => view<Stats>(CONSUME, "get_stats");
 const tribes = () => view<[string, Tribe][]>(CONSUME, "get_tribes");
@@ -514,7 +515,7 @@ test("what backs each $CONSUME never fell", async () => {
 
 test("the Ledger lists every feeding, mint and burn, and adds up to the contract's totals", async () => {
   // the Ledger is read from an indexer and kept for half a minute, so a new entry can take that long
-  let ledger: Ledger = { entries: [], discovery_limits_reached: false, history_completeness: "unknown" };
+  let ledger: Ledger = { entries: [], discovery_limits_reached: false, history_completeness: "unknown", builder: null, feedings: { builder: 0, others: 0 }, feeders: { builder: 0, others: 0 } };
   await expect
     .poll(
       async () => {
@@ -561,6 +562,33 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await expect(page.locator("#ledger ol.roll > li")).toContainText(`${ALICE} redeemed for a share of the Stomach`);
   await expect(page.locator("#ledger ol.roll > li")).toContainText("1,000 burned");
   await shows.filter({ hasText: "All" }).click();
+
+  // The builder's own accounts apart from everyone else. Every sandbox account
+  // sits under test.near, so the run names Alice as the builder (e2e/run.mjs).
+  expect(ledger.builder).toBe(ALICE);
+  expect(ledger.feedings).toEqual({ builder: 2, others: 1 });
+  expect(ledger.feeders).toEqual({ builder: 1, others: 1 });
+  const others = ledger.entries.filter((e) => !e.by_builder);
+  for (const e of ledger.entries) expect(e.by_builder === true, `${e.kind} by ${e.account}`).toBe(e.account === ALICE);
+  expect(others.length).toBeGreaterThan(0);
+  expect(others.length).toBeLessThan(9);
+  const who = page.locator("#ledger .roll-who");
+  await expect(who).toContainText("1 of 3 feedings came from one account outside the builder's own");
+  await expect(who).toContainText(ALICE);
+  await expect(page.locator("#ledger ol.roll .roll-own")).toHaveCount(9 - others.length);
+  const leaveOut = who.getByLabel("Leave out the builder's accounts");
+  await leaveOut.check();
+  await expect(page.locator("#ledger ol.roll > li")).toHaveCount(others.length);
+  await expect(page.locator("#ledger ol.roll .roll-own")).toHaveCount(0);
+  await expect(page.locator("#ledger ol.roll > li").filter({ hasText: ALICE })).toHaveCount(0);
+  await expect(shows.first()).toHaveText(`All ${others.length}`);
+  await expect(shows.nth(1)).toHaveText("Feedings 1");
+  // Alice made the only redemption, so with her left out there is none to show
+  await shows.filter({ hasText: "Burns" }).click();
+  await expect(page.locator("#ledger .empty")).toHaveText("Nothing here from outside the builder's accounts yet. The first will be written here.");
+  await shows.filter({ hasText: "All" }).click();
+  await leaveOut.uncheck();
+  await expect(page.locator("#ledger ol.roll > li")).toHaveCount(9);
 });
 
 test("the MCP server answers from the same contract", async () => {

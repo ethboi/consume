@@ -51,6 +51,7 @@ const NO_CONTRACT = {
   NEXT_PUBLIC_REPO_URL: "",
   NEXT_PUBLIC_GA_ID: "",
   CONSUME_INDEXER_URL: "",
+  CONSUME_BUILDER_ACCOUNT: "",
 };
 
 const children = new Set();
@@ -195,6 +196,8 @@ async function chain() {
       NEXT_PUBLIC_INTENTS_CONTRACT: on.intents,
       NEXT_PUBLIC_RPC_URL: on.rpc,
       CONSUME_INDEXER_URL: harness.url,
+      // every sandbox account sits under test.near, so one is named as the builder: the Ledger then has both kinds
+      CONSUME_BUILDER_ACCOUNT: "alice.test.near",
     };
     await build(env);
     site = await serve(3042, env);

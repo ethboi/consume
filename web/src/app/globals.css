@@ -5011,6 +5011,32 @@ section[inert] > :not(header) {
   margin-left: 8px;
   white-space: nowrap;
 }
+/* one of the builder's own accounts: quieter than the feast mark */
+.roll-tag.roll-own {
+  color: var(--faded);
+  font-style: normal;
+}
+.roll-who {
+  margin: 0 0 18px;
+  max-width: 68ch;
+}
+.roll-who p {
+  margin: 0 0 10px;
+}
+.roll-who label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-family: var(--font-sc);
+  font-size: var(--t-sm);
+}
+.roll-who input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--ink);
+}
 .roll-figure {
   grid-area: figure;
   text-align: right;
@@ -5288,6 +5314,10 @@ section[inert] > :not(header) {
 
   /* the Ledger: its four filters on one line */
   .folio .roll-note {
+    font-size: 1.0625rem;
+    line-height: 1.45;
+  }
+  .folio .roll-who p {
     font-size: 1.0625rem;
     line-height: 1.45;
   }

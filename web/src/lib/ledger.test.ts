@@ -1,7 +1,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readLedger } from "./ledger.ts";
+import { builderOf, isBuilders, readLedger, splitFeedings, type LedgerEntry } from "./ledger.ts";
 
 for (const failLate of [false, true]) {
   test(`ledger cache eviction preserves results and bounds partial failures (fail=${failLate})`, async (t) => {
@@ -68,8 +68,66 @@ test("finishing discovered pages cannot prove history completeness after Bond tr
   });
   const ledger = await readLedger({ network: "testnet", consume: contract }, ["carol.testnet"]);
   assert.deepEqual(ledger.entries.map((entry) => entry.kind), ["feed"]);
+  // a contract directly under the network's name has no builder to tell apart
+  assert.equal(ledger.builder, null);
+  assert.deepEqual(ledger.feedings, { builder: 0, others: 1 });
+  assert.ok(!("by_builder" in ledger.entries[0]));
   assert.ok(!searched.includes("bob.testnet"));
   assert.equal(ledger.discovery_limits_reached, false);
   assert.equal(ledger.history_completeness, "unknown");
   assert.ok(!("complete" in ledger));
+});
+
+test("the builder's accounts are the contract's parent and everything under it", () => {
+  assert.equal(builderOf("consume.consumecash.testnet"), "consumecash.testnet");
+  assert.equal(builderOf("consume.testnet"), null);
+  assert.equal(builderOf("consume"), null);
+  const builder = "consumecash.testnet";
+  assert.ok(isBuilders("consumecash.testnet", builder));
+  assert.ok(isBuilders("glutton.consumecash.testnet", builder));
+  assert.ok(isBuilders("a.b.consumecash.testnet", builder));
+  // a name that only ends the same way is somebody else's
+  assert.ok(!isBuilders("notconsumecash.testnet", builder));
+  assert.ok(!isBuilders("consumecash.testnet.evil.testnet", builder));
+  assert.ok(!isBuilders("alice.testnet", builder));
+  assert.ok(!isBuilders("alice.testnet", null));
+
+  const fed = (account: string, n: number): LedgerEntry => ({ id: `${account}:${n}`, kind: "feed", tx: "", at: n, account });
+  const entries: LedgerEntry[] = [
+    fed("glutton.consumecash.testnet", 1),
+    fed("glutton.consumecash.testnet", 2),
+    fed("miser.consumecash.testnet", 3),
+    fed("alice.testnet", 4),
+    // a collection is not a feeding, whoever made it
+    { id: "c", kind: "collect", tx: "", at: 5, account: "bob.testnet" },
+  ];
+  assert.deepEqual(splitFeedings(entries, builder), { feedings: { builder: 3, others: 1 }, feeders: { builder: 2, others: 1 } });
+  assert.deepEqual(splitFeedings(entries, null), { feedings: { builder: 0, others: 4 }, feeders: { builder: 0, others: 3 } });
+});
+
+test("a reading marks the builder's entries and counts them apart", async (t) => {
+  const contract = "consume.builder.testnet";
+  const eaters: Record<string, string> = { "feed-own": "bot.builder.testnet", "feed-other": "alice.testnet" };
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    if (url.endsWith("/v0/account")) {
+      const hashes = body.account_id === contract ? Object.keys(eaters) : [];
+      return Response.json({ account_txs: hashes.map((hash) => ({ transaction_hash: hash, is_success: true })) });
+    }
+    return Response.json({ transactions: body.tx_hashes.map((hash: string, i: number) => ({
+      transaction: { hash },
+      receipts: [{ execution_outcome: {
+        block_timestamp: String((i + 1) * 1_000_000),
+        outcome: { executor_id: contract, status: { SuccessValue: "" }, logs: ["EVENT_JSON:" + JSON.stringify({
+          standard: "consume", event: "meal",
+          data: [{ eater: eaters[hash], vest_id: String(i + 1), tribe: "pepe.testnet", eaten: "10", meal_usd: "10", tithe_usd: "0", consume: "10" }],
+        })] },
+      } }],
+    })) });
+  });
+  const ledger = await readLedger({ network: "testnet", consume: contract });
+  assert.equal(ledger.builder, "builder.testnet");
+  assert.deepEqual(ledger.feedings, { builder: 1, others: 1 });
+  assert.deepEqual(ledger.feeders, { builder: 1, others: 1 });
+  assert.deepEqual(ledger.entries.map((e) => [e.account, e.by_builder === true]).sort(), [["alice.testnet", false], ["bot.builder.testnet", true]]);
 });

@@ -191,6 +191,10 @@ const otherEntries: LedgerEntry[] = [
 
 export const DEMO_LEDGER: Ledger = {
   entries: [...fedEntries, ...otherEntries].sort((x, y) => y.at - x.at),
+  // sample figures have no builder to tell apart
+  builder: null,
+  feedings: { builder: 0, others: fedEntries.length },
+  feeders: { builder: 0, others: new Set(fedEntries.map((e) => e.account)).size },
   discovery_limits_reached: false,
   history_completeness: "unknown",
   accounts: 0,

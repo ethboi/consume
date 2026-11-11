@@ -23,6 +23,8 @@ export type LedgerNet = { network: "testnet" | "mainnet"; consume: string };
 export type LedgerEntry = {
   id: string;
   kind: "feed" | "collect" | "break" | "redeem";
+  /** True when the account is one of the builder's own (see `Ledger.builder`). */
+  by_builder?: boolean;
   /** Transaction hash. */
   tx: string;
   /** When the contract ran it, in milliseconds. */
@@ -47,9 +49,20 @@ export type LedgerEntry = {
   shares?: [string, string][];
 };
 
+/** How many, the builder's own accounts apart from everyone else's. */
+export type Split = { builder: number; others: number };
+
 export type Ledger = {
   /** Newest first. */
   entries: LedgerEntry[];
+  /**
+   * The builder's account. It and every account under it count as the
+   * builder's own. Null when there is nothing to tell them by.
+   */
+  builder: string | null;
+  /** Feedings among the entries, and the distinct accounts that made them. */
+  feedings: Split;
+  feeders: Split;
   /** True when account/page limits truncated discovery; false is not completeness. */
   discovery_limits_reached: boolean;
   history_completeness: "unknown";
@@ -57,6 +70,35 @@ export type Ledger = {
   accounts: number;
   read_at: string;
 };
+
+/**
+ * Whose deployment this is, read from the contract's own name: the account it
+ * sits under (consume.consumecash.testnet is under consumecash.testnet). A
+ * contract directly under the network's own name has no such parent, and the
+ * answer is null. CONSUME_BUILDER_ACCOUNT names another account instead; the
+ * browser tests use it, since every account on a local sandbox has one parent.
+ */
+export function builderOf(consume: string): string | null {
+  const named = process.env.CONSUME_BUILDER_ACCOUNT?.trim();
+  if (named) return named;
+  const parent = consume.split(".").slice(1).join(".");
+  return parent.includes(".") ? parent : null;
+}
+
+/** The builder's account itself, or any account under it. */
+export const isBuilders = (account: string, builder: string | null): boolean =>
+  !!builder && (account === builder || account.endsWith(`.${builder}`));
+
+/** Feedings and the accounts that made them, the builder's own apart from everyone else's. */
+export function splitFeedings(entries: LedgerEntry[], builder: string | null): { feedings: Split; feeders: Split } {
+  const fed = entries.filter((e) => e.kind === "feed");
+  const own = (e: LedgerEntry) => isBuilders(e.account, builder);
+  const accounts = (list: LedgerEntry[]) => new Set(list.map((e) => e.account)).size;
+  return {
+    feedings: { builder: fed.filter(own).length, others: fed.filter((e) => !own(e)).length },
+    feeders: { builder: accounts(fed.filter(own)), others: accounts(fed.filter((e) => !own(e))) },
+  };
+}
 
 const INDEXER = { testnet: "https://tx.test.fastnear.com", mainnet: "https://tx.main.fastnear.com" };
 /** Another indexer that speaks the same two calls, if CONSUME_INDEXER_URL names one. The browser tests point it at a local sandbox. */
@@ -204,10 +246,15 @@ async function load(net: LedgerNet, holders: string[]): Promise<Ledger> {
   }
   const rest = await entriesOf(net, [...new Set(theirs.flatMap((t) => t.hashes))]);
 
+  const builder = builderOf(net.consume);
   const byId = new Map<string, LedgerEntry>();
-  for (const e of [...first, ...rest]) byId.set(e.id, e);
+  // a copy of each entry: the ones kept per transaction stay as they were read
+  for (const e of [...first, ...rest]) byId.set(e.id, isBuilders(e.account, builder) ? { ...e, by_builder: true } : e);
+  const entries = [...byId.values()].sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1));
   return {
-    entries: [...byId.values()].sort((a, b) => b.at - a.at || (a.id < b.id ? 1 : -1)),
+    entries,
+    builder,
+    ...splitFeedings(entries, builder),
     discovery_limits_reached: named.more || called.more || known.length > MAX_ACCOUNTS || theirs.some((t) => t.more),
     history_completeness: "unknown",
     accounts: accounts.length,

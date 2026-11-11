@@ -315,6 +315,9 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
 
   await page.goto("/");
   await expect(page.locator("#ledger .roll-note")).toHaveText("Sample entries. On a live contract each one links to its transaction.");
+  // sample figures have no builder to tell apart
+  await expect(page.locator("#ledger .roll-who")).toHaveCount(0);
+  await expect(page.locator("#ledger .roll-own")).toHaveCount(0);
   const shows = page.locator("#ledger .roll-shows button");
   await expect(shows).toHaveText([`All ${all}`, `Feedings ${feedings}`, `Mints ${mintings}`, `Burns ${burns}`]);
   const rows = page.locator("#ledger ol.roll > li");
@@ -494,7 +497,7 @@ test("source and demo guide are discoverable, and the guide fits a phone", async
   await page.getByRole("link", { name: "Demo: two-minute guide", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Feed. Pass the Bond. Redeem.");
   await expect(page.locator(".demo-steps > li")).toHaveCount(5);
-  await expect(page.locator("main")).toContainText("marketplace sales have not been verified");
+  await expect(page.locator("main")).toContainText("no marketplace has listed a Bond");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

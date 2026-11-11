@@ -41,6 +41,7 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 ## The log of every mint and burn
 
 - `ledger` (or `https://consume.cash/api/ledger` as JSON) lists every feeding, every $CONSUME minted and every $CONSUME burned, newest first, each with its transaction. On a busy contract the oldest entries can drop off the list; the totals are the contract's own and stay right.
+- The builder's own accounts (`consumecash.testnet` and every account under it) are counted apart from everyone else's: `ledger` reports `feedings.by_builder` and `feedings.by_others`, and each entry has `by_builder`. The builder runs bots on testnet, so do not read the builder's feedings as outside use.
 - A feeding mints nothing: it writes $CONSUME into a Bond. $CONSUME is minted by `claim` and `exit`, and burned by `redeem`.
 - The entries are parsed from the contract's own events (`meal`, `claim`, `exit`, `redeem`). The tool reports `listed_totals_match_contract`. This checks aggregate arithmetic, not authenticity or completeness: the receipt data is trusted from FastNEAR.
 
@@ -64,4 +65,4 @@ Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_co
 
 Public source: https://github.com/ethboi/consume
 Demo guide: https://consume.cash/demo (testnet, with costs and expected outcomes).
-Direct Bond transfers: the website offers Send this Bond, validates the recipient, reviews costs, and groups a required credit top-up with nft_transfer in one transaction. Transfer spends a nonrefundable 0.01024 NEAR from the initiating account’s meal credit, plus 1 yoctoNEAR attached and gas. The recipient may need separate FT registration before claiming. There is no prepare_transfer MCP tool and no verified marketplace sale integration.
+Direct Bond transfers: the website offers Send this Bond, validates the recipient, reviews costs, and groups a required credit top-up with nft_transfer in one transaction. Transfer spends a nonrefundable 0.01024 NEAR from the initiating account’s meal credit, plus 1 yoctoNEAR attached and gas. The recipient may need separate FT registration before claiming. There is no prepare_transfer MCP tool. A sale through an approved account (nft_approve, then nft_transfer by the approved account) is tested on a local sandbox in contracts/integration-tests/tests/sale.rs; no marketplace contract has been tried and none has listed a Bond.

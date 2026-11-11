@@ -5,6 +5,7 @@
 // (see lib/ledger.ts), and their sums are checked against the totals the
 // contract keeps, so the page can say whether anything is missing.
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Coin, ConsumeCoin } from "./Coin";
 import { DEMO_LEDGER } from "@/lib/demo";
@@ -59,6 +60,8 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
   if (live.data && live.data !== last) setLast(live.data);
   const [show, setShow] = useState<Show>("all");
   const [rows, setRows] = useState(FIRST);
+  // leave out the builder's own accounts, to see what everyone else did
+  const [outside, setOutside] = useState(false);
 
   if (!last) {
     if (live.error) {
@@ -80,7 +83,11 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
   }
 
   const entries = last.entries;
-  const listed = entries.filter(SHOWS.find((s) => s.key === show)!.has);
+  // an answer from before the site told the builder's accounts apart has neither field
+  const split = last.builder && last.feedings ? { account: last.builder, own: last.feedings.builder, others: last.feedings.others } : null;
+  const fedTimes = split ? split.own + split.others : 0;
+  const shown = split && outside ? entries.filter((e) => !e.by_builder) : entries;
+  const listed = shown.filter(SHOWS.find((s) => s.key === show)!.has);
   const sum = (k: "minted" | "burned" | "forfeited") => entries.reduce((a, e) => a + big(e[k]), BigInt(0));
   const inList = { minted: sum("minted"), burned: sum("burned"), forfeited: sum("forfeited") };
 
@@ -140,6 +147,39 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
         )}
       </p>
 
+      {split && fedTimes > 0 && (
+        <div className="roll-who">
+          <p>
+            {split.others === 0 ? (
+              <>
+                {fedTimes === 1 ? "The one feeding so far came" : `All ${fedTimes} feedings so far came`} from the builder&apos;s own accounts:{" "}
+                <b>{split.account}</b> and the accounts under it. Nobody else has fed the Serpent yet.{" "}
+                <Link href="/demo">Be the first: it takes about two minutes and costs nothing.</Link>
+              </>
+            ) : (
+              <>
+                <b>
+                  {split.others} of {fedTimes} feedings
+                </b>{" "}
+                came from {last.feeders.others === 1 ? "one account" : `${last.feeders.others} accounts`} outside the builder&apos;s own. The
+                builder&apos;s own are <b>{split.account}</b> and the accounts under it, marked below.
+              </>
+            )}
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              checked={outside}
+              onChange={(ev) => {
+                setOutside(ev.target.checked);
+                setRows(FIRST);
+              }}
+            />
+            Leave out the builder&apos;s accounts
+          </label>
+        </div>
+      )}
+
       <div className="roll-shows" role="group" aria-label="Show">
         {SHOWS.map((s) => (
           <button
@@ -151,13 +191,17 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
               setRows(FIRST);
             }}
           >
-            {s.label} <span>{entries.filter(s.has).length}</span>
+            {s.label} <span>{shown.filter(s.has).length}</span>
           </button>
         ))}
       </div>
 
       {listed.length === 0 ? (
-        <p className="empty">{NONE[show]}</p>
+        <p className="empty">
+          {outside && entries.some(SHOWS.find((s) => s.key === show)!.has)
+            ? "Nothing here from outside the builder's accounts yet. The first will be written here."
+            : NONE[show]}
+        </p>
       ) : (
         <ol className="roll">
           {listed.slice(0, rows).map((e) => (
@@ -177,6 +221,11 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
 function Row({ e }: { e: LedgerEntry }) {
   const h = e.token ? heresyForToken(e.token) : undefined;
   const who = <b title={e.account}>{shortAccount(e.account, 32)}</b>;
+  const own = e.by_builder && (
+    <em className="roll-tag roll-own" title="One of the builder's own accounts">
+      builder
+    </em>
+  );
   return (
     <li className={`roll-${e.kind}`}>
       <time dateTime={new Date(e.at).toISOString()}>{when(e.at)}</time>
@@ -186,13 +235,25 @@ function Row({ e }: { e: LedgerEntry }) {
           <>
             {who} fed {h ? `${compact(e.amount ?? "0", h.decimals)} ${h.symbol}` : "a memecoin"}, worth {usd(big(e.usd))}
             {e.feast && <em className="roll-tag">feast</em>}
+            {own}
           </>
         )}
-        {e.kind === "collect" && <>{who} collected from Bond {e.bond}</>}
-        {e.kind === "break" && <>{who} broke the seal on Bond {e.bond}</>}
+        {e.kind === "collect" && (
+          <>
+            {who} collected from Bond {e.bond}
+            {own}
+          </>
+        )}
+        {e.kind === "break" && (
+          <>
+            {who} broke the seal on Bond {e.bond}
+            {own}
+          </>
+        )}
         {e.kind === "redeem" && (
           <>
             {who} redeemed for a share of the Stomach
+            {own}
             {e.shares && e.shares.length > 0 && (
               <small>
                 {e.shares

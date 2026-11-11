@@ -1243,7 +1243,7 @@ function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: strin
             <b>Collect</b> what has been released, as often as they like.
           </li>
           <li>
-            <b>Send</b> the card, and its uncollected payout goes with it. Selling through a marketplace has not been verified.
+            <b>Send</b> the card, and its uncollected payout goes with it. A sale through an approved account is tested on a local sandbox; no marketplace has listed a Bond.
           </li>
           <li>
             <b>Break the seal</b> to leave early, giving up half of what is still locked.
