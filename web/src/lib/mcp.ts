@@ -14,6 +14,7 @@
 import { feastOf, nextFeast, sittingOut } from "./feast.ts";
 import { HERESIES } from "./heresies.ts";
 import { readLedger } from "./ledger.ts";
+import { latestRound } from "./round.ts";
 
 export type Net = { network: "testnet" | "mainnet"; rpcUrl: string; consume: string; intents: string };
 
@@ -77,6 +78,7 @@ type Config = {
   epoch_ns: string;
   min_meal_usd?: string;
   max_price_age_ns?: string;
+  price_feeder_id?: string;
 };
 type Vest = {
   tribe: string;
@@ -216,6 +218,10 @@ export async function overview(net: Net) {
   const feast = feastId ? (all.find(([id]) => id === feastId)?.[1].symbol ?? feastId) : null;
   // a contract built before the rule reports no `feast`, and there a memecoin can feast again
   const passesOn = stats.feast !== undefined;
+  // the Assayer's newest round, with the quotes it wrote beside its prices; if the indexer is silent it is left out
+  const round = config.price_feeder_id
+    ? await latestRound({ network: net.network, consume: net.consume }, config.price_feeder_id).catch(() => null)
+    : null;
   return {
     what_it_is:
       "CONSUME is a memecoin that eats other memecoins. Feed it a listed memecoin and you get a Bond, an NFT that releases $CONSUME over the vesting period. Every $CONSUME can be burned (redeemed) for its share of every memecoin in the Stomach.",
@@ -242,6 +248,21 @@ export async function overview(net: Net) {
       oldest_price_age_seconds: age,
       feedings_refused_when_older_than_seconds: maxAge,
       fresh: maxAge === null ? null : age <= maxAge,
+      latest_round: round && {
+        transaction: round.tx,
+        posted_at: round.at,
+        posted_by: round.feeder,
+        quotes_written_beside_the_prices: round.with_quotes,
+        every_posted_price_is_its_quote: round.with_quotes ? round.prices.every((p) => p.posted_is_the_quote) : null,
+        note: "quoted_usd and listed_usd are what the Assayer wrote into the same transaction as its NEAR Intents (1Click) quote and list price. The contract does not check them.",
+        prices: round.prices.map((p) => ({
+          memecoin: all.find(([id]) => id === p.token)?.[1].symbol ?? p.symbol ?? p.token,
+          posted_usd: p.posted_usd,
+          quoted_usd: p.quoted_usd,
+          listed_usd: p.listed_usd,
+          quote_from_list_percent: p.quote_from_list_percent,
+        })),
+      },
     },
     rules: {
       bond_vests_over_days: Number(BigInt(config.vest_duration_ns) / BigInt(86_400_000_000_000)),
@@ -751,7 +772,7 @@ export const TOOLS: Tool[] = [
   {
     name: "overview",
     title: "CONSUME at a glance",
-    description: "What CONSUME is and its state now: the Stomach's value, the backing of each $CONSUME, supply, the tithe, which memecoin is feasting, when the week ends, whether prices are fresh, and the fixed rules. Start here.",
+    description: "What CONSUME is and its state now: the Stomach's value, the backing of each $CONSUME, supply, the tithe, which memecoin is feasting, when the week ends, whether prices are fresh, the Assayer's latest price round beside the quotes it wrote down, and the fixed rules. Start here.",
     inputSchema: NONE,
     run: (net) => overview(net),
   },

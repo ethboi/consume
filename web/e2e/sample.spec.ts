@@ -327,6 +327,8 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
   // and name nobody as the Assayer or the guardian
   await expect(page.locator(".seals li")).toHaveCount(3);
   await expect(page.locator(".seals .seal-who")).toHaveCount(0);
+  // and no Assayer, so no price round
+  await expect(page.locator("details.round-fold")).toHaveCount(0);
   const shows = page.locator("#ledger .roll-shows button");
   await expect(shows).toHaveText([`All ${all}`, `Feedings ${feedings}`, `Mints ${mintings}`, `Burns ${burns}`]);
   const rows = page.locator("#ledger ol.roll > li");

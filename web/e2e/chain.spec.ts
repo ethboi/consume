@@ -11,7 +11,8 @@ import { compact, fromRaw, toRaw, usd, usdValue } from "../src/lib/format";
 import { bySymbol, type Heresy } from "../src/lib/heresies";
 import type { LedgerEntry } from "../src/lib/ledger";
 import type { MealQuote, RedeemQuote, Stats, Tribe, VestView } from "../src/lib/near";
-import { ALICE, BOB, CONSUME, INTENTS, ONE_YOCTO, TGAS, events, giveWallet, roads, send, sentHashes, stayLocal, view, type TestWallet, type Transaction } from "./chain";
+import { priceText, roundArgs, type Round } from "../src/lib/round.ts";
+import { ALICE, BOB, CONSUME, INTENTS, ONE_YOCTO, TGAS, call, events, giveWallet, roads, send, sentHashes, stayLocal, view, type TestWallet, type Transaction } from "./chain";
 
 test.describe.configure({ mode: "serial" });
 
@@ -113,6 +114,8 @@ test("a fresh launch: nothing fed, nothing minted, and the site says so", async 
     `Today it is ${config.price_feeder_id}.`,
     `Today it is ${config.guardian_id}, the same account as the Assayer.`,
   ]);
+  // no price round has been sent where the indexer can see it, so none is shown
+  await expect(page.locator("details.round-fold")).toHaveCount(0);
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
 });
 
@@ -609,8 +612,69 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await expect(page.locator("#ledger ol.roll > li")).toHaveCount(9);
 });
 
+/** The hash of the round test's transaction, for the MCP test after it. */
+let roundTx = "";
+
+test("a price round carries the Assayer's quotes, and the site sets each posted price beside its quote", async () => {
+  const feeder = (await view<{ price_feeder_id: string }>(CONSUME, "get_config")).price_feeder_id;
+  const before = await tribes();
+  // the prices the contract holds, to the ten figures a quote has, sent the way the Assayer sends them:
+  // with the quote and the list price beside each
+  const rows = before.map(([token, t]) => {
+    const price = Number((Number(t.price_e18) / 1e18).toPrecision(10));
+    return { symbol: t.symbol, token, price, listed: price * 1.25 };
+  });
+  const args = roundArgs(rows, new Date());
+  const s0 = await stats();
+  const [sent] = await send(feeder, [{ receiverId: CONSUME, actions: [call("set_prices", args, "0", TGAS(30))] }]);
+  roundTx = sent.transaction.hash;
+
+  // the contract took the prices and nothing else: the quotes are in the transaction, not in its state
+  const after = await tribes();
+  expect(after.map(([id, t]) => [id, t.price_e18])).toEqual(args.prices);
+  for (const [i, [, t]] of after.entries()) expect(big(t.price_updated_ns) > big(before[i][1].price_updated_ns)).toBe(true);
+  const s1 = await stats();
+  expect([s1.consume_supply, s1.total_unvested, s1.vests_minted]).toEqual([s0.consume_supply, s0.total_unvested, s0.vests_minted]);
+
+  // the site's own reader finds it (an answer is kept for half a minute, so the round can take that long to show)
+  let round: Round | null = null;
+  await expect
+    .poll(
+      async () => {
+        round = ((await (await page.request.get("/api/round")).json()) as { round: Round | null }).round;
+        return round?.tx;
+      },
+      { timeout: 45_000, intervals: [2_000] },
+    )
+    .toBe(roundTx);
+  expect([round!.feeder, round!.contract, round!.with_quotes]).toEqual([feeder, CONSUME, true]);
+  expect(round!.prices.map((p) => [p.token, p.posted_e18, p.posted_is_the_quote, p.quote_from_list_percent])).toEqual(args.prices.map(([token, posted]) => [token, posted, true, -20]));
+
+  await page.reload();
+  const fold = page.locator("details.round-fold");
+  await expect(fold.locator(".round-table")).toBeHidden();
+  await fold.locator("summary").click();
+  await expect(fold.locator(".round-say")).toContainText("Ten prices posted");
+  await expect(fold.locator(".round-say")).toContainText("Each one is exactly the NEAR Intents quote the Assayer wrote beside it.");
+  await expect(fold.locator(".round-say a")).toHaveAttribute("href", new RegExp(`/txns/${roundTx}$`));
+  await expect(fold.locator("thead th")).toHaveText(["Memecoin", "Posted", "Quoted", "List price", "Quote against list"]);
+  await expect(fold.locator("tbody tr")).toHaveCount(10);
+  for (const [i, r] of rows.entries()) {
+    await expect(fold.locator("tbody tr").nth(i).locator("th, td")).toHaveText([r.symbol, priceText(r.price), priceText(r.price), priceText(r.listed), "-20.00%"]);
+  }
+  await expect(fold.locator("tbody tr.off")).toHaveCount(0);
+});
+
 test("the MCP server answers from the same contract", async () => {
-  type Overview = { contract: string; intents_contract: string; bonds_minted: number; total_fed_usd: number; consume_burned_by_redeeming: string; stomach_usd: number };
+  type Overview = {
+    contract: string;
+    intents_contract: string;
+    bonds_minted: number;
+    total_fed_usd: number;
+    consume_burned_by_redeeming: string;
+    stomach_usd: number;
+    prices: { latest_round: { transaction: string; quotes_written_beside_the_prices: boolean; every_posted_price_is_its_quote: boolean; prices: { memecoin: string; posted_usd: number; quoted_usd: number }[] } | null };
+  };
   type Account = Record<string, unknown>;
   const s = await stats();
   const o = await mcp<Overview>("overview");
@@ -618,6 +682,11 @@ test("the MCP server answers from the same contract", async () => {
   expect(o.total_fed_usd).toBeCloseTo(Number(s.total_eaten_usd) / 1e6, 6);
   expect(o.stomach_usd).toBeCloseTo(Number(s.stomach_usd) / 1e6, 6);
   expect(Number(o.consume_burned_by_redeeming.replace(/,/g, ""))).toBe(1000);
+  // the price round of the test before, with its quotes
+  const lr = o.prices.latest_round!;
+  expect([lr.transaction, lr.quotes_written_beside_the_prices, lr.every_posted_price_is_its_quote, lr.prices.length]).toEqual([roundTx, true, true, 10]);
+  for (const p of lr.prices) expect(p.posted_usd).toBe(p.quoted_usd);
+  expect(lr.prices.map((p) => p.memecoin)).toContain("PEPE");
 
   const b = await mcp<{ holder: string; seal_broken: boolean; fed: string }>("bond", { bond_id: "2" });
   expect([b.holder, b.seal_broken]).toEqual([ALICE, true]);

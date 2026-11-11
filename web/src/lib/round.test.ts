@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { e18, latestRound, parseRound, roundArgs, type RoundTx } from "./round.ts";
+import { e18, latestRound, parseRound, priceText, roundArgs, type RoundTx } from "./round.ts";
 
 const CONSUME = "consume.example.testnet";
 const FEEDER = "assayer.example.testnet";
@@ -20,6 +20,15 @@ test("a price is scaled by 1e18 without losing the digits of a very small one", 
   assert.equal(e18(6.647905463e-9), "6647905463");
   assert.equal(e18(1), "1000000000000000000");
   assert.equal(e18(123456.789), "123456789000000000000000");
+});
+
+test("a price is written to six figures, large or very small", () => {
+  assert.equal(priceText(0.068355828003), "$0.0683558");
+  assert.equal(priceText(6.647905463e-9), "$0.00000000664791");
+  assert.equal(priceText(1), "$1.00000");
+  assert.equal(priceText(2.4137), "$2.41370");
+  assert.equal(priceText(123456.789), "$123456.79");
+  assert.equal(priceText(0), "$0");
 });
 
 test("a round's arguments carry each price and the quote it came from", () => {

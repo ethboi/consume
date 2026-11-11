@@ -83,13 +83,14 @@ export async function startHarness({ rpcUrl, control }) {
     "/sent": async () => ({ hashes: sent.map((t) => t.hash) }),
 
     // the transactions of an account, newest first, as the indexer filters them
-    "/v0/account": async ({ account_id, is_event_log, is_predecessor }) => {
+    "/v0/account": async ({ account_id, is_event_log, is_predecessor, is_signer }) => {
       const rows = [];
       for (const tx of [...sent].reverse()) {
         const s = await status(tx);
         const named = s.receipts_outcome.some((r) => r.outcome.logs.some((l) => l.startsWith("EVENT_JSON:") && l.includes(`"${account_id}"`)));
         const called = (s.receipts ?? []).some((r) => r.predecessor_id === account_id);
-        if ((is_event_log && named) || (is_predecessor && called) || (!is_event_log && !is_predecessor)) {
+        const signed = tx.signer === account_id;
+        if ((is_event_log && named) || (is_predecessor && called) || (is_signer && signed) || (!is_event_log && !is_predecessor && !is_signer)) {
           rows.push({ transaction_hash: tx.hash, is_success: succeeded(s) });
         }
       }
@@ -111,7 +112,12 @@ export async function startHarness({ rpcUrl, control }) {
             },
           });
         }
-        transactions.push({ transaction: { hash }, receipts });
+        const { signer_id, receiver_id, actions } = s.transaction;
+        transactions.push({
+          transaction: { hash, signer_id, receiver_id, actions },
+          execution_outcome: { block_timestamp: await timestamp(s.transaction_outcome.block_hash) },
+          receipts,
+        });
       }
       return { transactions };
     },

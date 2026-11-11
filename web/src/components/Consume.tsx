@@ -44,6 +44,7 @@ import { sleep, useLive } from "@/lib/live";
 import { Feast } from "./Feast";
 import { feastOf } from "@/lib/feast";
 import { Ledger } from "./Ledger";
+import { RoundFold } from "./Round";
 import { Simulation } from "./Simulation";
 import { SendBond } from "./SendBond";
 import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
@@ -1966,6 +1967,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           </div>
         </li>
       </ul>
+      <RoundFold tribes={snap.tribes} />
     </>
   );
 }

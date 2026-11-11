@@ -35,6 +35,12 @@ export function e18(price: number): string {
   ).toString();
 }
 
+/** A price in dollars to six figures, however small: $0.00000000664791, never 6.6e-9. */
+export function priceText(usd: number): string {
+  if (!Number.isFinite(usd) || usd <= 0) return "$0";
+  return `$${usd.toFixed(Math.min(20, Math.max(2, 5 - Math.floor(Math.log10(usd)))))}`;
+}
+
 /** The arguments of one `set_prices` call: the prices, and the quotes they came from. */
 export function roundArgs(
   rows: { symbol: string; token: string; price: number; listed: number }[],
