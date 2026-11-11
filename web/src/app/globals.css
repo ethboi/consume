@@ -6002,20 +6002,6 @@ section[inert] > :not(header) {
   }
 }
 
-/* ---- the page says where it runs: one line under the pitch ---- */
-.folio .hero-net {
-  margin: -8px 0 22px;
-  max-width: none;
-  font-size: 0.95rem;
-  line-height: 1.4;
-  color: var(--faded);
-}
-.folio .hero-net b {
-  font-family: var(--font-sc);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: var(--rubric);
-}
 
 /* ---- narrow windows: the sections move to a second row of the top bar, so they are never lost ---- */
 @media (max-width: 1020px) {
@@ -6087,10 +6073,6 @@ section[inert] > :not(header) {
     display: flex;
     flex-direction: column;
   }
-  .folio .hero-net {
-    margin: -4px 0 16px;
-    font-size: 0.9rem;
-  }
   .folio .hero.split .hero-actions {
     order: 1;
   }
@@ -6154,9 +6136,6 @@ section[inert] > :not(header) {
     margin-bottom: 12px;
   }
   .folio .hero-explain {
-    margin-bottom: 16px;
-  }
-  .folio .hero-net {
     margin-bottom: 16px;
   }
   .folio .howto {
@@ -6415,12 +6394,6 @@ section[inert] > :not(header) {
     padding: 8px 10px;
   }
 }
-.judge-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: .6rem 1.5rem;
-  margin: 1rem 0;
-}
 .bond-send {
   margin-top: 1rem;
   padding: 1rem;
@@ -6579,10 +6552,27 @@ section[tabindex="-1"]:focus {
     min-height: 4.2em;
   }
 }
-/* three quiet links under the hero's actions: one row on a desk, a short stack on a phone */
-.hero .judge-links {
-  font-size: 1.1rem;
-  gap: 0.3rem 1.4rem;
+/* the demo guide, second of the hero's two buttons: the same block, cut in paper */
+.hero .press.big.second {
+  background: var(--paper);
+  color: var(--ink);
+}
+.hero .press.big.second:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+/* both buttons on one row of the hero's box on a desk, the tour under them; on a phone each takes the full width */
+.folio .hero.split .hero-actions {
+  gap: 16px 18px;
+}
+.hero.split .hero-actions .press.big {
+  padding: 13px 20px;
+  text-align: center;
+}
+@media (max-width: 520px) {
+  .hero.split .hero-actions .press.big {
+    flex: 1 1 100%;
+  }
 }
 
 /* ---------- the guest wallet: one quiet line beside "Connect wallet to feed" ---------- */

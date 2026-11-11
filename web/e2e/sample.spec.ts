@@ -579,8 +579,9 @@ test("the tour stops at six parts of the page with a line for each, and hands ov
 });
 test("source and demo guide are discoverable, and the guide fits a phone", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Source on GitHub", exact: true })).toHaveAttribute("href", "https://github.com/ethboi/consume");
-  await page.getByRole("link", { name: "Demo: two-minute guide", exact: true }).click();
+  await expect(page.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/ethboi/consume");
+  // the guide is the hero's second button, beside "Feed the Serpent"
+  await page.locator(".hero-actions").getByRole("link", { name: "Two-minute demo", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Feed. Pass the Bond. Redeem.");
   await expect(page.locator(".demo-steps > li")).toHaveCount(5);
   await expect(page.locator("main")).toContainText("no marketplace has listed a Bond");

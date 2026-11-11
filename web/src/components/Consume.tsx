@@ -155,11 +155,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <p className="hero-explain">
               Feed it yours from any chain. Earn $CONSUME, backed by everything it has eaten.
             </p>
-            {NETWORK === "testnet" && !DEMO && (
-              <p className="hero-net">
-                <b>On NEAR testnet,</b> with test memecoins.
-              </p>
-            )}
             <ol className="howto" aria-label="How it works">
               <li>
                 <CoinsEmblem />
@@ -190,13 +185,11 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <a className="press big" href="#feed">
                 Feed the Serpent
               </a>
+              <a className="press big second" href="/demo">
+                Two-minute demo
+              </a>
               <Tour />
             </div>
-            <nav className="judge-links" aria-label="Explore the project">
-              <a href="#rule">How it works</a>
-              <a href="/demo">Demo: two-minute guide</a>
-              <a href={REPO_URL}>Source on GitHub</a>
-            </nav>
             <p className="hero-entry">
               Built for{" "}
               <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
