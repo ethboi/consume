@@ -316,8 +316,15 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
   // the same entries are what the site's own Ledger address gives an agent
   const res = await request.get("/api/ledger");
   expect(res.status()).toBe(200);
-  const body = (await res.json()) as { entries: LedgerEntry[]; complete: boolean };
-  expect(body.complete).toBe(true);
+  const body = (await res.json()) as { entries: LedgerEntry[]; discovery_limits_reached: boolean; history_completeness: string };
+  expect(body.discovery_limits_reached).toBe(false);
+  expect(body.history_completeness).toBe("unknown");
+  for (const batch of [[], Array.from({ length: 21 }, () => ({ jsonrpc: "2.0", id: 1, method: "ping" }))]) {
+    const reply = await request.post("/api/mcp", { data: batch });
+    expect(reply.status()).toBe(400);
+  }
+  const oversized = await request.post("/api/mcp", { data: "💰".repeat(17_000) });
+  expect(oversized.status()).toBe(413);
   expect(body.entries.map((e) => e.id)).toEqual(DEMO_LEDGER.entries.map((e) => e.id));
 });
 

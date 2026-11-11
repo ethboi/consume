@@ -32,7 +32,7 @@ Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redee
 - The Feast: each week the most fed memecoin (by USD) wins. For the following week, feeding it pays no tithe.
 - Limits: each memecoin has a largest feeding and a daily cap in USD (`list_memecoins`). The caps are per memecoin, not per account, so splitting a feeding across accounts gains nothing.
 - Prices are posted by the Assayer from NEAR Intents quotes. A feeding is refused when a price is older than 15 minutes. Redeeming needs no price and stays open.
-- There is no owner and no method that changes a number. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account still holds its deployment key; the repository's README says when that changes.
+- This code has no administrator withdrawal or parameter setter; its deployment is not immutable while full-access keys remain. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account still holds its deployment key; the repository's README says when that changes.
 
 ## Reading the contract directly
 
@@ -42,7 +42,7 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 
 - `ledger` (or `https://consume.cash/api/ledger` as JSON) lists every feeding, every $CONSUME minted and every $CONSUME burned, newest first, each with its transaction. On a busy contract the oldest entries can drop off the list; the totals are the contract's own and stay right.
 - A feeding mints nothing: it writes $CONSUME into a Bond. $CONSUME is minted by `claim` and `exit`, and burned by `redeem`.
-- The entries are parsed from the contract's own events (`meal`, `claim`, `exit`, `redeem`). The tool says whether they add up to the totals in `get_stats`.
+- The entries are parsed from the contract's own events (`meal`, `claim`, `exit`, `redeem`). The tool reports `listed_totals_match_contract`. This checks aggregate arithmetic, not authenticity or completeness: the receipt data is trusted from FastNEAR.
 
 ## Acting
 
@@ -55,3 +55,9 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 - Site: https://consume.cash
 - Bots that use these calls (dry run unless told to sign): `agents/bots.mjs` in the repository
 - A 60 day simulation of supply and backing under four scenarios: `sim/` in the repository
+
+Local source changes pending deployment: `account` pages all Bonds at one finalized block. `prepare_redeem` tops up storage credit when needed; payout records remain funded permanently. Claims and exits clear approvals, and transfers charge a fixed 1,024-byte reserve to the initiating owner/operator. New Bond media has a hash; the changing image URL is in `extra.dynamic_media`. Do not assume the public deployment already includes these fixes.
+
+License: AGPL-3.0-only for original CONSUME code and documentation; third-party materials retain their terms.
+
+Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_completeness` is `unknown` because former Bond holders may be missed even when every discovered page was read.

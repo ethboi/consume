@@ -23,7 +23,7 @@ After every feeding, broken seal and redemption, the run checks the promise the 
 
 ## The four scenarios
 
-Feedings arrive at random through the day (a Poisson count), sized around $60 with a long tail (lognormal). 30% of feeders pick the memecoin that is feasting, because it pays no tithe; the rest pick in proportion to the daily caps. In calm times a Bond has a 0.4% chance a day of having its seal broken, and a holder a 2% chance a day of redeeming half of what they hold.
+Each day has a Poisson-distributed number of feedings, placed at evenly spaced times within that day, sized around $60 with a long tail (lognormal). 30% of feeders pick the memecoin that is feasting, because it pays no tithe; the rest pick in proportion to the daily caps. In calm times a Bond has a 0.4% chance a day of having its seal broken, and a holder a 2% chance a day of redeeming half of what they hold.
 
 | Scenario | What changes |
 | --- | --- |

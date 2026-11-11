@@ -41,7 +41,7 @@ Both read the public testnet deployment (`consume.consumecash.testnet`). To poin
 | `feast_race` | This week's standings, who is feasting now, time left |
 | `quote_feeding` | What a feeding would earn right now, by amount or by dollar value |
 | `quote_redeem` | What burning some $CONSUME would pay, memecoin by memecoin |
-| `account` | An account's NEAR, $CONSUME, memecoins ready to feed, Bonds and anything owed |
+| `account` | An account's NEAR, $CONSUME, memecoins ready to feed, all Bonds (paged at a single finalized block) and anything owed |
 | `bond` | One Bond: collected, ready, locked, and what breaking the seal would give and forfeit |
 | `recent_feedings` | The latest feedings, newest first |
 | `ledger` | The log of every feeding, every $CONSUME minted and every $CONSUME burned, each with its transaction, and whether the entries add up to the totals the contract keeps (when they do not, the list is short: its limits are in the main README under "Every mint and burn, logged") |
@@ -114,3 +114,7 @@ One collector collects for all of them but the miser, and for `consumecash.testn
 ## Why the kingmaker is here
 
 The Feast is a game: the most fed memecoin of the week pays no tithe the next. The cheapest way to play it is to wait until the last hours and feed just past the leader, and the simulation in `sim/` shows that a reigning Feast tends to keep its crown. We would rather ship that strategy in the open, where every community can run it, than leave it to whoever writes the script first. What it can take is bounded: the winner skips the tithe, earns exactly at the backing like everyone else, and is still held to that memecoin's daily cap.
+
+Local changes pending deployment: collector pagination includes fully released Bonds without hiding later claimable ones. Redemption plans fund payout storage before burning; spent record storage is permanent and unused credit remains withdrawable. Bond claims/exits invalidate marketplace approvals. The `ledger` result now uses `listed_totals_match_contract`; matching totals do not authenticate indexer receipts or prove complete history.
+
+Ledger schema: `complete` is replaced by `discovery_limits_reached`; `history_completeness` is `unknown` because former Bond holders may be missed even when every discovered page was read.

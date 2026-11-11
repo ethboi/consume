@@ -7,6 +7,7 @@
 // JSON-RPC message in, one JSON answer out, no sessions and no stream.
 
 import { handleMcp, netFrom, SERVER, TOOLS, type Net } from "@/lib/mcp";
+import { boundedBody } from "@/lib/request-body";
 
 const MAX_BODY = 64 * 1024;
 
@@ -32,12 +33,11 @@ function net(): Net {
 const json = (body: unknown, status = 200, extra: Record<string, string> = {}) => Response.json(body, { status, headers: { ...CORS, ...extra } });
 
 export async function POST(request: Request) {
-  const text = await request.text();
-  if (text.length > MAX_BODY) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Request too large" } }, 413);
   let body: unknown;
   try {
-    body = JSON.parse(text);
-  } catch {
+    body = JSON.parse(await boundedBody(request, MAX_BODY));
+  } catch (e) {
+    if (e instanceof RangeError) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "Request too large" } }, 413);
     return json({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error: the body must be one JSON-RPC message" } }, 400);
   }
   let where: Net;
@@ -48,7 +48,8 @@ export async function POST(request: Request) {
   }
   // older clients may send several messages at once
   if (Array.isArray(body)) {
-    const answers = (await Promise.all(body.slice(0, 20).map((m) => handleMcp(where, m)))).filter((a) => a !== null);
+    if (body.length === 0 || body.length > 20) return json({ jsonrpc: "2.0", id: null, error: { code: -32600, message: "A batch must contain 1 to 20 messages" } }, 400);
+    const answers = (await Promise.all(body.map((m) => handleMcp(where, m)))).filter((a) => a !== null);
     return answers.length ? json(answers) : new Response(null, { status: 202, headers: CORS });
   }
   const answer = await handleMcp(where, body);

@@ -8,6 +8,8 @@ use near_sdk::{testing_env, AccountId, NearToken};
 use crate::math;
 use crate::*;
 
+include!("fix_tests.rs");
+
 const DAY: u64 = NANOS_PER_DAY;
 const USD: u128 = MICRO_USD;
 
@@ -563,12 +565,12 @@ fn a_failed_payout_stays_owed_and_a_paid_one_is_cleared() {
     ctx("consume.testnet", 40 * DAY);
     assert!(!c.on_withdraw(acc("alice.testnet"), acc("pepe.testnet"), U128(share), Err(PromiseError::Failed)));
     assert_eq!(c.get_owed(acc("alice.testnet")), vec![(acc("pepe.testnet"), U128(share))]);
-    // she retries and it lands: the record goes
+    // she retries and it lands: the funded record stays, hidden from get_owed
     ctx("alice.testnet", 40 * DAY);
     assert_eq!(c.withdraw_owed(), 1);
     ctx("consume.testnet", 40 * DAY);
     assert!(c.on_withdraw(acc("alice.testnet"), acc("pepe.testnet"), U128(share), Ok(())));
-    assert!(!c.owed.contains_key(&(acc("alice.testnet"), acc("pepe.testnet"))));
+    assert_eq!(c.owed.get(&(acc("alice.testnet"), acc("pepe.testnet"))), Some(&0));
 }
 
 #[test]

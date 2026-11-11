@@ -118,6 +118,8 @@ impl Contract {
             "Too little to redeem: your share of every memecoin rounds to nothing"
         );
 
+        self.owed.flush();
+        let before = env::storage_usage();
         for (token, share) in &q.shares {
             if share.0 == 0 {
                 continue;
@@ -126,6 +128,8 @@ impl Contract {
             tribe.stomach = U128(tribe.stomach.0 - share.0);
             *self.owed.entry((account.clone(), token.clone())).or_insert(0) += share.0;
         }
+        self.owed.flush();
+        self.charge_storage(&account, env::storage_usage().saturating_sub(before));
         self.token.internal_withdraw(&account, amount);
         self.total_redeemed += amount;
         FtBurn { owner_id: &account, amount: U128(amount), memo: Some("redeem") }.emit();
@@ -156,9 +160,8 @@ impl Contract {
             self.owed.insert(key, owed + amount.0);
             false
         } else {
-            if owed == 0 {
-                self.owed.remove(&key);
-            }
+            // Keep the funded zero record: other payouts for this same key
+            // may still be pending and need to restore it after a failure.
             true
         }
     }

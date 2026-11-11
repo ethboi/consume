@@ -12,10 +12,14 @@ use near_contract_standards::fungible_token::resolver::FungibleTokenResolver;
 use near_contract_standards::fungible_token::FungibleToken;
 use near_contract_standards::storage_management::{StorageBalance, StorageBalanceBounds, StorageManagement};
 use near_sdk::json_types::U128;
+
+include!("sponsorship_tests.rs");
 use near_sdk::store::LookupMap;
 use near_sdk::{env, near, require, AccountId, BorshStorageKey, NearToken, PanicOnDefault, PromiseOrValue};
 
 const FAUCET_COOLDOWN_NS: u64 = 60 * 60 * 1_000_000_000;
+// Includes deployed code storage; the testnet launch funds more than this cap.
+const MAX_SPONSORED_STORAGE: u64 = 256 * 1024;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -53,6 +57,8 @@ impl Contract {
     /// Mint `faucet_amount` to the caller, at most once an hour. The contract pays
     /// the caller's storage registration.
     pub fn faucet(&mut self) -> U128 {
+        self.last_drip.flush();
+        let before = env::storage_usage();
         let account = env::predecessor_account_id();
         let now = env::block_timestamp();
         if let Some(last) = self.last_drip.get(&account) {
@@ -63,15 +69,26 @@ impl Contract {
             self.token.internal_register_account(&account);
         }
         self.token.internal_deposit(&account, self.faucet_amount);
+        self.enforce_sponsorship_budget(before);
         FtMint { owner_id: &account, amount: U128(self.faucet_amount), memo: Some("faucet") }.emit();
         U128(self.faucet_amount)
     }
 
     /// Register any account for free (testnet convenience, mirrors storage_deposit).
     pub fn register(&mut self, account_id: AccountId) {
+        let before = env::storage_usage();
         if !self.token.accounts.contains_key(&account_id) {
             self.token.internal_register_account(&account_id);
         }
+        self.enforce_sponsorship_budget(before);
+    }
+}
+
+impl Contract {
+    fn enforce_sponsorship_budget(&mut self, before: u64) {
+        self.last_drip.flush();
+        let after = env::storage_usage();
+        require!(after <= before || after <= MAX_SPONSORED_STORAGE, "Testnet storage sponsorship exhausted");
     }
 }
 

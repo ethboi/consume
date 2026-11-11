@@ -93,13 +93,15 @@ type RedeemQuote = { shares: [string, string][]; denominator: string };
 // ---------- NEAR RPC, read only ----------
 
 async function query(net: Net, params: object): Promise<{ result?: Record<string, unknown>; error?: { cause?: { name?: string }; data?: unknown; message?: string } }> {
-  // public RPC nodes turn callers away when busy: wait and ask again, four times at most
+  // Retry busy nodes at most four times, within one 20-second deadline.
+  const signal = AbortSignal.timeout(20_000);
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(net.rpcUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: "consume-agent", method: "query", params }),
       cache: "no-store",
+      signal,
     });
     if (res.ok) return res.json();
     if (attempt === 4 || (res.status !== 429 && res.status < 500)) throw new Error(`NEAR RPC answered ${res.status}`);
@@ -114,10 +116,10 @@ function refusal(e: unknown): string {
   return (m ? m[1] : s).trim();
 }
 
-export async function view<T>(net: Net, contract: string, method: string, args: object = {}): Promise<T> {
+export async function view<T>(net: Net, contract: string, method: string, args: object = {}, blockId?: string): Promise<T> {
   const json = await query(net, {
     request_type: "call_function",
-    finality: "optimistic",
+    ...(blockId ? { block_id: blockId } : { finality: "optimistic" }),
     account_id: contract,
     method_name: method,
     args_base64: btoa(JSON.stringify(args)),
@@ -171,7 +173,8 @@ function keep<T>(net: Net, method: string, ms: number): Promise<T> {
   if (hit && hit.until > Date.now()) return hit.value as Promise<T>;
   const value = view<T>(net, net.consume, method);
   kept.set(key, { until: Date.now() + ms, value });
-  value.catch(() => kept.delete(key));
+  while (kept.size > 128) kept.delete(kept.keys().next().value!);
+  value.catch(() => { if (kept.get(key)?.value === value) kept.delete(key); });
   return value;
 }
 const tribes = (net: Net) => keep<[string, Tribe][]>(net, "get_tribes", 4_000);
@@ -433,8 +436,12 @@ export async function ledger(net: Net, args: { kind?: unknown; limit?: unknown }
     note: "A feeding mints nothing: it writes $CONSUME into a Bond. $CONSUME is minted when a Bond is collected from or its seal is broken, and burned when it is redeemed. What a broken seal forfeits is never minted.",
     contract_totals: { consume_minted: consume(counted.minted), consume_burned: consume(counted.burned), consume_forfeited: consume(counted.forfeited) },
     entries_add_up_to: { consume_minted: consume(listed.minted), consume_burned: consume(listed.burned), consume_forfeited: consume(listed.forfeited) },
-    every_mint_and_burn_is_listed: counted.minted === listed.minted && counted.burned === listed.burned && counted.forfeited === listed.forfeited,
-    older_entries_may_be_missing: !read.complete,
+    // Aggregate reconciliation is not a receipt proof or a completeness proof.
+    listed_totals_match_contract: counted.minted === listed.minted && counted.burned === listed.burned && counted.forfeited === listed.forfeited,
+    history_source: "FastNEAR indexer; receipt logs are not independently verified",
+    discovery_limits_reached: read.discovery_limits_reached,
+    history_completeness: read.history_completeness,
+    older_entries_may_be_missing: true,
     entries_found: read.entries.length,
     entries,
   };
@@ -462,6 +469,24 @@ async function held(net: Net, id: string, all: [string, Tribe][]): Promise<bigin
   );
 }
 
+/** Page all owned Bonds at one finalized block, including closed Bonds. */
+export async function allAccountBonds(net: Net, id: string): Promise<VestView[]> {
+  const snapshot = await query(net, { request_type: "view_account", finality: "final", account_id: net.consume });
+  const block = snapshot.result?.block_hash;
+  if (typeof block !== "string") throw new Error("Could not anchor the Bond list to a block");
+  const out: VestView[] = [];
+  const seen = new Set<string>();
+  for (let from = 0; ; from += 50) {
+    const page = await view<VestView[]>(net, net.consume, "get_vests_for_owner", { account_id: id, from_index: from, limit: 50 }, block);
+    for (const bond of page) {
+      if (seen.has(bond.token_id)) throw new Error("The RPC returned a repeated Bond page");
+      seen.add(bond.token_id);
+      out.push(bond);
+    }
+    if (page.length < 50) return out;
+  }
+}
+
 export async function account(net: Net, args: { account_id?: unknown }) {
   const id = accountId(args.account_id);
   const all = await tribes(net);
@@ -469,7 +494,7 @@ export async function account(net: Net, args: { account_id?: unknown }) {
     nearBalance(net, id),
     view<string>(net, net.consume, "ft_balance_of", { account_id: id }),
     view<string>(net, net.consume, "get_meal_credit", { account_id: id }),
-    view<VestView[]>(net, net.consume, "get_vests_for_owner", { account_id: id, from_index: 0, limit: 50 }),
+    allAccountBonds(net, id),
     view<[string, string][]>(net, net.consume, "get_owed", { account_id: id }),
     held(net, id, all),
   ]);
@@ -645,19 +670,28 @@ export const planBreakSeal = (net: Net, args: { account_id?: unknown; bond_id?: 
 export async function planRedeem(net: Net, args: { account_id?: unknown; amount?: unknown }) {
   const who = accountId(args.account_id);
   const raw = toRaw(String(args.amount ?? ""), CONSUME_DECIMALS);
-  const [quote, balance] = await Promise.all([quoteRedeem(net, { amount: args.amount }), view<string>(net, net.consume, "ft_balance_of", { account_id: who })]);
+  const [quote, balance, credit] = await Promise.all([
+    quoteRedeem(net, { amount: args.amount }),
+    view<string>(net, net.consume, "ft_balance_of", { account_id: who }),
+    view<string>(net, net.consume, "get_meal_credit", { account_id: who }),
+  ]);
   const warnings: string[] = [];
   if (BigInt(balance) < raw) warnings.push(`${who} holds ${consume(balance)} $CONSUME, less than the ${consume(raw)} to burn.`);
   const plan: Plan = {
     summary: `Burn ${consume(raw)} $CONSUME for memecoins worth about $${quote.total_value_usd.toFixed(2)} at the posted prices.`,
     warnings,
     calls: [
+      ...(BigInt(credit ?? "0") < CREDIT_LOW ? [{
+        receiver_id: net.consume, method: "add_meal_credit", args: {},
+        deposit_yocto: CREDIT_TOP_UP, gas_tgas: 10,
+        why: "Prepay storage for payout records. Unused credit can be withdrawn.",
+      }] : []),
       {
         receiver_id: net.consume,
         method: "redeem",
         args: { amount: raw.toString() },
         deposit_yocto: "1",
-        gas_tgas: 300,
+        gas_tgas: 290,
         why: `Burn ${consume(raw)} $CONSUME and be paid the same share of every memecoin in the Stomach.`,
       },
     ],

@@ -9,7 +9,7 @@
   --faded: #675d52; /* ink gone brown with age, for quiet text */
   --wax: #9b1d18;
 
-  --font-display: var(--font-blackletter), "UnifrakturMaguntia", serif;
+  --font-display: var(--font-capitals), var(--font-blackletter), "UnifrakturMaguntia", serif;
   --font-text: var(--font-fell), "IM Fell English", Georgia, serif;
   --font-sc: var(--font-fell-sc), "IM Fell English SC", Georgia, serif;
 

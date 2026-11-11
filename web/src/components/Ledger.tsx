@@ -122,19 +122,19 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
           "Sample entries. On a live contract each one links to its transaction."
         ) : agrees ? (
           <>
-            <b>Checked against the contract.</b> The entries below add up to exactly the totals the contract keeps, so no mint or burn is
-            missing. Figures are shown to the nearest whole $CONSUME; the check uses the full amounts.
+            <b>Checked against the contract.</b> The indexed entries add up to the contract totals. This does not prove that every entry is
+            authentic or that the history is complete. Figures are rounded for display; the comparison uses full amounts.
           </>
         ) : short ? (
           <>
             These are the totals the contract keeps. The entries below add up to {consume(inList.minted)} minted, {consume(inList.burned)}{" "}
             burned and {consume(inList.forfeited)} forfeited:{" "}
-            {last.complete ? "a new entry can take a minute to appear." : "only the newest entries are listed."} Every transaction is on the{" "}
+            {last.discovery_limits_reached ? "the search reached its limits." : "some accounts or new entries may be missing."} Every transaction is on the{" "}
             {explorer}.
           </>
         ) : (
           <>
-            Read from the contract&apos;s own event logs. {last.complete ? "A new entry can take a minute to appear." : "Only the newest entries are listed."}{" "}
+            Read from indexed event logs. {last.discovery_limits_reached ? "The search reached its limits." : "Some accounts or new entries may be missing."}{" "}
             Every transaction is on the {explorer}.
           </>
         )}

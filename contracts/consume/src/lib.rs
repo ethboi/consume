@@ -52,7 +52,8 @@ pub const MAX_DECIMALS: u8 = 30;
 /// Largest tithe a deployment can set (basis points): half of a feeding.
 pub const MAX_TITHE_BPS: u32 = 5_000;
 /// Most memecoins a deployment can list (views and the feast walk the list).
-pub const MAX_TRIBES: usize = 32;
+// Ten Intents payouts reserve 200 Tgas, leaving room under the 300 Tgas limit.
+pub const MAX_TRIBES: usize = 10;
 
 #[derive(BorshStorageKey)]
 #[near]
@@ -430,6 +431,15 @@ impl Contract {
 }
 
 impl Contract {
+    /// Charge funded storage without allocating an unpaid credit record.
+    pub(crate) fn charge_storage(&mut self, payer: &AccountId, bytes: u64) {
+        if bytes == 0 { return; }
+        let fee = u128::from(bytes) * env::storage_byte_cost().as_yoctonear();
+        let credit = *self.meal_credit.get(payer).unwrap_or(&0);
+        require!(credit >= fee, "Add storage credit first (add_meal_credit)");
+        self.meal_credit.insert(payer.clone(), credit - fee);
+    }
+
     /// All $CONSUME that has a claim on the stomach: minted, plus what is still
     /// locked in Bonds. Redemptions and feedings are both measured against it.
     pub(crate) fn claims(&self) -> u128 {
