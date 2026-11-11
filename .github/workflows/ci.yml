@@ -1,5 +1,5 @@
 # Runs the checks the README lists under "Reproduce the checks" that need
-# no live network: steps 1 to 5, 9, 10, 14 and 15, plus the site's type check,
+# no live network: steps 1 to 5b, 9, 10, 14 and 15, plus the site's type check,
 # lint and build. Steps 14 and 15 are the browser tests in web/e2e: the sample
 # set, and the chain set, which starts its own site and its own NEAR sandbox.
 # Nothing here holds a key to any public network, signs a transaction on one,
@@ -62,6 +62,9 @@ jobs:
       - name: NEAR Intents flow
         working-directory: contracts/integration-tests
         run: cargo test --test intents
+      - name: The Feast over four weeks
+        working-directory: contracts/integration-tests
+        run: cargo test --test feast
 
   web:
     name: Site

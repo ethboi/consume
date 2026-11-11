@@ -42,7 +42,7 @@ Supply only grows by feeding, and only as fast as Bonds release it. A run for th
 
 ![Backing of 1,000 $CONSUME over 60 days under four scenarios](charts/backing.svg)
 
-Measured in dollars, the backing rises with every tithe and every broken seal, and falls only when the memecoins themselves fall. The run for the exit leaves the people who stayed with the highest backing of the four ($1.49 for 1,000 $CONSUME, from $1.00). The crash takes it to $0.43: the backing is a share of ten memecoins, not a price in dollars.
+Measured in dollars, the backing rises with every tithe and every broken seal, and falls only when the memecoins themselves fall. The run for the exit leaves the people who stayed with the highest backing of the four ($1.50 for 1,000 $CONSUME, from $1.00). The crash takes it to $0.42: the backing is a share of ten memecoins, not a price in dollars.
 
 ## The numbers
 
@@ -51,27 +51,27 @@ Measured in dollars, the backing rises with every tithe and every broken seal, a
 | Fed into the Stomach | $146,217 | $158,378 | $77,195 | $88,625 |
 | Feedings | 1,505 | 1,636 | 877 | 919 |
 | Feedings refused by a cap | 0 | 32 | 0 | 0 |
-| Tithe paid to holders | $5,986 | $9,505 | $1,957 | $2,990 |
-| Tithe not charged (Feast) | $4,136 | $1,833 | $1,419 | $1,386 |
+| Tithe paid to holders | $6,393 | $9,461 | $1,990 | $2,913 |
+| Tithe not charged (Feast) | $3,729 | $1,877 | $1,386 | $1,463 |
 | Seals broken | 141 | 164 | 477 | 200 |
-| $CONSUME forfeited, never minted | 3.4M | 3.2M | 8.6M | 5.9M |
+| $CONSUME forfeited, never minted | 3.4M | 3.2M | 8.6M | 6.0M |
 | $CONSUME burned by redeeming | 20M | 41M | 43M | 31M |
-| Memecoins paid out | $23,773 | $51,142 | $54,624 | $15,894 |
-| Liquid $CONSUME on day 60 | 74M | 82M | 11M | 56M |
-| Locked in Bonds on day 60 | 25M | 3.4M | 4.2M | 27M |
-| Stomach on day 60 | $122,444 | $107,236 | $22,572 | $35,717 |
-| Backing of 1,000 $CONSUME, day 60 (starts at $1.00) | $1.238 | $1.256 | $1.494 | $0.431 |
-| Largest memecoin in the Stomach | DOGE, 41% | DOGE, 24% | PENGU, 44% | DOGE, 35% |
-| The Feast, week by week | none 1, DOGE 8 | none 1, DOGE 4, PENGU 1, SPX 2, SHIB 1 | none 1, PENGU 8 | none 1, DOGE 8 |
+| Memecoins paid out | $23,806 | $51,133 | $54,602 | $15,645 |
+| Liquid $CONSUME on day 60 | 74M | 82M | 11M | 57M |
+| Locked in Bonds on day 60 | 25M | 3.4M | 4.2M | 28M |
+| Stomach on day 60 | $122,411 | $107,245 | $22,593 | $35,428 |
+| Backing of 1,000 $CONSUME, day 60 (starts at $1.00) | $1.245 | $1.256 | $1.499 | $0.418 |
+| Largest memecoin in the Stomach | DOGE, 25% | DOGE, 23% | SHIB, 27% | PEPE, 21% |
+| The Feast, week by week | none 1, DOGE 3, SPX 3, PENGU 1, PEPE 1 | none 1, DOGE 1, SPX 2, SHIB 2, TURBO 1, PENGU 1, BOME 1 | none 1, PENGU 3, SHIB 3, PEPE 1, SPX 1 | none 1, DOGE 2, PEPE 2, SHIB 1, PENGU 1, SPX 1, BOME 1 |
 | Backing checks passed | 2,212 | 2,882 | 2,446 | 1,796 |
 
 ## What it found
 
 1. **The backing never fell from an action.** No feeding, broken seal or redemption lowered it in any scenario. Only falling memecoin prices did.
-2. **A run does not break it.** With a quarter of holders redeeming everything each day for ten days, everyone was paid their share in memecoins ($54,624 over the 60 days) and those who stayed ended with more behind each $CONSUME, not less.
-3. **The Feast tends to stick.** With 30% of feeders chasing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four (DOGE, PENGU, DOGE). It changed hands only when feeding was thin. This is the mechanic's weak point as a game: the crown is easier to keep than to take.
-4. **What the crown costs holders is bounded.** In steady feeding $4,136 of tithe was not charged, against $5,986 that was. A feeding with no tithe still earns exactly at the backing, so it takes nothing from holders; they only miss the tithe they would have been paid. And it is held to that memecoin's daily cap ($5,000 a day for the largest five), which is per memecoin, not per account, so many accounts gain no more room than one.
-5. **The basket concentrates.** The largest memecoin ended at 24% to 44% of the Stomach. A redemption is paid in that mix.
+2. **A run does not break it.** With a quarter of holders redeeming everything each day for ten days, everyone was paid their share in memecoins ($54,602 over the 60 days) and those who stayed ended with more behind each $CONSUME, not less.
+3. **The Feast moves on every week.** No memecoin feasts two weeks running, so even with 30% of feeders chasing the memecoin that pays no tithe, the crown changed hands every week, and 4 to 6 different memecoins feasted in each scenario. Before that rule the same run crowned one memecoin for all eight weeks in three scenarios out of four (DOGE, PENGU, DOGE). What the rule does not stop is two well fed memecoins passing the crown back and forth: in steady feeding it went DOGE, SPX, DOGE, SPX, PENGU, SPX, DOGE, PEPE.
+4. **What the crown costs holders is bounded.** In steady feeding $3,729 of tithe was not charged, against $6,393 that was. A feeding with no tithe still earns exactly at the backing, so it takes nothing from holders; they only miss the tithe they would have been paid. And it is held to that memecoin's daily cap ($5,000 a day for the largest five), which is per memecoin, not per account, so many accounts gain no more room than one.
+5. **The basket stays mixed.** The largest memecoin ended at 21% to 27% of the Stomach (24% to 44% before the rule, when one memecoin kept the crown). A redemption is paid in that mix.
 6. **The caps only bit in the rush.** 32 feedings were refused in the scenario with 150 a day. In the others none were.
 
 ## What is left out
@@ -79,5 +79,5 @@ Measured in dollars, the backing rises with every tithe and every broken seal, a
 - Storage fees, failed payouts, and feedings refused for an old price. The Assayer is assumed honest and on time.
 - Prices move only in the fourth scenario, and there all in one direction.
 - Any market for $CONSUME or for Bonds. Nobody here trades; they feed, collect, break the seal or redeem.
-- People who time the Feast on purpose. The 30% who chase it follow the crown; nobody tries to take it at the last hour. `agents/bots.mjs kingmaker` is that strategy, for anyone who wants to play it.
+- People who time the Feast on purpose. The 30% who chase it follow the crown; nobody tries to take it at the last hour, and nobody holds back a memecoin for the week it can win again. `agents/bots.mjs kingmaker` is that strategy, for anyone who wants to play it.
 - The behaviour is assumed, not measured. The rates above are our guesses at a small community. Change them at the top of `sim.mjs` and run it again.

@@ -8,7 +8,7 @@ The whole mechanic is one NEAR contract (`contracts/consume`). Its memecoin list
 
 ![The CONSUME site: the serpent ringed by the ten memecoins, the four steps, and the live figures from testnet](docs/site.png)
 
-> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 13 web unit tests, both sandbox flows and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. No video yet. The contract account still holds its own full-access key, so its code could still be replaced. Key removal is a separate launch decision, not a submission prerequisite.
+> **Status, 2026-11-11.** Live on NEAR testnet: contract [`consume.consumecash.testnet`](https://testnet.nearblocks.io/address/consume.consumecash.testnet), site at [consume.cash](https://consume.cash) (also [consume-ivory.vercel.app](https://consume-ivory.vercel.app) while the domain settles). Every action has been run there, and each transaction is linked under [Seen on testnet](#seen-on-testnet). Current checks passed 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, 20 web unit tests, the sandbox tests (three files) and 56 local browser tests (21 sample, 35 sandbox), plus 8 read-only live checks. The rule that no memecoin feasts two weeks running is in the contract source and its tests; the testnet contract still runs the 2026-11-11 build from before that rule until it is upgraded, and this line will say when. A 60-day simulation (`sim/`) and an MCP server with four bots (`agents/`) are in the repository, and the MCP server answers at `https://consume.cash/api/mcp`. Since 2026-11-11 two of the bots, the feeder and the collector, run on testnet as eight subaccounts of the deployer's own account (`glutton.consumecash.testnet`, `doge-maxi.consumecash.testnet` and so on), so most new entries in the Ledger are theirs, not a visitor's. No video yet. The contract account still holds its own full-access key, so its code could still be replaced. Key removal is a separate launch decision, not a submission prerequisite.
 
 > **Release, 2026-11-11.** Approval invalidation, funded redemption and Bond-transfer storage, bounded test-token sponsorship, full collector pagination, and corrected metadata are included in this release. The active CONSUME and Intents testnet contracts were upgraded without initialization; their code hashes and preserved state were verified. Existing Bonds retain their stored metadata; hashed media applies to newly minted Bonds. See [release evidence](docs/RELEASE-2026-11-11.md) for deployment transactions and build hashes.
 
@@ -28,7 +28,7 @@ The guide and [demo notes](docs/DEMO.md) distinguish public testnet evidence fro
 
 ## Why participate?
 
-The product hypothesis is a shared memecoin basket with a weekly contest between communities. If DOGE wins the Feast, next week a $10 DOGE feeding earns a claim for the full $10, while a rival paying a 1% tithe earns a $9.90 claim, at unchanged prices. Supporters can defend their coin’s crown or help a challenger take it. Bonds let the resulting vesting claim change hands without resetting the schedule.
+The product hypothesis is a shared memecoin basket with a weekly contest between communities. If DOGE wins the Feast, next week a $10 DOGE feeding earns a claim for the full $10, while a rival paying a 1% tithe earns a $9.90 claim, at unchanged prices. No memecoin feasts two weeks running, so the crown moves every week: supporters feed to win it, sit a week out, then try to win it back. Bonds let the resulting vesting claim change hands without resetting the schedule.
 
 The trade-off is a tithe and a 30-day release period. Keeping the original coins avoids both. Early exit forfeits half of what is still locked; NFT transfer does not promise liquidity or a buyer. Later tithes and forfeitures can increase backing per claim, but memecoin prices can fall. This is a community-game hypothesis, not a guaranteed return or evidence of product-market fit. Current bot activity is builder-operated. [The demo notes](docs/DEMO.md#independent-feedback) give a short protocol for collecting real feedback without counting those bots as users.
 
@@ -40,7 +40,7 @@ Memecoins With Mechanics asks for a memecoin where the meme does something, judg
 | --- | --- | --- |
 | Supply that reacts to the community | No premine, no team allocation, no emission schedule: `new` mints nothing. A feeding writes $CONSUME into a Bond and mints none. $CONSUME is minted in one place, `mint_consume`, which only `claim` (collect from a Bond) and `exit` (break its seal) call, and burned by `redeem`. The one other burn is the NEP-141 library's own edge case: a refund owed to a sender who sent their whole balance and unregistered before the transfer resolved (`standards.rs` `ft_resolve_transfer`), which only raises the backing. `storage_unregister` refuses to force out an account that still holds $CONSUME. What a broken seal forfeits is never minted. So supply rises only as fed memecoins vest, and falls with every redemption. | `lib.rs` `new`; `vest.rs` `mint_consume`, `claim`, `exit`; `redeem.rs` `redeem`; `standards.rs` `ft_resolve_transfer`, `storage_unregister` |
 | Treasuries with rules | The Stomach: every memecoin fed, held by the contract. One rule lets a memecoin out: burn $CONSUME and receive that share of each memecoin held, counted against all $CONSUME including what is still locked in Bonds. No method lets the guardian, the Assayer or the deployer take anything out. The full list of methods is below. | `redeem.rs` `quote`, `redeem`, `start_withdrawals`, `on_withdraw` |
-| Onchain rituals and challenges | **The Feast:** each week the memecoin fed most wins, and feeding it pays no tithe the week after. **Famine:** the tithe on every feeding rises by 1% with each $10,000 eaten, to 10% at most. **Break the seal:** leave a Bond early and half of what is still locked is given up to those who stay. | `lib.rs` `heaviest_tribe`; `meal.rs` `plan_meal`; `math.rs` `tithe_at`; `vest.rs` `exit` |
+| Onchain rituals and challenges | **The Feast:** each week the memecoin fed most wins, and feeding it pays no tithe the week after. No memecoin feasts two weeks running. **Famine:** the tithe on every feeding rises by 1% with each $10,000 eaten, to 10% at most. **Break the seal:** leave a Bond early and half of what is still locked is given up to those who stay. | `lib.rs` `heaviest_tribe`; `meal.rs` `plan_meal`; `math.rs` `tithe_at`; `vest.rs` `exit` |
 | NEP-141 and token mechanics (the track's hints) | $CONSUME is a NEP-141 token with NEP-145 storage and NEP-148 metadata. Every mint and burn emits the standard NEP-141 event (`FtMint` and `FtBurn` from near-contract-standards, logged as `ft_mint` and `ft_burn`), so wallets and indexers follow the supply without knowing CONSUME. A feeding arrives one of two ways, fixed for each memecoin at launch: `mt_transfer_call` on the Intents contract, received by `mt_on_transfer` (all ten launched memecoins are set this way, see `scripts/launch-args.mjs`), or `ft_transfer_call` on a plain NEP-141 memecoin, received by `ft_on_transfer` (the path the first sandbox test uses). | `standards.rs`; `vest.rs` `mint_consume`; `redeem.rs` `redeem`; `intents.rs` `mt_on_transfer`; `meal.rs` `ft_on_transfer` |
 | Beyond the hints | Bonds are NEP-171 NFTs (with NEP-177, NEP-178 and NEP-181) that carry a vesting position, each minted with the standard NEP-171 event (`NftMint`, logged as `nft_mint`). Memecoins from other chains arrive through NEAR Intents, where CONSUME is a NEP-245 receiver. | `standards.rs`; `meal.rs` `eat`; `intents.rs` `mt_on_transfer` |
 
@@ -88,7 +88,7 @@ The site and this README use the story's words. The contract keeps plain or olde
 | A feeding | a meal: `plan_meal`, `eat`, `quote_meal`, event `meal` |
 | The backing | the floor: `consume_at_floor`, with `claims` and `stomach_usd` |
 | Tithe and famine | `tithe_at`, `after_tithe`, `tithe_step_bps`, `max_tithe_bps`, `famine_usd` |
-| The Feast, a week | `heaviest_tribe`, `epoch_fed`, `epoch_ns` |
+| The Feast, a week | `feast_for`, `heaviest_tribe`, `epoch_fed`, `epoch_ns` |
 | The Assayer | `price_feeder_id`, `set_prices` |
 | Storage credit | `meal_credit` |
 
@@ -101,7 +101,7 @@ Each rule is contract code under `contracts/consume/src/`, and each test named i
 | **Feed** | Takes a listed memecoin, values it at the posted price, keeps it in the Stomach, refunds anything over the cap, mints a Bond. | `meal.rs` `plan_meal`, `eat` | `a_feeding_mints_a_bond`, `over_the_meal_cap_is_refunded`, `daily_cap_holds`, `stale_price_refused`, `a_round_must_price_every_open_memecoin`, `a_zero_price_is_refused`, `unknown_token_refused`, `feeding_without_storage_credit_is_refused` |
 | **Earned at the backing** | A feeding earns `fed value × $CONSUME with a claim ÷ Stomach value`, so $100 fed buys a claim on $100 of the Stomach, whenever you arrive. The first feeding sets the scale at 1000 $CONSUME per dollar. A feeding can never lower the backing per $CONSUME. | `math.rs` `consume_at_floor`, `lib.rs` `stomach_usd_for_minting`, `claims` | `minting_at_the_floor_math`, `the_stomach_is_rounded_up_when_a_feeding_is_priced`, `a_feeding_never_lowers_the_floor`, `a_late_feeder_gets_what_they_fed_less_the_tithe`, `a_feeding_that_would_mint_nothing_is_refused` |
 | **Famine** | Each feeding pays a tithe: a part of it that earns no $CONSUME and so belongs to everyone already holding. It is 1% at the start and grows by 1% with every $10,000 eaten, to 10% at most. A feeding that crosses a famine pays each tithe on its part on each side. | `math.rs` `tithe_at`, `after_tithe` | `famine_grows_the_tithe_to_its_cap` |
-| **Feast** | The memecoin fed most (by USD) in a week pays no tithe the following week. | `lib.rs` `heaviest_tribe`, `meal.rs` `plan_meal` | `the_feast_waives_the_tithe_next_epoch` |
+| **Feast** | The memecoin fed most (by USD) in a week pays no tithe the following week. None feasts two weeks running: if the one feasting is fed the most again, the Feast passes to the most fed of the others, or to none if no other was fed. Each week's Feast is written down at that week's first feeding. | `lib.rs` `feast_for`, `heaviest_tribe`, `record_feast`, `meal.rs` `plan_meal` | `the_feast_waives_the_tithe_next_epoch`, `no_memecoin_feasts_two_weeks_running`, `the_crown_changes_hands_every_week_when_one_memecoin_is_always_fed_most`, `a_feast_fed_alone_is_followed_by_a_week_with_no_feast`, `a_week_with_no_feedings_ends_the_run`, `a_tie_goes_to_the_first_listed_that_did_not_just_feast` (`feast_tests.rs`), and four weeks on a sandbox in `integration-tests/tests/feast.rs` |
 | **Bond** | An NFT that releases its $CONSUME linearly over 30 days to whoever holds it. | `vest.rs` `claim` | `claim_releases_linearly_to_the_current_holder` |
 | **Break the seal** | Leave early with what has been released plus half of the rest. The other half is never minted. | `vest.rs` `exit` | `exit_forfeits_half_of_the_locked_part`, `a_broken_seal_raises_the_floor`, `bond_in_flight_cannot_have_its_seal_broken` |
 | **Redeem** | Burn $CONSUME for a pro-rata share of every memecoin in the Stomach, counted against all $CONSUME including what is still locked in Bonds. | `redeem.rs` `redeem` | `redeem_pays_a_fair_share_counting_unvested`, `a_redemption_that_would_pay_nothing_is_refused`, `a_failed_payout_stays_owed_and_a_paid_one_is_cleared` |
@@ -115,11 +115,12 @@ Every claim below can be checked from a clean clone. Prerequisites are under [Tr
 
 | # | Run this, from the repository root | You should see |
 | --- | --- | --- |
-| 1 | `(cd contracts/consume && cargo test)` | `test result: ok. 64 passed; 0 failed` |
+| 1 | `(cd contracts/consume && cargo test)` | `test result: ok. 71 passed; 0 failed` |
 | 2 | `(cd contracts/mock-intents && cargo test)`; `(cd contracts/mock-meme && cargo test)` | mock-intents: **7 passed**; mock-meme: **3 passed** |
 | 3 | `for c in consume mock-meme mock-intents; do (cd contracts/$c && cargo near build non-reproducible-wasm); done` | three `.wasm` files under `contracts/target/near/` |
 | 4 | `(cd contracts/integration-tests && cargo test --test flow)` | `test offering_claim_redeem ... ok`. On a real local NEAR node: feed, refund over the cap, Bond, collect, redeem with exact payouts, a failed payout kept as owed and paid on retry. It also asserts that `set_tribe`, `set_intents_id`, `set_media_base` and `set_owner` do not exist and that a second `new` is refused as already initialized. |
 | 5 | `(cd contracts/integration-tests && cargo test --test intents)` | `test feed_and_redeem_through_intents ... ok`. Through the NEAR Intents stand-in: a simulated arrival from the home chain, a feeding by `mt_transfer_call`, the part over the cap refunded into the Intents balance, collect, a redemption paid by `mt_transfer`, and a simulated withdrawal. |
+| 5b | `(cd contracts/integration-tests && cargo test --test feast)` | `test no_memecoin_feasts_two_weeks_running ... ok`. Four weeks on a local node with PEPE fed the most in each: the Feast is none, PEPE, DOGE, PEPE, checked in the quotes, on the Bonds and through `get_feast`. The second test in the file rehearses upgrading a contract launched on an older build; it does that only when `CONSUME_OLD_WASM` names such a build, and otherwise passes without running. |
 | 6 | `(cd web && pnpm install && pnpm dev)`, then open `http://localhost:3000` | The site, with a note that it is showing sample figures. Buttons that need a contract are off. |
 | 7 | `curl http://localhost:3000/api/routes` | JSON with ten routes. These are live mainnet NEAR Intents (1Click) dry quotes, not samples: for each memecoin, whether NEAR Intents will trade $100 of it into USDC right now and what comes out. The "From any chain" section of the site shows the same data. |
 | 8 | open `http://localhost:3000/bond/209.svg` and `/bond/square/209.svg` | A Bond drawn as a tarot card from its state (amount fed, days released, seal intact or broken). |
@@ -166,18 +167,18 @@ The track suggests a 60-day community simulation as an optional project example.
 |  | Steady feeding | A rush, then quiet | A run for the exit | Memecoins fall about 70% |
 | --- | ---: | ---: | ---: | ---: |
 | Fed into the Stomach | $146,217 | $158,378 | $77,195 | $88,625 |
-| Liquid $CONSUME on day 60 | 74M | 82M | 11M | 56M |
-| Locked in Bonds on day 60 | 25M | 3.4M | 4.2M | 27M |
+| Liquid $CONSUME on day 60 | 74M | 82M | 11M | 57M |
+| Locked in Bonds on day 60 | 25M | 3.4M | 4.2M | 28M |
 | $CONSUME burned by redeeming | 20M | 41M | 43M | 31M |
-| $CONSUME forfeited, never minted | 3.4M | 3.2M | 8.6M | 5.9M |
-| Memecoins paid out | $23,773 | $51,142 | $54,624 | $15,894 |
-| Backing of 1,000 $CONSUME, day 60 (starts at $1.00) | $1.238 | $1.256 | $1.494 | $0.431 |
+| $CONSUME forfeited, never minted | 3.4M | 3.2M | 8.6M | 6.0M |
+| Memecoins paid out | $23,806 | $51,133 | $54,602 | $15,645 |
+| Backing of 1,000 $CONSUME, day 60 (starts at $1.00) | $1.245 | $1.256 | $1.499 | $0.418 |
 
 What it found:
 
-- **The backing never fell from an action.** After every feeding, broken seal and redemption the run checks that the backing of each $CONSUME did not fall, and stops if it did. It passed every time, 1,796 to 2,882 checks a scenario. Only falling memecoin prices lowered it, to $0.43 in the last scenario.
+- **The backing never fell from an action.** After every feeding, broken seal and redemption the run checks that the backing of each $CONSUME did not fall, and stops if it did. It passed every time, 1,796 to 2,882 checks a scenario. Only falling memecoin prices lowered it, to $0.42 in the last scenario.
 - **A run for the exit does not break it.** With a quarter of holders redeeming everything each day for ten days, everyone was paid their share in memecoins, and those who stayed ended with the highest backing of the four.
-- **The Feast tends to stick,** which is the mechanic's weak point as a game. See the next section.
+- **The Feast moves on every week.** No memecoin feasts two weeks running, so the crown changed hands every week and 4 to 6 different memecoins feasted in each scenario. Two well fed memecoins can still pass it back and forth. See [Gaming the Feast](#gaming-the-feast).
 - **The behaviour is assumed, not measured.** The rates are our guesses at a small community, set at the top of `sim/sim.mjs`. Nobody in the model trades $CONSUME or Bonds, and the Assayer is honest and on time.
 
 ## Sybil limits, plainly
@@ -192,11 +193,19 @@ What it found:
 
 The cheapest way to win the Feast is to wait for the last hours of the week and feed just past the leader. `agents/bots.mjs kingmaker` does exactly that, and it is in this repository so that every community can run it, not only whoever writes the script first.
 
-- **What it costs:** the feeding pays the tithe like any other (unless that memecoin is already feasting) and comes back as a Bond over 30 days.
-- **What it wins:** for the next week that memecoin's feedings pay no tithe. That is for everyone who feeds it, not for the account that won it.
+- **What it costs:** the feeding pays the tithe like any other and comes back as a Bond over 30 days. The memecoin that is feasting pays no tithe, but it cannot win the next week.
+- **What it wins:** for the next week, and that week only, that memecoin's feedings pay no tithe. That is for everyone who feeds it, not for the account that won it.
 - **What holders lose:** only the tithe they would have been paid. A feeding with no tithe still earns exactly at the backing, so it takes nothing out of anyone's share. It is held to the memecoin's daily cap: at most $35,000 a week for the largest five, which is $350 of tithe at 1% and $3,500 at 10%.
 
-The simulation shows the weak point. With 30% of feeders choosing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four, and in steady feeding $4,136 of tithe was not charged against $5,986 that was. The crown is easier to keep than to take. A rule that the same memecoin cannot feast two weeks running would close this. It is not in the contract. Adding it would require a deliberate code change and upgrade or a new deployment, not a guardian call.
+An earlier build let a memecoin feast week after week, and the simulation showed the weak point: with 30% of feeders choosing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four. The contract source now holds the rule that closes it: **no memecoin feasts two weeks running** (`lib.rs` `feast_for`). If the memecoin that is feasting is fed the most again, the Feast passes to the most fed of the others, and to no memecoin if no other was fed. The same simulation with the rule:
+
+- The crown changed hands every week, and 4 to 6 different memecoins feasted in each scenario.
+- The largest memecoin ended at 21% to 27% of the Stomach. Without the rule it was 24% to 44%.
+- In steady feeding $3,729 of tithe was not charged against $6,393 that was.
+
+What the rule does not stop: two well fed memecoins can pass the crown back and forth (DOGE and SPX did for four weeks of steady feeding), and a last-hour bid still works among the memecoins that are not feasting.
+
+The rule needs no migration. Each week's Feast is stored under its own key at that week's first feeding, which costs that feeder 59 bytes of storage (0.00059 NEAR) from their prepaid credit, and the contract's main record is unchanged. `integration-tests/tests/feast.rs` rehearses the upgrade of a contract that was launched and fed on the build from before the rule (`CONSUME_OLD_WASM`). The live testnet contract was launched on that earlier build; the status at the top of this file says which build it runs now.
 
 ## Every mint and burn, logged
 
@@ -226,7 +235,7 @@ The [official FAQ](https://nearhackathon.com/#faq) describes AI screening for re
 ### Technical implementation
 
 - **Architecture.** One contract, split by job: `lib.rs` (state, launch, the guardian, views), `meal.rs` (feeding), `vest.rs` (Bonds), `redeem.rs` (redeeming and payouts), `intents.rs` (the NEAR Intents receiver), `standards.rs` (the NEP interfaces), `math.rs` (arithmetic). The site keeps no database and reads the contract. The agent tools are written once (`web/src/lib/mcp.ts`) and served three ways: HTTP, stdio, and the bots.
-- **Correctness.** Amounts use 256-bit intermediates and round against the feeder (`math.rs`). 64 unit tests (`contracts/consume/src/tests.rs` and its regression include) and two end-to-end tests on a real local node (`contracts/integration-tests/tests/flow.rs`, `intents.rs`), the first of which includes a payout that fails and is paid on retry. `new` checks every launch argument before it stores anything (`lib.rs` `new`). The simulation is a port of the same arithmetic (`sim/model.mjs`) that checks the backing after every action and stops if it falls, and before each run it checks itself against the $94.74 example in this README (`sim/sim.mjs` `selfCheck`). CI runs the unit tests, both sandbox tests, the simulation, the MCP handshake, the site's type check, lint and build, and the browser tests on every push (`.github/workflows/ci.yml`). The browser tests (`web/e2e`) drive the built site in Chromium: 35 against the contract on a local sandbox with a test wallet, checked on the page and against the contract's own views, and 21 on sample figures. The transfer regressions cover storage-reserve boundaries, first-time recipient registration, changes after review, wallet switches during preflight, transaction rollback, RPC recovery and long addresses on mobile (`web/e2e/transfer.spec.ts`).
+- **Correctness.** Amounts use 256-bit intermediates and round against the feeder (`math.rs`). 71 unit tests (`contracts/consume/src/tests.rs` and its two includes) and end-to-end tests on a real local node in three files (`contracts/integration-tests/tests/flow.rs`, `intents.rs`, `feast.rs`), the first of which includes a payout that fails and is paid on retry. `new` checks every launch argument before it stores anything (`lib.rs` `new`). The simulation is a port of the same arithmetic (`sim/model.mjs`) that checks the backing after every action and stops if it falls, and before each run it checks itself against the $94.74 example in this README (`sim/sim.mjs` `selfCheck`). CI runs the unit tests, the sandbox tests, the simulation, the MCP handshake, the site's type check, lint and build, and the browser tests on every push (`.github/workflows/ci.yml`). The browser tests (`web/e2e`) drive the built site in Chromium: 35 against the contract on a local sandbox with a test wallet, checked on the page and against the contract's own views, and 21 on sample figures. The transfer regressions cover storage-reserve boundaries, first-time recipient registration, changes after review, wallet switches during preflight, transaction rollback, RPC recovery and long addresses on mobile (`web/e2e/transfer.spec.ts`).
 - **Integrations wired up.** NEP-141 with NEP-145 and NEP-148, NEP-171 with NEP-177, NEP-178 and NEP-181, with their standard events (`standards.rs`, `vest.rs`, `redeem.rs`, `meal.rs`). A NEP-245 receiver for NEAR Intents, with payouts by `mt_transfer` (`intents.rs`, `redeem.rs`). NEAR Intents 1Click quotes for prices and routes (`scripts/assayer.mjs`, `web/src/app/api/routes`). A wallet selector (`web/src/components/Wallet.tsx`).
 - **Data handling.** A redemption's payouts are cross-contract calls: what is due is written down as owed before anything is sent, and the callback writes back any payout whose transfer failed, so none is lost (`redeem.rs` `start_withdrawals`, `on_withdraw`). Every byte a feeding stores is charged to the feeder's prepaid credit (`meal.rs` `eat`). Prices are accepted only as full rounds and refused when stale (`lib.rs` `set_prices`, `meal.rs` `plan_meal`). Off the chain: the site asks a second public RPC node when the first refuses (`web/src/lib/near.ts`), the HTTP MCP server keeps no state, caps a request at 64 KiB and a batch at 20 calls (`web/src/app/api/mcp/route.ts`), and the Ledger reports indexer pagination and whether aggregate totals agree (`web/src/lib/ledger.ts`).
 - **Reviewed.** Two security reviews by a second model. What they found is fixed and tested, or listed as known under [Security notes](#security-notes).
@@ -239,7 +248,7 @@ The idea: a memecoin with no supply of its own. Every $CONSUME exists because an
 - **The vesting position is an NFT.** A feeding pays a Bond, not tokens. It can be sold, the lock goes with it, and its picture is drawn from its state (`vest.rs`, `web/src/components/BondCard.tsx`).
 - **A forfeit is never minted.** Breaking a seal does not move tokens to anyone. Half of the locked $CONSUME is simply never created, which raises every remaining share at once (`vest.rs` `exit`).
 - **Redeeming counts locked supply.** A share of the Stomach is measured against all $CONSUME, including what Bonds have not released, so nobody can empty the Stomach ahead of the Bonds still vesting (`lib.rs` `claims`, `redeem.rs` `quote`).
-- **The Feast sets communities against each other.** The holders of ten other memecoins compete each week to be the one eaten most (`lib.rs` `heaviest_tribe`). An example bot is included in this repository for inspection (`agents/bots.mjs`).
+- **The Feast sets communities against each other.** The holders of ten other memecoins compete each week to be the one eaten most, and no memecoin can hold the Feast two weeks running (`lib.rs` `feast_for`, `heaviest_tribe`). An example bot is included in this repository for inspection (`agents/bots.mjs`).
 - **A memecoin for agents too.** Feeding, collection, early exit and redemption have MCP tools that return unsigned calls (`web/src/lib/mcp.ts`).
 
 We read the public project list at nearhackathon.com on 2026-11-10 (436 entries, 25 in this track) and the demo posts it links. As far as those show, no other entry eats other memecoins, redeems by burning for a pro-rata basket, or puts the vesting position in a transferable NFT.
@@ -293,7 +302,7 @@ Rules enforced by the contract:
 
 - **Earned at the backing:** a feeding earns `net × claims ÷ stomach value`, where `net` is the feeding's USD value after the tithe, `claims` is all $CONSUME in wallets plus all still locked in Bonds, and `stomach value` is every held memecoin at its posted price before the feeding. When no $CONSUME exists yet, minted or locked, it earns 1000 $CONSUME per dollar. So the backing per $CONSUME is the same before and after a feeding, apart from the tithe, which raises it. A feeding that would earn nothing is refused.
 - **Famine:** the tithe is `min(10%, 1% × (1 + total eaten ÷ $10,000))` of the feeding's value. That part earns no $CONSUME. A feeding that crosses a famine pays each tithe on the part on each side.
-- **Feast:** the memecoin fed most (by USD) in a week pays no tithe the following week.
+- **Feast:** the memecoin fed most (by USD) in a week pays no tithe the following week. No memecoin feasts two weeks running: the one feasting is left out when the next week's Feast is chosen. On a tie the memecoin listed first wins. `get_stats` reports `feast` (who feasts now) and `heaviest_last_epoch` (last week's most fed, whether or not it could feast); `get_feast(epoch)` answers for any week.
 - **Caps:** each memecoin has a largest feeding and a daily limit, smaller for thin markets (the NEAR-native memecoins). They limit how much of an overpriced memecoin can be fed in a day. They do not limit a feeding made while the Stomach is underpriced (see [Trust assumptions](#trust-assumptions)).
 - **Stale prices are refused:** a feeding reverts if the price of the memecoin fed, or of any memecoin in the Stomach, is more than 15 minutes old. A round of prices must cover every memecoin that is open or held, so a feeding never reads a half-updated Stomach. Redemption needs no prices.
 
@@ -405,7 +414,10 @@ Run everything locally, from the repository root:
 # mt_transfer, simulated withdrawal
 (cd contracts/integration-tests && cargo test --test intents)
 
-# MCP pagination, redemption setup and bounded request-body regressions
+# the Feast over four weeks on the sandbox: no memecoin feasts two weeks running
+(cd contracts/integration-tests && cargo test --test feast)
+
+# MCP pagination, redemption setup, bounded request-body and Feast rule regressions
 (cd web && pnpm test)
 
 # web app (shows sample figures until a contract is configured)
@@ -423,9 +435,9 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node agents/mcp.mjs
 node agents/bots.mjs herald
 ```
 
-`.github/workflows/ci.yml` runs all of this except the bot on every push: the unit tests, both sandbox tests, the site's type check, lint and build, both sets of browser tests, the simulation, and the MCP server's handshake.
+`.github/workflows/ci.yml` runs all of this except the bot on every push: the unit tests, the sandbox tests, the site's type check, lint and build, both sets of browser tests, the simulation, and the MCP server's handshake.
 
-Expected: 64 CONSUME, 7 mock-intents and 3 mock-meme unit tests, plus 13 web unit tests pass; both sandbox tests pass; 21 sample and 35 sandbox browser tests pass. The separate read-only live suite has 8 checks.
+Expected: 71 CONSUME, 7 mock-intents and 3 mock-meme unit tests, plus 20 web unit tests pass; the sandbox tests in all three files pass (the upgrade rehearsal in `feast.rs` does nothing unless `CONSUME_OLD_WASM` is set); 21 sample and 35 sandbox browser tests pass. The separate read-only live suite has 8 checks.
 
 ### Launch on testnet
 
@@ -457,7 +469,7 @@ contracts/
     src/math.rs       fixed-point arithmetic (256-bit intermediates)
   mock-intents/       testnet stand-in for NEAR Intents (NEP-245), simulated deposits and withdrawals
   mock-meme/          testnet stand-in for a plain NEP-141 memecoin, with a faucet
-  integration-tests/  near-workspaces sandbox tests of both flows
+  integration-tests/  near-workspaces sandbox tests of both flows and of the Feast
     examples/stage.rs a sandbox kept running with the contract launched, for the browser tests
 web/                  Next.js app (the woodcut site)
   scripts/embed-fonts.mjs  writes src/lib/card-fonts.generated.ts (git-ignored) before dev and build

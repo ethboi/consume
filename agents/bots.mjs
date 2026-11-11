@@ -24,7 +24,9 @@
 //       Plays the Feast race. In the last --within hours of the week (default
 //       6) it feeds just enough of one memecoin to put it in the lead, if
 //       that fits the budget. Earlier than that it waits, since a lead taken
-//       early only tells rivals what to beat. --now feeds at once.
+//       early only tells rivals what to beat. --now feeds at once. No
+//       memecoin feasts two weeks running, so it stands down in a week when
+//       its memecoin is the one feasting.
 //
 // Every bot takes --every <seconds> to keep running (with --jitter <seconds>
 // each round first waits a random time up to that long, so several bots do
@@ -98,7 +100,8 @@ async function herald(ctx) {
   const { net, opts, log } = ctx;
   const o = await overview(net);
   const race = await feastRace(net);
-  const second = race.standings[1];
+  // the memecoin feasting now cannot win this week, so the race is among the others
+  const second = race.standings.filter((r) => r.can_win)[1];
   const alerts = [];
   if (o.prices.fresh === false) {
     alerts.push(`Prices are ${span(o.prices.oldest_price_age_seconds)} old. Feedings are refused until the Assayer posts again. Redeeming stays open.`);
@@ -114,7 +117,11 @@ async function herald(ctx) {
 
   log(`The Stomach holds ${money(o.stomach_usd)} on ${net.network} (${net.consume}).`);
   if (o.backing_usd_per_1000_consume !== null) log(`1,000 $CONSUME is backed by ${money(o.backing_usd_per_1000_consume)}. The tithe is ${o.tithe_percent}%.`);
-  log(o.feast_now ? `${o.feast_now} is feasting: feeding it pays no tithe.` : "No memecoin is feasting this week.");
+  log(
+    o.feast_now
+      ? `${o.feast_now} is feasting: feeding it pays no tithe.${race.cannot_win_this_week ? " It cannot win this week's race." : ""}`
+      : "No memecoin is feasting this week.",
+  );
   const fed = race.standings.filter((r) => r.fed_usd > 0);
   log(
     fed.length
@@ -220,8 +227,11 @@ async function kingmaker(ctx) {
   for (let round = 0; round < 40; round++) {
     const race = await feastRace(net);
     const me = race.standings.find((r) => r.symbol === listed.symbol);
+    if (!me.can_win) {
+      idle(`${me.symbol} is feasting this week, and no memecoin feasts two weeks running. Feeding it now pays no tithe but cannot win it next week's Feast.`);
+    }
     if (race.leading === me.symbol) {
-      const next = race.standings[1];
+      const next = race.standings.filter((r) => r.can_win)[1];
       log(`${me.symbol} leads the race with ${money(me.fed_usd)}${next && next.fed_usd > 0 ? `, ${money(next.behind_leader_usd)} ahead of ${next.symbol}` : ""}. ${span(race.seconds_until_week_ends)} left.`);
       return { account: who, symbol: me.symbol, leads: true, spent_usd: spent };
     }

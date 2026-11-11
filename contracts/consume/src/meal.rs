@@ -30,7 +30,7 @@ pub struct MealQuote {
     pub tithe_usd: U128,
     /// $CONSUME the Bond would release.
     pub consume: U128,
-    /// True if this is last epoch's most-fed memecoin (the feast): no tithe.
+    /// True if this memecoin is the feast this epoch: no tithe.
     pub bonus: bool,
 }
 
@@ -61,7 +61,7 @@ impl Contract {
         require!(meal_usd >= self.config.min_meal_usd.0, "Meal too small");
 
         let epoch = now / self.config.epoch_ns.0;
-        let bonus = self.heaviest_tribe(epoch.saturating_sub(1)).as_ref() == Some(token_id) && epoch > 0;
+        let bonus = self.feast_for(epoch).as_ref() == Some(token_id);
         let net_usd = if bonus {
             meal_usd
         } else {
@@ -97,6 +97,8 @@ impl Contract {
         let now = env::block_timestamp();
         let day = now / NANOS_PER_DAY;
         let epoch = now / self.config.epoch_ns.0;
+        // the first feeding of an epoch writes down who feasts in it
+        self.record_feast(epoch);
 
         // stomach and counters
         let tribe = self.tribes.get_mut(&token_id).unwrap();

@@ -82,6 +82,7 @@ function vest(id: number, owner: string, symbol: string, mealUsd: number, daysAg
 
 // Newest first. Numbers follow the dates: the most recent feeding has the highest number.
 const recent: VestView[] = [
+  vest(215, "the-miller.testnet", "PEPE", 340, 1, { bonus: true }),
   vest(214, "brother-odo.testnet", "BLACKDRAGON", 90, 2),
   vest(213, "gutterpriest.testnet", "SPX", 180, 3, { exited: true }),
   vest(212, "anchorite.testnet", "SHIB", 250, 4),
@@ -100,7 +101,8 @@ const UNVESTED = BigInt(7_420_000) * pow10(18);
 const STOMACH_MICRO = BigInt(Object.values(HELD_USD).reduce((a, b) => a + b, 0)) * BigInt(1_000_000);
 
 // What each memecoin was fed this week and last (whole USD). This week's agree with the sample ledger above.
-const FED_NOW: Record<string, number> = { TURBO: 300, SHIB: 250, SPX: 180, BLACKDRAGON: 90 };
+// PEPE is feasting, so it is fed the most this week and still cannot win the race: TURBO leads it.
+const FED_NOW: Record<string, number> = { PEPE: 340, TURBO: 300, SHIB: 250, SPX: 180, BLACKDRAGON: 90 };
 const FED_LAST: Record<string, number> = { PEPE: 640, DOGE: 310, BOME: 120 };
 const fedWeek = (by: Record<string, number>): [string, string][] =>
   HERESIES.map((h) => [DEMO_TOKEN(h.symbol), String((by[h.symbol] ?? 0) * 1e6)]);
@@ -115,7 +117,7 @@ export const DEMO_SNAPSHOT: Snapshot = {
     total_unvested: UNVESTED.toString(),
     total_forfeited: (BigInt(212_000) * pow10(18)).toString(),
     total_redeemed: (BigInt(480_000) * pow10(18)).toString(),
-    vests_minted: "214",
+    vests_minted: "215",
     stomach_usd: STOMACH_MICRO.toString(),
     // one dollar earns its share of every $CONSUME with a claim
     current_rate: (((SUPPLY + UNVESTED) * BigInt(1_000_000)) / STOMACH_MICRO).toString(),
@@ -123,6 +125,7 @@ export const DEMO_SNAPSHOT: Snapshot = {
     next_famine_at_usd: String(20_000 * 1e6),
     epoch: "2966",
     heaviest_last_epoch: DEMO_TOKEN("PEPE"),
+    feast: DEMO_TOKEN("PEPE"),
     now_ns: nowNs.toString(),
   },
   config: {
@@ -184,7 +187,6 @@ const otherEntries: LedgerEntry[] = [
     minted: (brokenTotal - brokenForfeit).toString(),
     forfeited: brokenForfeit.toString(),
   },
-  { id: "sample:collect:207", kind: "collect", tx: "", at: hoursAgo(150), account: "the-miller.testnet", bond: "207", minted: (BigInt(96_500) * CONSUME_UNIT).toString() },
 ];
 
 export const DEMO_LEDGER: Ledger = {

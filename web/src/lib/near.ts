@@ -73,7 +73,10 @@ export type Stats = {
   /** Null once the tithe is at its most. */
   next_famine_at_usd: string | null;
   epoch: string;
+  /** Last week's most fed memecoin, whether or not it could feast. */
   heaviest_last_epoch: string | null;
+  /** The memecoin feasting this week: read it with `feastOf` (lib/feast.ts). A contract built before the two-weeks rule does not report it. */
+  feast?: string | null;
   now_ns: string;
 };
 
