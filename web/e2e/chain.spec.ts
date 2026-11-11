@@ -107,16 +107,18 @@ test("a fresh launch: nothing fed, nothing minted, and the site says so", async 
   await expect(page.locator('input[name="meme"]:enabled')).toHaveCount(10);
   await expect(page.locator("#bonds h2")).toHaveText("Bonds");
   await expect(page.locator("#ledger")).toContainText("Nothing has been fed yet. The first feeding will be written here.");
-  // who holds the two roles is read from the contract; this sandbox launches with one account in both
+  await expect(signButton()).toHaveAccessibleName("Connect wallet");
+  // who holds the two roles is read from the contract, on "How it works"; this sandbox launches with one account in both
   const config = await view<{ guardian_id: string | null; price_feeder_id: string }>(CONSUME, "get_config");
   expect(config.guardian_id).toBe(config.price_feeder_id);
+  await page.goto("/how-it-works");
   await expect(page.locator(".seals .seal-who")).toHaveText([
     `Today it is ${config.price_feeder_id}.`,
     `Today it is ${config.guardian_id}, the same account as the Assayer.`,
   ]);
   // no price round has been sent where the indexer can see it, so none is shown
   await expect(page.locator("details.round-fold")).toHaveCount(0);
-  await expect(signButton()).toHaveAccessibleName("Connect wallet");
+  await page.goto("/");
 });
 
 test("connect through the site's own wallet picker", async () => {
@@ -650,7 +652,8 @@ test("a price round carries the Assayer's quotes, and the site sets each posted 
   expect([round!.feeder, round!.contract, round!.with_quotes]).toEqual([feeder, CONSUME, true]);
   expect(round!.prices.map((p) => [p.token, p.posted_e18, p.posted_is_the_quote, p.quote_from_list_percent])).toEqual(args.prices.map(([token, posted]) => [token, posted, true, -20]));
 
-  await page.reload();
+  // the round is shown under "Who you trust", on "How it works"
+  await page.goto("/how-it-works");
   const fold = page.locator("details.round-fold");
   await expect(fold.locator(".round-table")).toBeHidden();
   await fold.locator("summary").click();
@@ -663,6 +666,7 @@ test("a price round carries the Assayer's quotes, and the site sets each posted 
     await expect(fold.locator("tbody tr").nth(i).locator("th, td")).toHaveText([r.symbol, priceText(r.price), priceText(r.price), priceText(r.listed), "-20.00%"]);
   }
   await expect(fold.locator("tbody tr.off")).toHaveCount(0);
+  await page.goto("/");
 });
 
 test("the MCP server answers from the same contract", async () => {

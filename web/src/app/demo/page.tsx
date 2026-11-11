@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Colophon, PageHead } from "@/components/Page";
 
 export const metadata: Metadata = { title: "Try the demo", description: "A short walkthrough of feeding, transferable Bond NFTs and redeeming on NEAR testnet." };
 const repo = process.env.NEXT_PUBLIC_REPO_URL?.trim() || "https://github.com/ethboi/consume";
 
 export default function DemoPage() {
-  return <main className="folio demo-guide">
-    <nav aria-label="Demo navigation"><Link href="/">← CONSUME</Link><a href={repo}>Source on GitHub</a></nav>
+  return <div className="folio">
+    <PageHead here="/demo" />
+    <main className="demo-guide">
     <header>
       <p className="label">NEAR testnet · a guided demo</p>
       <h1>Feed. Pass the Bond. Redeem.</h1>
@@ -30,5 +32,7 @@ export default function DemoPage() {
       <p>The builder holds the key that posts prices and the only vote in the DAO that is the guardian. Since 2026-11-11 prices are posted from a separate account, <code>assayer.consumecash.testnet</code>, whose <a href="https://explorer.testnet.near.org/transactions/G1LAQEv9jzRMWFqL7BQzLHwv1bkm9JYF4uLBu9qEuZ31">only key can post prices</a> and do nothing else. The guardian, which can replace that account, has been <a href="https://explorer.testnet.near.org/transactions/3PdUM8nJXgu2L4eb8fDMLyXSGjkuNtJ3LHSUroZqhpnC">a DAO since 2026-11-11</a>, with the builder&apos;s account as its only council member. The contract account&apos;s key was <a href="https://explorer.testnet.near.org/transactions/8LQwF4z3mxMiYo5uCcKwz5Q9vsfyiVGxFGhhi8WbsKN">deleted on 2026-11-11</a>, so its code can no longer be replaced. Read <a href={`${repo}#what-to-know-before-you-trust-it`}>the trust assumptions</a> before evaluating the design.</p>
     </section>
     <Link className="press" href="/#feed">Try the live testnet demo</Link>
-  </main>;
+    </main>
+    <Colophon />
+  </div>;
 }

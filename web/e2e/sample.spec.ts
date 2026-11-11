@@ -297,8 +297,21 @@ test("the Feast shows this week's race, who feasts now, and that it cannot win a
   await expect(page.locator("#feast > header")).toContainText("None feasts two weeks running.");
 });
 
-test("the roads show what NEAR Intents answered, open or shut", async ({ page }) => {
-  await page.goto("/");
+test("How it works holds the Rule with nobody named, and the roads as NEAR Intents answered, open or shut", async ({ page }) => {
+  await page.goto("/how-it-works");
+  await expect(page).toHaveTitle("How it works | CONSUME");
+  await expect(page.getByRole("heading", { level: 2 })).toHaveText(["The Rule", "From any chain"]);
+  await expect(page.locator(".demo-note")).toHaveText("A preview with sample figures. This build is not joined to a contract.");
+  // the three things the contract does, with the sample contract's figures
+  await expect(page.locator("#rule .articles > li h3")).toHaveText(["Feed", "Release", "Redeem"]);
+  await expect(page.locator("#rule .articles")).toContainText("1% to 10%");
+  await expect(page.locator("#rule .articles")).toContainText("30 days");
+  // sample figures name nobody as the Assayer or the guardian
+  await expect(page.locator(".seals li")).toHaveCount(3);
+  await expect(page.locator(".seals .seal-who")).toHaveCount(0);
+  // and no Assayer, so no price round
+  await expect(page.locator("details.round-fold")).toHaveCount(0);
+
   await expect(page.locator(".roads-status")).toContainText("All ten roads are open");
   await expect(page.locator(".town-coin .out.shut")).toHaveCount(0);
 
@@ -327,11 +340,6 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
   // sample figures have no builder to tell apart
   await expect(page.locator("#ledger .roll-who")).toHaveCount(0);
   await expect(page.locator("#ledger .roll-own")).toHaveCount(0);
-  // and name nobody as the Assayer or the guardian
-  await expect(page.locator(".seals li")).toHaveCount(3);
-  await expect(page.locator(".seals .seal-who")).toHaveCount(0);
-  // and no Assayer, so no price round
-  await expect(page.locator("details.round-fold")).toHaveCount(0);
   const shows = page.locator("#ledger .roll-shows button");
   await expect(shows).toHaveText([`All ${all}`, `Feedings ${feedings}`, `Mints ${mintings}`, `Burns ${burns}`]);
   const rows = page.locator("#ledger ol.roll > li");
@@ -383,7 +391,8 @@ const SIM_ROWS: [string, string][] = [
 ];
 
 test("the simulation is marked as simulated and shows the figures `node sim/sim.mjs` wrote", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/simulation");
+  await expect(page).toHaveTitle("The Simulation | CONSUME");
   const sim = page.locator("#sim");
   await expect(sim.locator("header p")).toContainText("Every figure here is simulated.");
 
@@ -577,13 +586,38 @@ test("the tour stops at six parts of the page with a line for each, and hands ov
   expect(heights.size, "the buttons do not move between stops").toBe(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
-test("source and demo guide are discoverable, and the guide fits a phone", async ({ page }) => {
+test("the home page leads to How it works, The Simulation and the demo guide, and each fits a phone", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/ethboi/consume");
-  await page.getByRole("link", { name: "short demo guide", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Feed. Pass the Bond. Redeem.");
+  // the three sections that left the home page are not on it
+  await expect(page.locator("#rule, #chains, #sim")).toHaveCount(0);
+  const doors = page.getByRole("navigation", { name: "More about CONSUME" }).getByRole("link");
+  await expect(doors.locator("b")).toHaveText(["How it works", "The Simulation", "Demo guide"]);
+
+  const pages = [
+    ["/how-it-works", "How it works", "How CONSUME works"],
+    ["/simulation", "The Simulation", "CONSUME: sixty days, simulated"],
+    ["/demo", "Demo guide", "Feed. Pass the Bond. Redeem."],
+  ];
+  for (const [path, name, h1] of pages) {
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.goto("/");
+    await doors.filter({ hasText: name }).click();
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(h1);
+    // the bar names the three pages and marks this one; its mark and its button go home
+    const bar = page.getByRole("navigation", { name: "Pages" }).getByRole("link");
+    await expect(bar).toHaveText(pages.map((p) => p[1]));
+    await expect(bar.and(page.locator('[aria-current="page"]'))).toHaveText(name);
+    await expect(page.getByRole("link", { name: "CONSUME, home" })).toHaveAttribute("href", "/");
+    await expect(page.getByRole("link", { name: "Feed the Serpent", exact: true })).toHaveAttribute("href", "/#feed");
+    // and the foot is the home page's
+    await expect(page.locator("footer.colophon").getByRole("link", { name: "GitHub", exact: true })).toHaveAttribute("href", "https://github.com/ethboi/consume");
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${path} is no wider than a phone ${width} wide`).toBe(true);
+    }
+  }
   await expect(page.locator(".demo-steps > li")).toHaveCount(5);
   await expect(page.locator("main")).toContainText("no marketplace has listed a Bond");
-  await page.setViewportSize({ width: 390, height: 844 });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
