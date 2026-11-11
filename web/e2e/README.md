@@ -1,6 +1,6 @@
 # Browser tests
 
-Three sets of tests drive the site in a real browser (Playwright, Chromium). One command builds and starts what a set needs and shuts it down afterwards:
+Three sets of tests drive the site in a real browser (Playwright, Chromium by default or installed Chrome). One command builds and starts what a set needs and shuts it down afterwards:
 
 ```bash
 cd web
@@ -75,3 +75,7 @@ The chain story is told in order on one chain, and a test deposit can be taken o
 ## In CI
 
 `.github/workflows/ci.yml` runs the sample set in the site job and the chain set in a job of its own, on every push. The live set is not in CI.
+
+CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 21 sample and 35 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
+
+To reproduce the CI browser choice locally, install Chrome and run `E2E_CHANNEL=chrome node e2e/run.mjs sample chain`. Leaving `E2E_CHANNEL` unset continues to use Playwright's bundled Chromium.

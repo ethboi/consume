@@ -66,6 +66,9 @@ jobs:
   web:
     name: Site
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      E2E_CHANNEL: chrome
     defaults:
       run:
         working-directory: web
@@ -90,9 +93,19 @@ jobs:
         run: pnpm exec eslint src
       - name: Build
         run: pnpm build
-      - name: Install Chromium for the browser tests
-        run: pnpm exec playwright install --with-deps chromium
+      # The hosted runner already includes Chrome and its OS dependencies.
+      # Avoid apt mirror retries and browser downloads before every test run.
+      - name: Verify preinstalled Chrome
+        timeout-minutes: 1
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 15_000 });
+          console.log(`Browser ready: Chrome ${browser.version()}`);
+          await browser.close();
+          JS
       - name: Browser tests, sample figures (21 tests)
+        timeout-minutes: 5
         run: node e2e/run.mjs sample
       - name: Keep the screenshots and traces of a failure
         if: failure()
@@ -105,6 +118,9 @@ jobs:
   browser-chain:
     name: Site, contract and test wallet on a NEAR sandbox
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      E2E_CHANNEL: chrome
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -132,10 +148,18 @@ jobs:
       - name: Install the site's packages
         working-directory: web
         run: pnpm install --frozen-lockfile
-      - name: Install Chromium
+      - name: Verify preinstalled Chrome
+        timeout-minutes: 1
         working-directory: web
-        run: pnpm exec playwright install --with-deps chromium
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 15_000 });
+          console.log(`Browser ready: Chrome ${browser.version()}`);
+          await browser.close();
+          JS
       - name: Browser tests on the sandbox (35 tests)
+        timeout-minutes: 8
         working-directory: web
         run: node e2e/run.mjs chain
       - name: Keep the screenshots and traces of a failure
