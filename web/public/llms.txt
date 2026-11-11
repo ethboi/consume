@@ -32,7 +32,7 @@ Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redee
 - The Feast: each week the most fed memecoin (by USD) wins. For the following week, feeding it pays no tithe. No memecoin feasts two weeks running: the one feasting now cannot win this week's race, and if it is fed the most again the Feast passes to the most fed of the others, or to no memecoin if no other was fed. `feast_race` names who is feasting, who cannot win this week and who leads.
 - Limits: each memecoin has a largest feeding and a daily cap in USD (`list_memecoins`). The caps are per memecoin, not per account, so splitting a feeding across accounts gains nothing.
 - Prices are posted by the Assayer from NEAR Intents quotes. A feeding is refused when a price is older than 15 minutes. Redeeming needs no price and stays open.
-- This code has no administrator withdrawal or parameter setter; its deployment is not immutable while full-access keys remain. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account still holds its deployment key; the repository's README says when that changes.
+- This code has no administrator withdrawal or parameter setter; a deployment is not immutable while a full-access key remains on the contract account. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account's only key was deleted on 2026-11-11, so its code can no longer be replaced.
 
 ## Reading the contract directly
 

@@ -1,6 +1,6 @@
 # Judge demo and evidence
 
-Start at [consume.cash/demo](https://consume.cash/demo). The intended tracks are Memecoins With Mechanics and NFTs That Do Something. Track selection here does not establish submission status.
+Start at [consume.cash/demo](https://consume.cash/demo). The entry was submitted on 2026-11-11 in the Memecoins With Mechanics, NFTs That Do Something and Open Innovation tracks.
 
 ## One complete moment
 
