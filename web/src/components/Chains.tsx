@@ -93,7 +93,7 @@ export function Chains() {
                 ? `All ${spell(openCount)} roads are open`
                 : `${capital(spell(openCount))} of ${spell(routes.length)} roads are open`}
             </strong>
-            {checked ? <span> checked at {checked.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span> : null}
+            {checked ? <span> checked at {checked.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC</span> : null}
           </>
         )}
       </p>

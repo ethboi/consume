@@ -67,8 +67,8 @@ export function vestedFraction(startNs: string, durationNs: string, nowMs = Date
   return Math.min(1, Math.max(0, (nowMs - start) / dur));
 }
 
-/** micro-USD -> "$12.5K", "$4.2M", "$980" */
+/** micro-USD -> "$12.5K", "$4.2M", "$980" (whole dollars under a thousand, like the Stomach's own figure) */
 export function usdCompact(micro: bigint | string): string {
   const v = Number(typeof micro === "string" ? BigInt(micro) : micro) / 1e6;
-  return Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 }).format(v);
+  return Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: Math.abs(v) < 1000 ? 0 : 1 }).format(v);
 }

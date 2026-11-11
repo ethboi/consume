@@ -1901,7 +1901,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h4>NEAR Intents</h4>
             <p>
-              Holds the memecoins that arrive through it, in the Stomach&apos;s own balance. Which Intents contract that is was fixed at
+              Holds the memecoins that arrive through it, in the Stomach&apos;s own balance. The Intents contract it uses was fixed at
               launch.
             </p>
           </div>

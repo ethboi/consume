@@ -11,7 +11,7 @@ No dependencies, Node.js 22.18 or newer, about a second. Every run gives the sam
 - `sim/out/steady.csv`, `rush.csv`, `run.csv`, `crash.csv`: one row a day (fed, tithe, the Feast, supply, locked, forfeited, redeemed, Stomach, backing)
 - `sim/out/summary.md`: the table below
 - `sim/charts/supply.svg` and `sim/charts/backing.svg`: the two charts below
-- `web/src/lib/simulation.json`: the same figures, day by day, for the site's section "Sixty days, simulated"
+- `web/src/lib/simulation.json`: the same figures, day by day, for the site's section "The Simulation"
 
 ## What is modelled
 

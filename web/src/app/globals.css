@@ -4474,12 +4474,14 @@ dialog.feeding::backdrop {
 .seals li > div {
   padding-top: 34px;
 }
+/* small capitals, not blackletter: "NEAR" set in blackletter capitals cannot be read */
 .seals h4 {
   margin: 0 0 6px;
-  font-family: var(--font-display);
+  font-family: var(--font-sc);
   font-weight: 400;
-  font-size: 1.75rem;
-  line-height: 1.05;
+  font-size: 1.45rem;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
 }
 .seals p {
   margin: 0;
