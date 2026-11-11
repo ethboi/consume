@@ -1771,12 +1771,25 @@ function Entries({ recent }: { recent: VestView[] }) {
 
 // ---------------------------------------------------------------- the rule
 
+// How one Assayer account got its key. These are facts about that account, so they show only
+// while the chain names it as the price feeder. It has no full-access key, so its keys cannot change.
+const ASSAYER_KEY: Record<string, { made: string; named: string }> = {
+  "assayer.consumecash.testnet": {
+    made: "https://explorer.testnet.near.org/transactions/G1LAQEv9jzRMWFqL7BQzLHwv1bkm9JYF4uLBu9qEuZ31",
+    named: "https://explorer.testnet.near.org/transactions/3EeeVAGK8UhTaynQKyBTjuZgzpzRWuLKUFqmxMVtH1qS",
+  },
+};
+
 function Rule({ snap }: { snap: Snapshot }) {
   const c = snap.config;
   const days = Number(BigInt(c.vest_duration_ns) / BigInt(86_400_000_000_000));
   const haircut = c.exit_haircut_bps / 100;
   // read from the chain, so the page cannot go on saying the key is gone, or still there, when it is not
   const keys = useLive(DEMO ? null : "contract-keys", () => fullAccessKeys(CONSUME_CONTRACT), 300_000).data;
+  // who holds the two roles, as the contract answers; the sample figures name nobody
+  const feeder = c.price_feeder_id;
+  const guardian = c.guardian_id;
+  const limited = feeder ? ASSAYER_KEY[feeder] : undefined;
   return (
     <>
       <div className="charter">
@@ -1905,6 +1918,18 @@ function Rule({ snap }: { snap: Snapshot }) {
               most of the Stomach.
             </p>
             <p className="seal-note">The biggest trust here</p>
+            {feeder && (
+              <p className="seal-who">
+                Today it is <b>{feeder}</b>.
+                {limited && (
+                  <>
+                    {" "}
+                    Its one key can post prices and do nothing else: see <a href={limited.made}>the account made with that key</a> and{" "}
+                    <a href={limited.named}>the guardian naming it</a>.
+                  </>
+                )}
+              </p>
+            )}
           </div>
         </li>
         <li>
@@ -1917,6 +1942,17 @@ function Rule({ snap }: { snap: Snapshot }) {
               Can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were fixed at launch, and nobody
               can withdraw.
             </p>
+            {guardian === null && <p className="seal-who">Nobody holds it now: the role was given up, so the Assayer can never be swapped.</p>}
+            {guardian && (
+              <p className="seal-who">
+                Today it is <b>{guardian}</b>
+                {guardian === feeder
+                  ? ", the same account as the Assayer."
+                  : feeder?.endsWith(`.${guardian}`)
+                    ? ". It made the Assayer's account, so one builder holds both keys."
+                    : "."}
+              </p>
+            )}
           </div>
         </li>
         <li>

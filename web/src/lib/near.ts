@@ -114,6 +114,9 @@ export type Config = {
   epoch_ns: string;
   /** The smallest feeding, in micro-USD. */
   min_meal_usd?: string;
+  /** Who holds the two roles, as the contract answers. `null` is a renounced guardian; the sample figures name nobody. */
+  guardian_id?: string | null;
+  price_feeder_id?: string;
 };
 
 // ---------- RPC ----------

@@ -106,6 +106,13 @@ test("a fresh launch: nothing fed, nothing minted, and the site says so", async 
   await expect(page.locator('input[name="meme"]:enabled')).toHaveCount(10);
   await expect(page.locator("#bonds h2")).toHaveText("Bonds");
   await expect(page.locator("#ledger")).toContainText("Nothing has been fed yet. The first feeding will be written here.");
+  // who holds the two roles is read from the contract; this sandbox launches with one account in both
+  const config = await view<{ guardian_id: string | null; price_feeder_id: string }>(CONSUME, "get_config");
+  expect(config.guardian_id).toBe(config.price_feeder_id);
+  await expect(page.locator(".seals .seal-who")).toHaveText([
+    `Today it is ${config.price_feeder_id}.`,
+    `Today it is ${config.guardian_id}, the same account as the Assayer.`,
+  ]);
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
 });
 
