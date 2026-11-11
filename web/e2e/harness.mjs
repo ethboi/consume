@@ -5,6 +5,12 @@
 //                           which signs and sends them as a sandbox account, and
 //                           answers with each finished transaction.
 //   POST /sent              the hashes of everything sent so far
+//   POST /create            what NEAR's testnet faucet does for the guest wallet,
+//                           done on the sandbox: an account by the name asked
+//                           for, holding the key given and 10 NEAR
+//   POST /note              a transaction the page sent to the RPC itself (the
+//                           guest wallet signs in the browser), so the stand-in
+//                           indexer below knows of it too
 //   POST /v0/account        a stand-in for the public indexer the Ledger reads
 //   POST /v0/transactions   (FastNEAR's transactions API). A sandbox has no
 //                           indexer, so this one serves the sandbox's own
@@ -81,6 +87,21 @@ export async function startHarness({ rpcUrl, control }) {
 
     // the hashes of everything sent so far, oldest first
     "/sent": async () => ({ hashes: sent.map((t) => t.hash) }),
+
+    "/create": async ({ newAccountId, newAccountPublicKey }) => {
+      await rpc(rpcUrl, "sandbox_patch_state", {
+        records: [
+          { Account: { account_id: newAccountId, account: { amount: "10000000000000000000000000", locked: "0", code_hash: "11111111111111111111111111111111", storage_usage: 182, version: "V1" } } },
+          { AccessKey: { account_id: newAccountId, public_key: newAccountPublicKey, access_key: { nonce: 0, permission: "FullAccess" } } },
+        ],
+      });
+      return { created: newAccountId };
+    },
+
+    "/note": async ({ hash, signer }) => {
+      if (!sent.some((t) => t.hash === hash)) sent.push({ hash, signer });
+      return {};
+    },
 
     // the transactions of an account, newest first, as the indexer filters them
     "/v0/account": async ({ account_id, is_event_log, is_predecessor, is_signer }) => {

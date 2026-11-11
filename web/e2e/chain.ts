@@ -68,6 +68,28 @@ export async function sentHashes(): Promise<string[]> {
   return (await harness<{ hashes: string[] }>("/sent")).hashes;
 }
 
+/** What NEAR's testnet faucet does, on the sandbox: an account by that name, holding that key and 10 NEAR. */
+export async function createAccount(newAccountId: string, newAccountPublicKey: string): Promise<void> {
+  await harness("/create", { newAccountId, newAccountPublicKey });
+}
+
+/** Tell the stand-in indexer of a transaction the page sent to the RPC itself. */
+export async function note(hash: string, signer: string): Promise<void> {
+  await harness("/note", { hash, signer });
+}
+
+/** Every key the chain holds for an account. */
+export async function keysOf(account: string): Promise<{ public_key: string; access_key: { nonce: number; permission: unknown } }[]> {
+  const res = await fetch(RPC_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: "e2e", method: "query", params: { request_type: "view_access_key_list", finality: "optimistic", account_id: account } }),
+  });
+  const json = (await res.json()) as { result?: { keys?: { public_key: string; access_key: { nonce: number; permission: unknown } }[] } };
+  if (!json.result?.keys) throw new Error(`Could not read the keys of ${account}`);
+  return json.result.keys;
+}
+
 export const call = (methodName: string, args: Record<string, unknown>, deposit = "0", gas = TGAS(100)): Action => ({
   type: "FunctionCall",
   params: { methodName, args, gas, deposit },
