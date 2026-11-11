@@ -1,5 +1,6 @@
 // Read-only access to the CONSUME contract over NEAR JSON-RPC, plus the shapes
-// it returns. Writes go through the wallet (see wallet.tsx).
+// it returns. Writes go through the wallet (see Wallet.tsx), or through the
+// guest wallet's own key (lib/guest.ts).
 
 import { HERESIES, type Heresy } from "./heresies";
 
@@ -129,21 +130,26 @@ const RPC_URLS = [...new Set([RPC_URL, NETWORK === "mainnet" ? "https://near.drp
 const RPC_ROUNDS = 3;
 const RPC_PATIENCE_MS = 9_000;
 
+/**
+ * One question to the NEAR RPC, answered as the node wrote it. `each` is how
+ * long one node is given and `all` how long the question is worth asking, in
+ * milliseconds: a read is quick, a transaction waited on to its end is not.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function query(params: object): Promise<any> {
+export async function rpc(method: string, params: unknown, { each = 6_000, all = RPC_PATIENCE_MS } = {}): Promise<any> {
   const began = Date.now();
   let last = "The NEAR RPC could not be reached";
   for (let attempt = 0; attempt < RPC_URLS.length * RPC_ROUNDS; attempt++) {
     const round = Math.floor(attempt / RPC_URLS.length);
     if (round > 0 && attempt % RPC_URLS.length === 0) await new Promise((r) => setTimeout(r, 500 * round));
-    if (Date.now() - began > RPC_PATIENCE_MS) break;
+    if (Date.now() - began > all) break;
     try {
       const res = await fetch(RPC_URLS[attempt % RPC_URLS.length], {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: "consume", method: "query", params }),
+        body: JSON.stringify({ jsonrpc: "2.0", id: "consume", method, params }),
         cache: "no-store",
-        signal: AbortSignal.timeout(6_000),
+        signal: AbortSignal.timeout(each),
       });
       // an answer, even a refusal from the contract, is final: only a node that would not answer is asked again
       if (res.ok) return await res.json();
@@ -155,6 +161,8 @@ async function query(params: object): Promise<any> {
   }
   throw new Error(last);
 }
+
+const query = (params: object) => rpc("query", params);
 
 export async function view<T>(contract: string, method: string, args: object = {}): Promise<T> {
   const json = await query({

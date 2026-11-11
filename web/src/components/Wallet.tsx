@@ -1,11 +1,14 @@
 "use client";
 
 // Wallet connection through @hot-labs/near-connect, loaded only in the browser.
-// Exposes the signed-in account and one helper to send function calls.
+// Exposes the signed-in account and one helper to send function calls. On
+// testnet a visitor with no wallet can use a guest account instead (lib/guest.ts):
+// the same calls, signed with a key this browser made.
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { NearConnector } from "@hot-labs/near-connect";
 import { NETWORK, cleanError } from "@/lib/near";
+import { activeGuest, guestSend, leaveGuest, makeGuest, type Guest } from "@/lib/guest";
 
 export type Call = {
   receiverId: string;
@@ -20,7 +23,12 @@ export type Call = {
 type WalletState = {
   accountId: string | null;
   ready: boolean;
+  /** True when the account is a guest wallet made on this page, not a connected wallet. */
+  isGuest: boolean;
   connect: () => Promise<void>;
+  /** Make, or come back to, this browser's guest account. Rejects with a line to show when it cannot. */
+  startGuest: () => Promise<void>;
+  /** Sign out of the wallet, or leave the guest account. */
   disconnect: () => Promise<void>;
   /** Sends the calls as one wallet approval when possible. Calls in a row to the
    *  same contract travel as one transaction, so they all land or none does.
@@ -83,8 +91,10 @@ const WALLET_CHANGED = "Your wallet changed or disconnected. Reconnect and revie
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const connector = useRef<NearConnector | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [walletId, setAccountId] = useState<string | null>(null);
+  const [guest, setGuest] = useState<Guest | null>(null);
   const [ready, setReady] = useState(false);
+  const accountId = guest?.accountId ?? walletId;
 
   useEffect(() => {
     let alive = true;
@@ -92,7 +102,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const { NearConnector } = await import("@hot-labs/near-connect");
       const c = new NearConnector({ network: NETWORK });
       connector.current = c;
-      c.on("wallet:signIn", (t) => alive && setAccountId(t.accounts[0]?.accountId ?? null));
+      c.on("wallet:signIn", (t) => {
+        if (!alive) return;
+        // a wallet the visitor just connected takes over from the guest
+        leaveGuest();
+        setGuest(null);
+        setAccountId(t.accounts[0]?.accountId ?? null);
+      });
       c.on("wallet:signOut", () => alive && setAccountId(null));
       try {
         const { accounts } = await c.getConnectedWallet();
@@ -100,6 +116,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       } catch {
         // not signed in yet
       }
+      if (alive) setGuest(activeGuest());
       if (alive) setReady(true);
     })();
     return () => {
@@ -116,12 +133,36 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const disconnect = useCallback(async () => {
-    await connector.current?.disconnect();
-    setAccountId(null);
+  const startGuest = useCallback(async () => {
+    setGuest(await makeGuest());
   }, []);
 
+  const disconnect = useCallback(async () => {
+    if (guest) {
+      leaveGuest();
+      setGuest(null);
+      return;
+    }
+    await connector.current?.disconnect();
+    setAccountId(null);
+  }, [guest]);
+
   const send = useCallback(async (calls: Call[], expectedAccountId = accountId) => {
+    if (guest) {
+      if (expectedAccountId !== guest.accountId) throw new Error(WALLET_CHANGED);
+      const transactions: { receiverId: string; actions: { methodName: string; args: object; gas: string; deposit: string }[] }[] = [];
+      for (const call of calls) {
+        const action = { methodName: call.methodName, args: call.args, gas: call.gas ?? TGAS(100), deposit: call.deposit ?? "0" };
+        const last = transactions[transactions.length - 1];
+        if (last && last.receiverId === call.receiverId) last.actions.push(action);
+        else transactions.push({ receiverId: call.receiverId, actions: [action] });
+      }
+      try {
+        return (await guestSend(guest, transactions)).map((r) => toResult(r as Outcome));
+      } catch (e) {
+        throw new Error(cleanError(e));
+      }
+    }
     const c = connector.current;
     if (!c) throw new Error("The wallet is still loading. Try again in a moment.");
     // RPC preflights and the wallet picker can outlive the account that reviewed
@@ -160,9 +201,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       throw new Error(cleanError(e));
     }
-  }, [accountId]);
+  }, [accountId, guest]);
 
-  return <Ctx.Provider value={{ accountId, ready, connect, disconnect, send }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ accountId, ready, isGuest: !!guest, connect, startGuest, disconnect, send }}>{children}</Ctx.Provider>;
 }
 
 export function useWallet(): WalletState {

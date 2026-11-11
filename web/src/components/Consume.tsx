@@ -38,6 +38,7 @@ import { PartySeal, Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
 import { AbacusEmblem, BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, GobletEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
 import { TGAS, eventData, eventsData, useWallet, type Call, type TxResult } from "./Wallet";
+import { GuestButton } from "./Guest";
 import { Feeding, SWALLOW_MS, type FeedingScene, type Meal } from "./Feeding";
 import { Collecting, type CollectScene } from "./Collecting";
 import { sleep, useLive } from "@/lib/live";
@@ -482,7 +483,7 @@ function SoundSwitch() {
 }
 
 function Masthead({ tick }: { tick: number }) {
-  const { accountId, ready, connect, disconnect } = useWallet();
+  const { accountId, ready, isGuest, connect, disconnect } = useWallet();
   // what the signed-in account holds, kept in view; refreshed after every transaction
   const held = useLive(DEMO || !accountId ? null : `${accountId}:purse:${tick}`, async () =>
     BigInt(await view<string>(CONSUME_CONTRACT, "ft_balance_of", { account_id: accountId })),
@@ -519,7 +520,7 @@ function Masthead({ tick }: { tick: number }) {
                 <span className="sr-only"> $CONSUME in your wallet</span>
               </span>
             )}
-            <button className="sign-button" onClick={disconnect} title="Sign out">
+            <button className="sign-button" onClick={disconnect} title={isGuest ? "Leave the guest wallet" : "Sign out"}>
               {shortAccount(accountId)}
             </button>
           </span>
@@ -1077,9 +1078,12 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
               {busy ? "Waiting for the wallet" : "Feed the Serpent"}
             </button>
           ) : (
-            <button className="press big" disabled={DEMO} onClick={connect}>
-              Connect wallet to feed
-            </button>
+            <>
+              <button className="press big" disabled={DEMO} onClick={connect}>
+                Connect wallet to feed
+              </button>
+              <GuestButton />
+            </>
           )}
         </div>
       </div>

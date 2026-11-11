@@ -6584,3 +6584,26 @@ section[tabindex="-1"]:focus {
   font-size: 1.1rem;
   gap: 0.3rem 1.4rem;
 }
+
+/* ---------- the guest wallet: one quiet line beside "Connect wallet to feed" ---------- */
+
+.guest {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.guest .text-link {
+  text-align: left;
+  padding: 6px 0;
+}
+.guest .text-link:disabled {
+  cursor: progress;
+  color: var(--faded);
+}
+.guest-trouble {
+  font-size: var(--t-sm);
+  font-style: italic;
+  color: var(--rubric);
+  max-width: 34ch;
+}
