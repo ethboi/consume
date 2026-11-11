@@ -135,7 +135,7 @@ jobs:
       - name: Install Chromium
         working-directory: web
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser tests on the sandbox (21 tests)
+      - name: Browser tests on the sandbox (35 tests)
         working-directory: web
         run: node e2e/run.mjs chain
       - name: Keep the screenshots and traces of a failure

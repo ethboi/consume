@@ -19,7 +19,9 @@ These timings are an editing plan, not a claim about wallet latency. Do not edit
 
 ## What is verified
 
-The demo/transfer update passed 13 web unit tests, 21 sample browser tests and 21 sandbox browser tests, plus TypeScript, lint and production builds. The contract code was unchanged.
+The deployed demo/transfer release passed 13 web unit tests, 21 sample browser tests and 21 sandbox browser tests, plus TypeScript, lint and production builds. The contract code was unchanged.
+
+The follow-up local regression pass adds [14 transfer tests](../web/e2e/transfer.spec.ts), bringing the sandbox browser suite to 35. All 35 passed, alongside the 21 sample tests, 74 contract unit tests, 13 web unit tests, both contract sandbox flows, three WASM builds, TypeScript, lint, production builds, the four simulation scenarios and the MCP handshake. Eight read-only checks of the existing live deployment also passed. The regressions exposed a wallet-switch race and unclear disconnect recovery; the local fix rechecks the connected account and pins the reviewed signer before requesting a signature. These follow-up changes have not been deployed, and a real browser-wallet signing session remains unverified.
 
 - [The README’s testnet receipts](../README.md#seen-on-testnet) cover feeding, collection, early exit and redemption through the deployed test Intents contract.
 - [The release record](RELEASE-2026-11-11.md) identifies the currently deployed contract bytes and preserved state.

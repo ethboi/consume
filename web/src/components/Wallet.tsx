@@ -26,7 +26,7 @@ type WalletState = {
    *  same contract travel as one transaction, so they all land or none does.
    *  Resolves, per transaction, to what actually happened on chain: hash, the
    *  log lines of the receipts that succeeded, and any failed receipt. */
-  send: (calls: Call[]) => Promise<TxResult[]>;
+  send: (calls: Call[], expectedAccountId?: string) => Promise<TxResult[]>;
 };
 
 export type TxResult = { hash: string; logs: string[]; failure?: string };
@@ -79,6 +79,7 @@ export function eventData<T>(results: TxResult[], event: string): T | null {
 const Ctx = createContext<WalletState | null>(null);
 
 const TGAS = (n: number) => (BigInt(n) * BigInt(1_000_000_000_000)).toString();
+const WALLET_CHANGED = "Your wallet changed or disconnected. Reconnect and review the transaction again.";
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const connector = useRef<NearConnector | null>(null);
@@ -120,10 +121,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setAccountId(null);
   }, []);
 
-  const send = useCallback(async (calls: Call[]) => {
+  const send = useCallback(async (calls: Call[], expectedAccountId = accountId) => {
     const c = connector.current;
     if (!c) throw new Error("The wallet is still loading. Try again in a moment.");
-    const wallet = await c.wallet();
+    // RPC preflights and the wallet picker can outlive the account that reviewed
+    // the action. Ask the wallet again, then pin that signer in the request too.
+    // Reading the connection also avoids wallet() clearing its selection when
+    // an extension temporarily returns no accounts during a disconnect.
+    const { wallet, accounts } = await c.getConnectedWallet().catch((error: unknown) => {
+      if (error instanceof Error && ["No accounts found", "No wallet selected"].includes(error.message))
+        throw new Error(WALLET_CHANGED);
+      throw error;
+    });
+    if (!expectedAccountId || accounts[0]?.accountId !== expectedAccountId)
+      throw new Error(WALLET_CHANGED);
     const action = (call: Call) => ({
       type: "FunctionCall" as const,
       params: {
@@ -141,15 +152,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
     try {
       if (transactions.length === 1) {
-        const r = await wallet.signAndSendTransaction(transactions[0]);
+        const r = await wallet.signAndSendTransaction({ ...transactions[0], signerId: expectedAccountId });
         return [toResult(r as unknown as Outcome)];
       }
-      const rs = await wallet.signAndSendTransactions({ transactions });
+      const rs = await wallet.signAndSendTransactions({ transactions, signerId: expectedAccountId });
       return rs.map((r) => toResult(r as unknown as Outcome));
     } catch (e) {
       throw new Error(cleanError(e));
     }
-  }, []);
+  }, [accountId]);
 
   return <Ctx.Provider value={{ accountId, ready, connect, disconnect, send }}>{children}</Ctx.Provider>;
 }

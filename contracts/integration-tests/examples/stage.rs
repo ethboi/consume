@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
         .into_result()?;
 
     let mut accounts = HashMap::new();
-    for name in ["alice", "bob"] {
+    for name in ["alice", "bob", "charlie", "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzab"] {
         let account = sub(&root, name, 50).await?;
         accounts.insert(account.id().to_string(), account);
     }
@@ -116,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
             "consume": consume.id(),
             "intents": intents.id(),
             "owner": owner.id(),
-            "accounts": ["alice.test.near", "bob.test.near"],
+            "accounts": accounts.keys().collect::<Vec<_>>(),
         })
     );
 

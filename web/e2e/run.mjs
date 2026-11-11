@@ -112,7 +112,7 @@ function stop(child) {
   });
 }
 
-const playwright = (project, env) => run(process.execPath, [PLAYWRIGHT, "test", "--config", "e2e/playwright.config.ts", "--project", project, ...extra], { env });
+const playwright = (project, env) => run(process.execPath, [PLAYWRIGHT, "test", "--config", "e2e/playwright.config.ts", `--project=${project}`, ...extra], { env });
 
 // ------------------------------------------------------------------ sample
 

@@ -23,7 +23,7 @@ export default defineConfig({
   },
   projects: [
     { name: "sample", testMatch: "sample.spec.ts", use: { ...devices["Desktop Chrome"] } },
-    { name: "chain", testMatch: "chain.spec.ts", use: { ...devices["Desktop Chrome"] } },
+    { name: "chain", testMatch: ["chain.spec.ts", "transfer.spec.ts"], use: { ...devices["Desktop Chrome"] } },
     { name: "live", testMatch: "live.spec.ts", use: { ...devices["Desktop Chrome"] } },
   ],
 });

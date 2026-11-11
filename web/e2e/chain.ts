@@ -90,10 +90,16 @@ export function events<T>(outcomes: Outcome[], event: string): T[] {
 }
 
 export type TestWallet = {
+  /** Every signing request, including refusals and failed requests. */
+  requested: { transactions: Transaction[]; signerId?: string }[];
   /** Every request the site made of the wallet that was signed, oldest first: the transactions asked for, and what came of them. */
   signed: { transactions: Transaction[]; outcomes: Outcome[] }[];
   /** The next request is turned down, the way a person presses Reject. */
   refuseNext: () => void;
+  /** Switch the wallet's actual signer without a page reload. */
+  switchAccount: (accountId: string | null) => Promise<void>;
+  /** Change on-chain state after the site's preflight but before execution. */
+  beforeNextSign: (callback: () => Promise<void>) => void;
   /** The last signed request. */
   last: () => { transactions: Transaction[]; outcomes: Outcome[] };
 };
@@ -106,30 +112,45 @@ export type TestWallet = {
  * sign is sent to the sandbox by the stage, which holds the account's key.
  */
 export async function giveWallet(page: Page, accountId: string): Promise<TestWallet> {
-  const state = { refuse: false };
+  const state: { refuse: boolean; signer: string | null; before?: () => Promise<void> } = { refuse: false, signer: accountId };
   const wallet: TestWallet = {
+    requested: [],
     signed: [],
     refuseNext: () => {
       state.refuse = true;
     },
+    switchAccount: async (next) => {
+      state.signer = next;
+      await page.evaluate((account) => {
+        (window as unknown as { __e2eSwitchAccount: (account: string | null) => void }).__e2eSwitchAccount(account);
+      }, next);
+    },
+    beforeNextSign: (callback) => { state.before = callback; },
     last: () => wallet.signed[wallet.signed.length - 1],
   };
 
-  await page.exposeFunction("__e2eSign", async (transactions: Transaction[]) => {
+  await page.exposeFunction("__e2eSign", async (transactions: Transaction[], signerId?: string) => {
+    wallet.requested.push({ transactions, signerId });
     if (state.refuse) {
       state.refuse = false;
       throw new Error("User rejected the request");
     }
-    const outcomes = await send(accountId, transactions);
+    const before = state.before;
+    state.before = undefined;
+    await before?.();
+    if (!state.signer) throw new Error("Wallet is disconnected");
+    const outcomes = await send(state.signer, transactions);
     wallet.signed.push({ transactions, outcomes });
     return outcomes;
   });
 
   await page.addInitScript((account: string) => {
-    type Tx = { receiverId: string; actions: unknown[] };
-    const sign = (window as unknown as { __e2eSign: (txs: Tx[]) => Promise<unknown[]> }).__e2eSign;
+    type Tx = { receiverId: string; actions: unknown[]; signerId?: string };
+    const sign = (window as unknown as { __e2eSign: (txs: Tx[], signerId?: string) => Promise<unknown[]> }).__e2eSign;
     const KEY = "e2e-wallet-signed-in";
-    const accounts = () => (localStorage.getItem(KEY) ? [{ accountId: account, publicKey: "ed25519:11111111111111111111111111111111" }] : []);
+    let active: string | null = account;
+    (window as unknown as { __e2eSwitchAccount: (account: string | null) => void }).__e2eSwitchAccount = (next) => { active = next; };
+    const accounts = () => (localStorage.getItem(KEY) && active ? [{ accountId: active, publicKey: "ed25519:11111111111111111111111111111111" }] : []);
     const testWallet = {
       manifest: {
         id: "e2e-wallet",
@@ -150,8 +171,8 @@ export async function giveWallet(page: Page, accountId: string): Promise<TestWal
       },
       signOut: async () => localStorage.removeItem(KEY),
       getAccounts: async () => accounts(),
-      signAndSendTransaction: async (p: Tx) => (await sign([{ receiverId: p.receiverId, actions: p.actions }]))[0],
-      signAndSendTransactions: async (p: { transactions: Tx[] }) => sign(p.transactions.map((t) => ({ receiverId: t.receiverId, actions: t.actions }))),
+      signAndSendTransaction: async (p: Tx) => (await sign([{ receiverId: p.receiverId, actions: p.actions }], p.signerId))[0],
+      signAndSendTransactions: async (p: { transactions: Tx[]; signerId?: string }) => sign(p.transactions.map((t) => ({ receiverId: t.receiverId, actions: t.actions })), p.signerId),
       signMessage: async () => {
         throw new Error("The test wallet signs transactions only");
       },

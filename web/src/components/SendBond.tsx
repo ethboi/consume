@@ -55,7 +55,7 @@ export function SendBond({ bond, disabled, onBusy, onDone }: {
       if (topUp) calls.push({ receiverId: CONSUME_CONTRACT, methodName: "add_meal_credit", args: {}, deposit: CREDIT_TOP_UP, gas: TGAS(10) });
       calls.push({ receiverId: CONSUME_CONTRACT, methodName: "nft_transfer", args: { receiver_id: receiver, token_id: bond.token_id }, deposit: "1", gas: TGAS(50) });
       // Both calls target the same contract: Wallet sends them atomically.
-      const [result] = await send(calls);
+      const [result] = await send(calls, review.sender);
       if (!result) throw new Error("The wallet returned no transaction result. Check your wallet before trying again.");
       if (result.failure) throw new Error(result.failure);
       setOpen(false);
