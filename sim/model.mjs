@@ -77,6 +77,7 @@ export class Consume {
     this.balances = new Map();
     this.dailyFed = new Map();
     this.epochFed = new Map();
+    this.feasts = new Map(); // week -> the memecoin that feasted in it, written at the week's first feeding
     // counted for the report, not part of the contract's state
     this.tithePaid = 0n;
     this.titheWaived = 0n;
@@ -104,11 +105,12 @@ export class Consume {
     return titheAt(c.titheStepBps, c.maxTitheBps, c.famineUsd, this.eatenUsd);
   }
 
-  /** The memecoin fed the most in a week, if any was fed. The first one listed wins a tie. */
-  heaviest(epoch) {
+  /** lib.rs `heaviest_tribe`: the memecoin fed the most in a week, leaving out `except`, if any was fed. The first one listed wins a tie. */
+  heaviest(epoch, except = null) {
     let best = null;
     let bestFed = 0n;
     for (const symbol of this.tribes.keys()) {
+      if (symbol === except) continue;
       const fed = this.epochFed.get(`${symbol}:${epoch}`) ?? 0n;
       if (fed > 0n && (best === null || fed > bestFed)) {
         best = symbol;
@@ -118,10 +120,32 @@ export class Consume {
     return best;
   }
 
+  /**
+   * lib.rs `feast_for`: the memecoin fed the most the week before, unless it was already
+   * feasting that week. No memecoin feasts two weeks running, so a reigning Feast hands the
+   * crown to the most fed of the others (and to none if no other was fed).
+   */
+  feastFor(epoch) {
+    // back to the nearest week whose Feast is known
+    let known = epoch;
+    let feast = null;
+    for (;;) {
+      if (known === 0n) break;
+      if (this.feasts.has(known)) {
+        feast = this.feasts.get(known);
+        break;
+      }
+      if (this.heaviest(known - 1n) === null) break; // nothing was fed the week before: no Feast
+      known -= 1n;
+    }
+    // then forward again, one crowning at a time
+    for (let e = known + 1n; e <= epoch; e += 1n) feast = this.heaviest(e - 1n, feast);
+    return feast;
+  }
+
   /** The memecoin whose feedings pay no tithe at `now`. */
   feast(now) {
-    const epoch = now / this.config.epochNs;
-    return epoch > 0n ? this.heaviest(epoch - 1n) : null;
+    return this.feastFor(now / this.config.epochNs);
   }
 
   /** meal.rs `plan_meal` and `eat`. Returns the Bond, or why the feeding was refused. */
@@ -144,13 +168,15 @@ export class Consume {
     if (mealUsd < c.minMealUsd) return { refused: "small" };
 
     const epoch = now / c.epochNs;
-    const bonus = epoch > 0n && this.heaviest(epoch - 1n) === symbol;
+    const bonus = this.feastFor(epoch) === symbol;
     const taxed = afterTithe(c.titheStepBps, c.maxTitheBps, c.famineUsd, this.eatenUsd, mealUsd);
     const netUsd = bonus ? mealUsd : taxed;
     const before = { stomach: this.stomachUsd(), claims: this.claims() };
     const consume = consumeAtFloor(c.startRate, netUsd, before.claims, this.stomachUsd(true));
     if (consume === 0n) return { refused: "nothing" };
 
+    // lib.rs `record_feast`: the week's first feeding writes down who feasts in it
+    if (!this.feasts.has(epoch)) this.feasts.set(epoch, this.feastFor(epoch));
     tribe.stomach += accepted;
     this.dailyFed.set(`${symbol}:${day}`, fedToday + mealUsd);
     this.epochFed.set(`${symbol}:${epoch}`, (this.epochFed.get(`${symbol}:${epoch}`) ?? 0n) + mealUsd);

@@ -29,14 +29,14 @@ Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redee
 - A Bond releases its $CONSUME evenly over 30 days. Collect what has been released at any time.
 - Break the seal to leave early: you receive what has been released plus half of what is still locked. The other half is never minted.
 - Redeem burns $CONSUME and pays the same share of every memecoin in the Stomach.
-- The Feast: each week the most fed memecoin (by USD) wins. For the following week, feeding it pays no tithe.
+- The Feast: each week the most fed memecoin (by USD) wins. For the following week, feeding it pays no tithe. No memecoin feasts two weeks running: the one feasting now cannot win this week's race, and if it is fed the most again the Feast passes to the most fed of the others, or to no memecoin if no other was fed. `feast_race` names who is feasting, who cannot win this week and who leads.
 - Limits: each memecoin has a largest feeding and a daily cap in USD (`list_memecoins`). The caps are per memecoin, not per account, so splitting a feeding across accounts gains nothing.
 - Prices are posted by the Assayer from NEAR Intents quotes. A feeding is refused when a price is older than 15 minutes. Redeeming needs no price and stays open.
 - This code has no administrator withdrawal or parameter setter; its deployment is not immutable while full-access keys remain. A guardian can seal or unseal a listed memecoin and replace the Assayer, nothing else, and the role can be renounced. On testnet the contract account still holds its deployment key; the repository's README says when that changes.
 
 ## Reading the contract directly
 
-View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`, `quote_meal`, `quote_redeem`, `get_vest`, `get_vests_for_owner`, `get_recent_vests`, `get_meal_credit`, `get_owed`, plus the NEP-141 and NEP-171 standards. Dollar amounts are in millionths of a dollar. $CONSUME has 18 decimals.
+View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`, `get_feast`, `quote_meal`, `quote_redeem`, `get_vest`, `get_vests_for_owner`, `get_recent_vests`, `get_meal_credit`, `get_owed`, plus the NEP-141 and NEP-171 standards. Dollar amounts are in millionths of a dollar. $CONSUME has 18 decimals.
 
 ## The log of every mint and burn
 
@@ -56,7 +56,7 @@ View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`
 - Bots that use these calls (dry run unless told to sign): `agents/bots.mjs` in the repository
 - A 60 day simulation of supply and backing under four scenarios: `sim/` in the repository
 
-Release behavior (2026-11-11): `account` pages all Bonds at one finalized block. `prepare_redeem` tops up storage credit when needed; payout records remain funded permanently. Claims and exits clear approvals, and transfers charge a fixed 1,024-byte reserve to the initiating owner/operator. New Bond media has a hash; the changing image URL is in `extra.dynamic_media`. The active testnet contracts were upgraded without initialization; existing Bond metadata was preserved.
+Release behavior (2026-11-11): `account` pages all Bonds at one finalized block. `prepare_redeem` tops up storage credit when needed; payout records remain funded permanently. Claims and exits clear approvals, and transfers charge a fixed 1,024-byte reserve to the initiating owner/operator. New Bond media has a hash; the changing image URL is in `extra.dynamic_media`. The active testnet contracts were upgraded without initialization; existing Bond metadata was preserved. A second upgrade of the CONSUME contract the same day added the Feast rule: no memecoin feasts two weeks running.
 
 License: AGPL-3.0-only for original CONSUME code and documentation; third-party materials retain their terms.
 

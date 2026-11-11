@@ -9,6 +9,7 @@ use crate::math;
 use crate::*;
 
 include!("fix_tests.rs");
+include!("feast_tests.rs");
 
 const DAY: u64 = NANOS_PER_DAY;
 const USD: u128 = MICRO_USD;

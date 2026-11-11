@@ -8,9 +8,10 @@
 //
 // The same file serves the site's /api/mcp route and the stdio server and the
 // bots in agents/, which Node runs straight from this source. So it imports
-// nothing from the site but the memecoin list, and it is written without
-// BigInt literals (the site compiles to ES2017).
+// nothing from the site but the memecoin list, the ledger reader and the Feast
+// rule, and it is written without BigInt literals (the site compiles to ES2017).
 
+import { feastOf, nextFeast, sittingOut } from "./feast.ts";
 import { HERESIES } from "./heresies.ts";
 import { readLedger } from "./ledger.ts";
 
@@ -62,6 +63,8 @@ type Stats = {
   next_famine_at_usd: string | null;
   epoch: string;
   heaviest_last_epoch: string | null;
+  /** The memecoin feasting this week. A contract built before the two-weeks rule does not report it. */
+  feast?: string | null;
   now_ns: string;
 };
 type Config = {
@@ -209,7 +212,10 @@ export async function overview(net: Net) {
   const oldest = priced.reduce((a, [, t]) => (BigInt(t.price_updated_ns) < a ? BigInt(t.price_updated_ns) : a), now);
   const maxAge = config.max_price_age_ns ? Number(BigInt(config.max_price_age_ns) / BigInt(1_000_000_000)) : null;
   const age = Number((now - oldest) / BigInt(1_000_000_000));
-  const feast = stats.heaviest_last_epoch ? (all.find(([id]) => id === stats.heaviest_last_epoch)?.[1].symbol ?? stats.heaviest_last_epoch) : null;
+  const feastId = feastOf(stats);
+  const feast = feastId ? (all.find(([id]) => id === feastId)?.[1].symbol ?? feastId) : null;
+  // a contract built before the rule reports no `feast`, and there a memecoin can feast again
+  const passesOn = stats.feast !== undefined;
   return {
     what_it_is:
       "CONSUME is a memecoin that eats other memecoins. Feed it a listed memecoin and you get a Bond, an NFT that releases $CONSUME over the vesting period. Every $CONSUME can be burned (redeemed) for its share of every memecoin in the Stomach.",
@@ -227,7 +233,9 @@ export async function overview(net: Net) {
     tithe_percent: stats.tithe_bps / 100,
     tithe_rises_when_total_fed_reaches_usd: stats.next_famine_at_usd ? usd(stats.next_famine_at_usd) : null,
     feast_now: feast,
-    feast_note: feast ? `Feeding ${feast} pays no tithe until the week ends.` : "No memecoin is feasting this week, so every feeding pays the tithe.",
+    feast_note: feast
+      ? `Feeding ${feast} pays no tithe until the week ends.${passesOn ? ` ${feast} cannot feast next week as well.` : ""}`
+      : "No memecoin is feasting this week, so every feeding pays the tithe.",
     week_ends: iso(weekEnds),
     seconds_until_week_ends: Number((weekEnds - now) / BigInt(1_000_000_000)),
     prices: {
@@ -243,6 +251,7 @@ export async function overview(net: Net) {
       tithe_steps_up_every_usd_fed: usd(config.famine_usd),
       tithe_at_most_percent: config.max_tithe_bps / 100,
       week_days: Number(BigInt(config.epoch_ns) / BigInt(86_400_000_000_000)),
+      no_memecoin_feasts_two_weeks_running: passesOn,
       consume_per_usd_into_an_empty_stomach: Number(config.start_rate),
     },
   };
@@ -277,22 +286,34 @@ export async function feastRace(net: Net) {
   const fed = await view<[string, string][]>(net, net.consume, "get_epoch_fed", { epoch: stats.epoch });
   const symbol = (id: string) => all.find(([k]) => k === id)?.[1].symbol ?? id;
   // the contract's own order decides a tie: the first listed wins
-  const rows = fed.map(([id, micro], listed) => ({ symbol: symbol(id), fed_usd: usd(micro), micro: BigInt(micro), listed }));
+  const rows = fed.map(([id, micro], listed) => ({ id, symbol: symbol(id), fed_usd: usd(micro), micro: BigInt(micro), listed }));
   const standings = [...rows].sort((a, b) => (a.micro === b.micro ? a.listed - b.listed : a.micro < b.micro ? 1 : -1));
-  const leader = standings[0] && standings[0].micro > ZERO ? standings[0] : null;
+  const feasting = feastOf(stats);
+  // the memecoin feasting now cannot win this week's race (null on a contract built before that rule)
+  const out = sittingOut(stats);
+  const next = nextFeast(fed, stats);
+  const leader = standings.find((r) => r.id === next) ?? null;
   const weekEnds = (BigInt(stats.epoch) + BigInt(1)) * BigInt(config.epoch_ns);
+  let place = 0;
   return {
-    rule: "Each week the most fed memecoin (by USD) wins the Feast. For the following week, feeding it pays no tithe. On a tie the memecoin listed first wins.",
+    rule:
+      stats.feast !== undefined
+        ? "Each week the most fed memecoin (by USD) wins the Feast. For the following week, feeding it pays no tithe. No memecoin feasts two weeks running: the one feasting now cannot win this week's race, and if it is fed the most the Feast passes to the most fed of the others (to none if no other was fed). On a tie the memecoin listed first wins."
+        : "Each week the most fed memecoin (by USD) wins the Feast. For the following week, feeding it pays no tithe. On a tie the memecoin listed first wins.",
     week: stats.epoch,
     week_ends: iso(weekEnds),
     seconds_until_week_ends: Number((weekEnds - BigInt(stats.now_ns)) / BigInt(1_000_000_000)),
-    feasting_now: stats.heaviest_last_epoch ? symbol(stats.heaviest_last_epoch) : null,
+    feasting_now: feasting ? symbol(feasting) : null,
+    cannot_win_this_week: out ? symbol(out) : null,
+    // who would feast next week if this one ended now
     leading: leader?.symbol ?? null,
-    standings: standings.map((r, i) => ({
-      place: i + 1,
+    // most fed first. `place` counts only the memecoins that can win.
+    standings: standings.map((r) => ({
+      place: r.id === out ? null : ++place,
       symbol: r.symbol,
       fed_usd: r.fed_usd,
-      behind_leader_usd: leader ? usd(leader.micro - r.micro) : 0,
+      can_win: r.id !== out,
+      behind_leader_usd: leader && leader.micro > r.micro ? usd(leader.micro - r.micro) : 0,
     })),
   };
 }
@@ -739,7 +760,7 @@ export const TOOLS: Tool[] = [
   {
     name: "feast_race",
     title: "This week's Feast race",
-    description: "Standings of the weekly race (most fed memecoin by USD), who is feasting now, and when the week ends. The winner's feedings pay no tithe the following week.",
+    description: "Standings of the weekly race (most fed memecoin by USD), who is feasting now, who cannot win this week, and when the week ends. The winner's feedings pay no tithe the following week, and no memecoin feasts two weeks running.",
     inputSchema: NONE,
     run: (net) => feastRace(net),
   },

@@ -4699,6 +4699,14 @@ section[inert] > :not(header) {
 .race li.lead .race-bar span {
   background: var(--rubric);
 }
+/* the memecoin feasting now: fed and counted, but out of this week's race */
+.race li.sits .race-name .sym,
+.race li.sits .race-fed {
+  color: var(--faded);
+}
+.race li.sits .race-bar span {
+  background: repeating-linear-gradient(135deg, var(--faded) 0 2px, transparent 2px 6px);
+}
 .race-empty {
   margin: 0;
   padding: 18px 0;

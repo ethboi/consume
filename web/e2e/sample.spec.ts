@@ -11,6 +11,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import { DEMO_LEDGER, DEMO_MINE, DEMO_SNAPSHOT, DEMO_TOKEN } from "../src/lib/demo";
+import { feastOf, nextFeast } from "../src/lib/feast";
 import { compact, fromRaw, toRaw, usd, usdValue } from "../src/lib/format";
 import { HERESIES, bySymbol } from "../src/lib/heresies";
 import type { LedgerEntry } from "../src/lib/ledger";
@@ -44,7 +45,7 @@ const pick = (page: Page, symbol: string) => page.locator(`label:has(input[name=
 function earns(symbol: string, raw: bigint) {
   const t = tribe(symbol);
   const worth = usdValue(raw, t.decimals, t.price_e18);
-  const tithe = stats.heaviest_last_epoch === DEMO_TOKEN(symbol) ? ZERO : (worth * big(stats.tithe_bps)) / BigInt(10_000);
+  const tithe = feastOf(stats) === DEMO_TOKEN(symbol) ? ZERO : (worth * big(stats.tithe_bps)) / BigInt(10_000);
   return { worth, tithe, consume: ((worth - tithe) * big(stats.current_rate)) / MILLION };
 }
 
@@ -259,23 +260,38 @@ test("Redeem shows the same share of every memecoin in the Stomach", async ({ pa
   await expect(page.getByRole("button", { name: "Burn and redeem" })).toBeDisabled();
 });
 
-test("the Feast shows this week's race and who feasts now", async ({ page }) => {
+test("the Feast shows this week's race, who feasts now, and that it cannot win again", async ({ page }) => {
   await page.goto("/");
   const symbolOf = (token: string) => HERESIES.find((h) => DEMO_TOKEN(h.symbol) === token)!.symbol;
   const race = fed!.now
     .filter(([, micro]) => big(micro) > ZERO)
     .sort((a, b) => (big(b[1]) > big(a[1]) ? 1 : -1))
-    .map(([token, micro]) => ({ symbol: symbolOf(token), micro }));
+    .map(([token, micro]) => ({ token, symbol: symbolOf(token), micro }));
   const places = page.locator("#feast ol.race > li");
   await expect(places).toHaveCount(race.length);
   for (const [i, r] of race.entries()) {
     await expect(places.nth(i).locator(".race-name")).toContainText(r.symbol);
     await expect(places.nth(i).locator(".race-fed")).toHaveText(usd(r.micro, 0));
   }
-  await expect(places.first()).toContainText("in the lead");
-  const feasting = symbolOf(stats.heaviest_last_epoch!);
+
+  // the sample's feasting memecoin is fed the most this week, and still cannot win
+  const feastToken = feastOf(stats)!;
+  const feasting = symbolOf(feastToken);
+  expect(race[0].token).toBe(feastToken);
+  await expect(places.first()).toContainText("feasting now, so it cannot win this week");
+  await expect(places.first().locator(".race-place")).toHaveText("");
+  // so the lead, and the count of places, start with the next most fed
+  const leader = symbolOf(nextFeast(fed!.now, stats)!);
+  expect(leader).toBe(race[1].symbol);
+  await expect(places.nth(1)).toContainText("in the lead");
+  await expect(places.nth(1).locator(".race-place")).toHaveText("1");
+  await expect(places.nth(2)).toContainText(`${usd(big(race[1].micro) - big(race[2].micro))} behind`);
+  await expect(page.locator("#feast .feast-ends")).toContainText(`If it ended now, ${leader} would feast next week.`);
+  await expect(page.locator("#feast .feast-ends")).toContainText(`${feasting} is feasting now, and no memecoin feasts two weeks running.`);
+
   await expect(page.locator("#feast .feast-who")).toContainText(feasting);
   await expect(page.locator("#feast .feast-now")).toContainText(`feeding ${feasting} pays no tithe. Every other memecoin pays ${stats.tithe_bps / 100}%.`);
+  await expect(page.locator("#feast > header")).toContainText("No memecoin feasts two weeks running.");
 });
 
 test("the roads show what NEAR Intents answered, open or shut", async ({ page }) => {

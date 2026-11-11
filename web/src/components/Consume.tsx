@@ -41,6 +41,7 @@ import { Feeding, SWALLOW_MS, type FeedingScene, type Meal } from "./Feeding";
 import { Collecting, type CollectScene } from "./Collecting";
 import { sleep, useLive } from "@/lib/live";
 import { Feast } from "./Feast";
+import { feastOf } from "@/lib/feast";
 import { Ledger } from "./Ledger";
 import { Simulation } from "./Simulation";
 import { SendBond } from "./SendBond";
@@ -122,7 +123,8 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
   // micro-USD per whole CONSUME
   const floor = denom > BigInt(0) ? Number(totalMicro) / (Number(denom) / 1e18) : 0;
   const floorLabel = usd(BigInt(Math.round(floor)), 6);
-  const feast = snap.stats.heaviest_last_epoch ? heresyForToken(snap.stats.heaviest_last_epoch)?.symbol : null;
+  const feastId = feastOf(snap.stats);
+  const feast = feastId ? heresyForToken(feastId)?.symbol : null;
 
   return (
     <div className="folio">
@@ -330,7 +332,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <GobletEmblem />
           <h2 id="feast-h">The Feast</h2>
-          <p>Each week the most fed memecoin wins. For the week after, feeding it pays no tithe.</p>
+          <p>Each week the most fed memecoin wins. For the week after, feeding it pays no tithe. No memecoin feasts two weeks running.</p>
         </header>
         <Feast snap={snap} />
       </section>
@@ -566,7 +568,7 @@ function demoQuote(snap: Snapshot, token: string, raw: bigint, decimals: number)
   const m = meal > cap ? cap : meal;
   // over the feeding limit the contract takes what fits and sends the rest back
   const accepted = meal > cap ? (raw * cap) / meal : raw;
-  const bonus = snap.stats.heaviest_last_epoch === token;
+  const bonus = feastOf(snap.stats) === token;
   // as the contract does it (meal.rs): the feast pays no tithe, the rest earns at the backing
   const tithe = bonus ? BigInt(0) : (m * BigInt(snap.stats.tithe_bps)) / BigInt(10_000);
   return {
@@ -812,7 +814,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
     const round = dollars >= capUsd ? Math.floor : Math.ceil;
     return (round(n * 10 ** d) / 10 ** d).toFixed(d);
   };
-  const feastToken = snap.stats.heaviest_last_epoch;
+  const feastToken = feastOf(snap.stats);
   const mealUsd = raw && tribe ? Number(usdValue(raw, h.decimals, tribe.price_e18)) / 1e6 : 0;
 
   // the slider: position 0 is the smallest feeding, the last position the most one feeding takes,
@@ -1855,7 +1857,8 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>Feasts and limits</h3>
             <p>
-              The memecoin fed most in a week pays no tithe the next week. Each memecoin has a largest feeding and a daily limit; thin
+              The memecoin fed most in a week pays no tithe the next week. None feasts two weeks running: if the one feasting is fed the most
+              again, the Feast passes to the most fed of the others. Each memecoin has a largest feeding and a daily limit; thin
               markets get small ones, so little of an overpriced memecoin can be fed in a day.
             </p>
           </div>

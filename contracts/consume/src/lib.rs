@@ -70,6 +70,9 @@ pub(crate) enum StorageKey {
     Owed,
     InFlight,
     MealCredit,
+    /// epoch index -> the memecoin that feasted that epoch (see `feast_for`).
+    /// Appended last so the keys of the older maps stay where they are.
+    Feasts,
 }
 
 /// A memecoin CONSUME is willing to eat.
@@ -166,7 +169,8 @@ pub struct Config {
     /// Smallest meal accepted, micro-USD (stops dust NFTs).
     pub min_meal_usd: U128,
     /// Length of a feast epoch. The memecoin fed most (by USD) in one epoch
-    /// pays no tithe in the next.
+    /// pays no tithe in the next, but none feasts two epochs running: after a
+    /// feast the crown passes to the most fed of the others.
     pub epoch_ns: U64,
     /// Base URL for Bond NFT images, e.g. "https://consume.example/bond/square".
     pub media_base: Option<String>,
@@ -407,9 +411,15 @@ impl Contract {
             next_famine_at_usd: (tithe < self.config.max_tithe_bps as u128 && self.config.tithe_step_bps > 0)
                 .then(|| U128(math::next_famine_at(self.config.famine_usd.0, self.total_eaten_usd))),
             epoch: U64(epoch),
-            heaviest_last_epoch: self.heaviest_tribe(epoch.saturating_sub(1)),
+            heaviest_last_epoch: if epoch > 0 { self.heaviest_tribe(epoch - 1, None) } else { None },
+            feast: self.feast_for(epoch),
             now_ns: U64(now),
         }
+    }
+
+    /// The memecoin whose feedings pay no tithe in the given epoch, if any.
+    pub fn get_feast(&self, epoch: U64) -> Option<AccountId> {
+        self.feast_for(epoch.0)
     }
 
     pub fn get_epoch_fed(&self, epoch: U64) -> Vec<(AccountId, U128)> {
@@ -507,10 +517,14 @@ impl Contract {
         )
     }
 
-    /// The tribe that was fed the most USD in the given epoch, if any was fed.
-    pub(crate) fn heaviest_tribe(&self, epoch: u64) -> Option<AccountId> {
+    /// The tribe that was fed the most USD in the given epoch, leaving out
+    /// `except`, if any was fed. The first one listed wins a tie.
+    pub(crate) fn heaviest_tribe(&self, epoch: u64, except: Option<&AccountId>) -> Option<AccountId> {
         let mut best: Option<(AccountId, u128)> = None;
         for k in self.tribes.keys() {
+            if Some(k) == except {
+                continue;
+            }
             let fed = *self.epoch_fed.get(&(k.clone(), epoch)).unwrap_or(&0);
             if fed > 0 && best.as_ref().map_or(true, |(_, b)| fed > *b) {
                 best = Some((k.clone(), fed));
@@ -518,6 +532,62 @@ impl Contract {
         }
         best.map(|(k, _)| k)
     }
+
+    /// The feast of an epoch: the memecoin fed the most USD in the epoch
+    /// before, unless it was already feasting in that epoch. No memecoin feasts
+    /// two epochs running, so a reigning feast hands the crown to the most fed
+    /// of the others (and to none if no other was fed).
+    ///
+    /// Who feasted before is needed to answer, so each epoch's feast is written
+    /// down at its first feeding (`record_feast`). An epoch with a feeding
+    /// always has its record, and one with none ends the walk back, so the walk
+    /// is one step long. It is longer only across epochs fed before this rule
+    /// was deployed, and those are a fixed few.
+    pub(crate) fn feast_for(&self, epoch: u64) -> Option<AccountId> {
+        // walk back to the nearest epoch whose feast is known
+        let mut known = epoch;
+        let mut feast = loop {
+            if known == 0 {
+                break None;
+            }
+            if let Some(recorded) = feast_record(known) {
+                break recorded;
+            }
+            if self.heaviest_tribe(known - 1, None).is_none() {
+                // nothing was fed the epoch before: no feast
+                break None;
+            }
+            known -= 1;
+        };
+        // then forward again, one crowning at a time
+        for e in known + 1..=epoch {
+            feast = self.heaviest_tribe(e - 1, feast.as_ref());
+        }
+        feast
+    }
+
+    /// Write down who feasts this epoch, once, so the next epoch can tell
+    /// whether its most fed memecoin has just feasted.
+    pub(crate) fn record_feast(&mut self, epoch: u64) {
+        if feast_record(epoch).is_none() {
+            let feast = self.feast_for(epoch);
+            env::storage_write(&feast_key(epoch), &near_sdk::borsh::to_vec(&feast).unwrap());
+        }
+    }
+}
+
+fn feast_key(epoch: u64) -> Vec<u8> {
+    let mut key = near_sdk::borsh::to_vec(&StorageKey::Feasts).unwrap();
+    key.extend_from_slice(&epoch.to_le_bytes());
+    key
+}
+
+/// The feast written down for an epoch: `None` if nothing is written,
+/// `Some(None)` if the epoch was recorded as having no feast.
+fn feast_record(epoch: u64) -> Option<Option<AccountId>> {
+    env::storage_read(&feast_key(epoch)).map(|bytes| {
+        near_sdk::borsh::from_slice(&bytes).unwrap_or_else(|_| env::panic_str("Unreadable feast record"))
+    })
 }
 
 #[near(serializers = [json])]
@@ -538,7 +608,11 @@ pub struct Stats {
     /// it has reached its maximum.
     pub next_famine_at_usd: Option<U128>,
     pub epoch: U64,
+    /// The memecoin fed the most USD last epoch, whether or not it feasts now.
     pub heaviest_last_epoch: Option<AccountId>,
+    /// The memecoin whose feedings pay no tithe this epoch: last epoch's most
+    /// fed, or the most fed of the others if that one was already feasting.
+    pub feast: Option<AccountId>,
     pub now_ns: U64,
 }
 

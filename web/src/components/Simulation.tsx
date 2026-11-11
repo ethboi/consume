@@ -167,6 +167,8 @@ export function Simulation({ repoUrl }: { repoUrl?: string }) {
   const checks = FIGURES.find((f) => f.key === "checks")?.cells.map((c) => Number(c.replace(/,/g, ""))) ?? [];
   const run = SCENARIOS.findIndex((s) => s.key === "run");
   const crash = SCENARIOS.findIndex((s) => s.key === "crash");
+  // how many different memecoins feasted in each scenario, from its tally ("none 1, DOGE 3, SPX 3")
+  const feasted = SCENARIOS.map((_, i) => cell("feast", i).split(", ").filter((week) => week && !week.startsWith("none ")).length);
 
   return (
     <div className="sim">
@@ -269,10 +271,11 @@ export function Simulation({ repoUrl }: { repoUrl?: string }) {
           </span>
         </li>
         <li>
-          <b>The Feast tends to stick</b>
+          <b>The Feast moves on every week</b>
           <span>
-            With 30% of feeders choosing the memecoin that pays no tithe, the reigning Feast kept its crown in every later week in three scenarios out of four.
-            The crown is easier to keep than to take.
+            No memecoin feasts two weeks running, so even with 30% of feeders choosing the memecoin that pays no tithe, the crown changed hands every week.{" "}
+            {Math.min(...feasted)} to {Math.max(...feasted)} different memecoins feasted in each scenario. Two well fed memecoins can still pass it back and
+            forth.
           </span>
         </li>
       </ul>
