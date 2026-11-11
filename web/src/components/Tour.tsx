@@ -63,7 +63,7 @@ export function Tour() {
   const last = at === TOUR.length - 1;
   return (
     <>
-      <button ref={start} type="button" className="text-link tour-start" aria-expanded={open} onClick={() => (open ? end() : go(0))}>
+      <button ref={start} type="button" className="press big second tour-start" aria-expanded={open} onClick={() => (open ? end() : go(0))}>
         <span aria-hidden="true">☞</span> Take the tour
       </button>
       {stop &&

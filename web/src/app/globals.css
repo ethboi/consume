@@ -6552,7 +6552,7 @@ section[tabindex="-1"]:focus {
     min-height: 4.2em;
   }
 }
-/* the demo guide, second of the hero's two buttons: the same block, cut in paper */
+/* the tour, second of the hero's two buttons: the same block, cut in paper */
 .hero .press.big.second {
   background: var(--paper);
   color: var(--ink);
@@ -6561,7 +6561,14 @@ section[tabindex="-1"]:focus {
   background: var(--ink);
   color: var(--paper);
 }
-/* both buttons on one row of the hero's box on a desk, the tour under them; on a phone each takes the full width */
+.hero .tour-start span {
+  color: var(--rubric);
+  margin-right: 4px;
+}
+.hero .tour-start:hover span {
+  color: var(--paper);
+}
+/* both buttons on one row of the hero's box on a desk; on a phone each takes the full width */
 .folio .hero.split .hero-actions {
   gap: 16px 18px;
 }

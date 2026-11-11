@@ -185,9 +185,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
               <a className="press big" href="#feed">
                 Feed the Serpent
               </a>
-              <a className="press big second" href="/demo">
-                Two-minute demo
-              </a>
               <Tour />
             </div>
             <p className="hero-entry">
