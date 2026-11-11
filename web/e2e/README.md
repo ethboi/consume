@@ -6,7 +6,7 @@ Three sets of tests drive the site in a real browser (Playwright, Chromium by de
 cd web
 node e2e/run.mjs            # sample, then chain
 node e2e/run.mjs sample     # 22 tests, about a minute
-node e2e/run.mjs chain      # 36 tests, a few minutes
+node e2e/run.mjs chain      # 39 tests, a few minutes
 node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 ```
 
@@ -16,6 +16,7 @@ node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 | --- | --- | --- | --- |
 | sample | `sample.spec.ts` | The site built with no contract set, so it shows its sample figures. No chain. | Every section renders from its data and adds up, the quote follows the contract's rule, every button that would sign is off, the previews play and send nothing, the Bond pictures are served, nothing runs off the side of a phone, and `llms.txt` names the MCP server's 14 tools. |
 | chain | `chain.spec.ts` | A local NEAR sandbox, the CONSUME contract as built from `contracts/`, the NEAR Intents stand-in, the site built against them, and a browser with a test wallet. | The whole product in one story: connect, bring test memecoins, feed, a refused signature, the Bond and its picture, a feeding over the limit, Collect all, Collect, Break the seal, Redeem, an agent feeding through the MCP server, the Ledger, recipient validation, a rejected transfer signature, an atomic transfer with storage top-up, collection by the recipient, refusal of the former holder, and sign out. |
+| chain | `guest.spec.ts` | The same sandbox, and a page with no test wallet at all. | The guest wallet: one button makes an account whose only key was made in the page, a busy faucet is said in one line and keeps nothing, the guest brings test PEPE and feeds it with three transactions the page writes, signs and sends to the RPC itself, the Bond is the guest's, and leaving and coming back returns the same account. |
 | chain | `transfer.spec.ts` | Fresh Bonds on the same sandbox, each checked through the page and directly on chain. | Credit one yocto above, at and below the transfer reserve; first-time recipient registration and collection; credit, ownership and wallet changes after review; a wallet switch during preflight; rollback of a bundled top-up when execution fails; RPC failure and recovery; and 64-character recipients at 320px and 390px. |
 | live | `live.spec.ts` | Nothing local. It reads a deployed site. | The public site is up and joined to a contract, the page agrees with what the contract reports, prices are fresh, a prepared feeding names only the contract and its Intents account, and the Ledger adds up. |
 
@@ -48,6 +49,7 @@ Each step of the story is checked twice: what the page shows, and what the contr
 ## What is a stand-in, said plainly
 
 - **The wallet.** No real wallet is used. The test wallet passes what it is asked to sign to the stage, which signs as a sandbox account. Those keys exist only inside the sandbox. What the tests prove is the site's side: which transactions it asks for, with which arguments, deposits and gas, and what it does with the result or a refusal.
+- **The faucet.** On testnet the guest wallet's account is made by NEAR's faucet (`helper.nearprotocol.com`), which does not know a sandbox. `guest.spec.ts` answers the page's request to it through `harness.mjs`, which makes the account the same way: that name, that key, 10 NEAR. Everything after that is the site's own code: the key, the transaction bytes and the signature are made in the page, and the sandbox node accepts or refuses them like any other.
 - **RPC faults.** Two transfer tests intercept the recipient lookup to delay it or return an RPC error. All ownership, credit, registration and transaction-result assertions still read the real sandbox. The rollback test changes ownership after preflight and lets the contract reject the actual transaction.
 - **NEAR Intents.** The sandbox runs `contracts/mock-intents`, the same stand-in the testnet deployment uses. The real Intents contract is not in these tests.
 - **The Ledger's source.** On a public network the Ledger reads transactions from an indexer (FastNEAR). A sandbox has none, so `harness.mjs` answers in the indexer's shape with the sandbox's own transactions, read unchanged from its RPC. The Ledger code that turns them into entries, `src/lib/ledger.ts`, is the real one. The price round is read the same way: the test sends a round with quotes as the price feeder, and `src/lib/round.ts` finds it through the same stand-in.
@@ -77,6 +79,6 @@ The chain story is told in order on one chain, and a test deposit can be taken o
 
 `.github/workflows/ci.yml` runs the sample set in the site job and the chain set in a job of its own, on every push. The live set is not in CI.
 
-CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 22 sample and 36 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
+CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 22 sample and 39 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
 
 To reproduce the CI browser choice locally, install Chrome and run `E2E_CHANNEL=chrome node e2e/run.mjs sample chain`. Leaving `E2E_CHANNEL` unset continues to use Playwright's bundled Chromium.

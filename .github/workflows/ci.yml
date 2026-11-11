@@ -167,7 +167,7 @@ jobs:
           console.log(`Browser ready: Chrome ${browser.version()}`);
           await browser.close();
           JS
-      - name: Browser tests on the sandbox (36 tests)
+      - name: Browser tests on the sandbox (39 tests)
         timeout-minutes: 8
         working-directory: web
         run: node e2e/run.mjs chain
