@@ -109,7 +109,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import { chromium } from '@playwright/test';
-          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 15_000 });
+          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 45_000 });
           console.log(`Browser ready: Chrome ${browser.version()}`);
           await browser.close();
           JS
@@ -163,11 +163,11 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import { chromium } from '@playwright/test';
-          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 15_000 });
+          const browser = await chromium.launch({ channel: process.env.E2E_CHANNEL, timeout: 45_000 });
           console.log(`Browser ready: Chrome ${browser.version()}`);
           await browser.close();
           JS
-      - name: Browser tests on the sandbox (35 tests)
+      - name: Browser tests on the sandbox (36 tests)
         timeout-minutes: 8
         working-directory: web
         run: node e2e/run.mjs chain
