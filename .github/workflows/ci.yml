@@ -113,7 +113,7 @@ jobs:
           console.log(`Browser ready: Chrome ${browser.version()}`);
           await browser.close();
           JS
-      - name: Browser tests, sample figures (21 tests)
+      - name: Browser tests, sample figures (22 tests)
         timeout-minutes: 5
         run: node e2e/run.mjs sample
       - name: Keep the screenshots and traces of a failure

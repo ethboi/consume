@@ -15,6 +15,7 @@ import { feastOf, nextFeast } from "../src/lib/feast";
 import { compact, fromRaw, toRaw, usd, usdValue } from "../src/lib/format";
 import { HERESIES, bySymbol } from "../src/lib/heresies";
 import type { LedgerEntry } from "../src/lib/ledger";
+import { TOUR, TOUR_NUMERALS } from "../src/lib/tour";
 import { roads, watch, type Seen } from "./local";
 
 const SAMPLE_NOTE = "A preview with sample figures. This build is not joined to a contract, so the buttons are off.";
@@ -511,6 +512,68 @@ test("llms.txt and the MCP server name the same fourteen tools", async ({ reques
 
   // the server speaks JSON-RPC over POST only
   expect((await request.get("/api/mcp")).status()).toBe(405);
+});
+test("the tour stops at six parts of the page with a line for each, and hands over to the feeding", async ({ page }) => {
+  // no glide between stops, so each one can be measured as soon as it is shown
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  const start = page.getByRole("button", { name: "Take the tour" });
+  const card = page.getByRole("dialog", { name: "A tour of the page" });
+  const top = (id: string) => page.locator(`section#${id}`).evaluate((e) => Math.abs(Math.round(e.getBoundingClientRect().top)));
+  await expect(start).toHaveAttribute("aria-expanded", "false");
+  await expect(card).toHaveCount(0);
+
+  await start.click();
+  await expect(start).toHaveAttribute("aria-expanded", "true");
+  expect(TOUR).toHaveLength(6);
+  for (const [i, stop] of TOUR.entries()) {
+    await expect(card.locator(".tour-at")).toHaveText(`${TOUR_NUMERALS[i]} of VI`);
+    await expect(card.getByRole("heading")).toHaveText(stop.name);
+    await expect(card.locator(".tour-stop p")).toHaveText(stop.line);
+    await expect.poll(() => top(stop.id), `the ${stop.name} section is at the top of the window`).toBeLessThan(4);
+    if (i === 0) await expect(card.getByRole("button", { name: "Back" })).toBeDisabled();
+    if (i < TOUR.length - 1) await card.getByRole("button", { name: "Next" }).click();
+  }
+
+  // back one stop, and on again with the arrow key while the card has the keyboard
+  await card.getByRole("button", { name: "Back" }).click();
+  await expect(card.getByRole("heading")).toHaveText(TOUR[4].name);
+  await card.getByRole("button", { name: "Next" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(card.getByRole("heading")).toHaveText(TOUR[5].name);
+
+  // the last stop has no Next: its button goes to the feeding and closes the card
+  await expect(card.getByRole("button", { name: "Next" })).toHaveCount(0);
+  await card.getByRole("button", { name: "Feed the Serpent" }).click();
+  await expect(card).toHaveCount(0);
+  await expect.poll(() => top("feed")).toBeLessThan(4);
+  await expect(page.locator("section#feed")).toBeFocused();
+
+  // Escape ends it from any stop and gives the keyboard back to the button that began it
+  await start.click();
+  await card.getByRole("button", { name: "Next" }).click();
+  await page.keyboard.press("Escape");
+  await expect(card).toHaveCount(0);
+  await expect(start).toBeFocused();
+  await start.click();
+  await card.getByRole("button", { name: "End the tour" }).click();
+  await expect(card).toHaveCount(0);
+
+  // on the narrowest phone the card stays inside the screen at every stop, and keeps one height
+  await page.setViewportSize({ width: 320, height: 600 });
+  await start.click();
+  const heights = new Set<number>();
+  for (const [i, stop] of TOUR.entries()) {
+    await expect(card.getByRole("heading")).toHaveText(stop.name);
+    const box = (await card.boundingBox())!;
+    expect(box.x, `${stop.name}: the card starts on the screen`).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width, `${stop.name}: the card ends on the screen`).toBeLessThanOrEqual(320);
+    expect(box.y + box.height, `${stop.name}: the card's buttons are on the screen`).toBeLessThanOrEqual(600);
+    heights.add(Math.round(box.height));
+    if (i < TOUR.length - 1) await card.getByRole("button", { name: "Next" }).click();
+  }
+  expect(heights.size, "the buttons do not move between stops").toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 test("source and demo guide are discoverable, and the guide fits a phone", async ({ page }) => {
   await page.goto("/");

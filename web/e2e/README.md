@@ -5,7 +5,7 @@ Three sets of tests drive the site in a real browser (Playwright, Chromium by de
 ```bash
 cd web
 node e2e/run.mjs            # sample, then chain
-node e2e/run.mjs sample     # 21 tests, about a minute
+node e2e/run.mjs sample     # 22 tests, about a minute
 node e2e/run.mjs chain      # 36 tests, a few minutes
 node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 ```
@@ -77,6 +77,6 @@ The chain story is told in order on one chain, and a test deposit can be taken o
 
 `.github/workflows/ci.yml` runs the sample set in the site job and the chain set in a job of its own, on every push. The live set is not in CI.
 
-CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 21 sample and 36 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
+CI sets `E2E_CHANNEL=chrome` and uses the Chrome already installed on GitHub's Ubuntu runners. It checks that Chrome launches before running the same 22 sample and 36 sandbox tests. This avoids downloading a second browser and installing system packages through Ubuntu mirrors on every run. The browser check has a one-minute step limit and a 15-second launch timeout; sample tests have five minutes and sandbox browser tests eight minutes. The complete site and sandbox browser jobs are capped at ten and fifteen minutes respectively, allowing room for setup and a cold Rust build.
 
 To reproduce the CI browser choice locally, install Chrome and run `E2E_CHANNEL=chrome node e2e/run.mjs sample chain`. Leaving `E2E_CHANNEL` unset continues to use Playwright's bundled Chromium.
