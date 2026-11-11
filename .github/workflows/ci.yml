@@ -87,7 +87,7 @@ jobs:
         run: pnpm build
       - name: Install Chromium for the browser tests
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser tests, sample figures (19 tests)
+      - name: Browser tests, sample figures (20 tests)
         run: node e2e/run.mjs sample
       - name: Keep the screenshots and traces of a failure
         if: failure()
@@ -151,6 +151,8 @@ jobs:
           node-version: 24
       - name: Sixty days, four scenarios (stops if the backing ever falls)
         run: node sim/sim.mjs
+      - name: The run gave the figures in the repository (the README's table, the charts, the site's section)
+        run: git diff --exit-code -- sim/out sim/charts web/src/lib/simulation.json
       - name: Launch arguments build from the memecoin list
         run: node scripts/launch-args.mjs --guardian ci.testnet --assayer ci.testnet --intents intents.ci.testnet > /dev/null
       - name: The MCP server answers over stdio with its 14 tools

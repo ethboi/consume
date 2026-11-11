@@ -35,13 +35,14 @@ import { Chains } from "./Chains";
 import { IntentsWallet } from "./IntentsWallet";
 import { PartySeal, Seal } from "./Seal";
 import { Glory, Woodblock } from "./Woodblock";
-import { BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, GobletEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
+import { AbacusEmblem, BookEmblem, CoinsEmblem, CompassEmblem, FeedEmblem, GobletEmblem, StomachEmblem, HourglassEmblem, QuillEmblem, ScalesEmblem } from "./Emblems";
 import { TGAS, eventData, eventsData, useWallet, type Call, type TxResult } from "./Wallet";
 import { Feeding, SWALLOW_MS, type FeedingScene, type Meal } from "./Feeding";
 import { Collecting, type CollectScene } from "./Collecting";
 import { sleep, useLive } from "@/lib/live";
 import { Feast } from "./Feast";
 import { Ledger } from "./Ledger";
+import { Simulation } from "./Simulation";
 import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
 
 const ONE_YOCTO = "1";
@@ -376,6 +377,18 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <Ledger stats={DEMO || unread ? null : snap.stats} tick={tick} fallback={<Entries recent={snap.recent} />} />
       </section>
 
+      <section className="chapter" id="sim" aria-labelledby="sim-h">
+        <header>
+          <AbacusEmblem />
+          <h2 id="sim-h">Sixty days, simulated</h2>
+          <p>
+            Before launch, sixty days of feeding, broken seals and redemptions were run through the contract&apos;s own arithmetic, four ways. Every figure in
+            this section is simulated. None of it is the live Stomach.
+          </p>
+        </header>
+        <Simulation repoUrl={REPO_URL} />
+      </section>
+
       <section className="chapter band band-ink invert" id="rule" aria-labelledby="rule-h">
         <header>
           <BookEmblem />
@@ -405,7 +418,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
           <li>
             <b>Sixty days simulated first</b>
             <span>Four scenarios run through the contract&apos;s own arithmetic: steady feeding, a rush, a run for the exit and a 70% fall.</span>
-            {REPO_URL && <a href={`${REPO_URL}/tree/main/sim`}>See the simulation</a>}
+            <a href="#sim">See the simulation</a>
           </li>
           <li>
             <b>A log of every mint and burn</b>

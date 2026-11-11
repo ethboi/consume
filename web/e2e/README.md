@@ -5,7 +5,7 @@ Three sets of tests drive the site in a real browser (Playwright, Chromium). One
 ```bash
 cd web
 node e2e/run.mjs            # sample, then chain
-node e2e/run.mjs sample     # 19 tests, about a minute
+node e2e/run.mjs sample     # 20 tests, about a minute
 node e2e/run.mjs chain      # 18 tests, a few minutes
 node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 ```

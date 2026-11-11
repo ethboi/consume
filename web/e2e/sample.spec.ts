@@ -7,6 +7,8 @@
 // reached for nothing outside. The one outside answer the page needs, which
 // roads NEAR Intents has open, is given by the test (`roads` in local.ts).
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { expect, test as base, type Browser, type Page } from "@playwright/test";
 import { DEMO_LEDGER, DEMO_MINE, DEMO_SNAPSHOT, DEMO_TOKEN } from "../src/lib/demo";
 import { compact, fromRaw, toRaw, usd, usdValue } from "../src/lib/format";
@@ -317,6 +319,62 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
   const body = (await res.json()) as { entries: LedgerEntry[]; complete: boolean };
   expect(body.complete).toBe(true);
   expect(body.entries.map((e) => e.id)).toEqual(DEMO_LEDGER.entries.map((e) => e.id));
+});
+
+// the rows of the site's table, and the row of the simulation's own summary each one is
+const SIM_ROWS: [string, string][] = [
+  ["Fed into the Stomach", "Fed into the Stomach"],
+  ["Feedings", "Feedings"],
+  ["Memecoins paid out to redeemers", "Memecoins paid out"],
+  ["$CONSUME burned by redeeming", "$CONSUME burned by redeeming"],
+  ["$CONSUME forfeited, never minted", "$CONSUME forfeited, never minted"],
+  ["Liquid $CONSUME", "Liquid $CONSUME on day 60"],
+  ["Still locked in Bonds", "Locked in Bonds on day 60"],
+  ["In the Stomach", "Stomach on day 60"],
+  ["Backing of 1,000 $CONSUME (starts at $1.00)", "Backing of 1,000 $CONSUME, day 60 (starts at $1.00)"],
+  ["Backing checks passed", "Backing checks passed"],
+];
+
+test("the simulation is marked as simulated and shows the figures `node sim/sim.mjs` wrote", async ({ page }) => {
+  await page.goto("/");
+  const sim = page.locator("#sim");
+  await expect(sim.locator("header p")).toContainText("Every figure in this section is simulated. None of it is the live Stomach.");
+
+  // the table, cell for cell, against sim/out/summary.md
+  const summary = new Map(
+    readFileSync(fileURLToPath(new URL("../../sim/out/summary.md", import.meta.url)), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => line.split("|").slice(1, -1).map((c) => c.trim()))
+      .map(([label, ...cells]) => [label, cells]),
+  );
+  const titles = summary.get("")!;
+  expect(titles).toHaveLength(4);
+  await expect(sim.locator(".sim-table thead th")).toHaveText(titles);
+  const rows = sim.locator(".sim-table tbody tr");
+  await expect(rows.locator("th")).toHaveText(SIM_ROWS.map(([onSite]) => onSite));
+  for (const [i, [, inSummary]] of SIM_ROWS.entries()) await expect(rows.nth(i).locator("td")).toHaveText(summary.get(inSummary)!);
+
+  // picking a scenario draws it: the charts end on that column's day 60
+  const at = titles.indexOf("A run for the exit");
+  const day60 = (label: string) => summary.get(label)![at];
+  await sim.getByRole("button", { name: "A run for the exit" }).click();
+  await expect(sim.getByRole("button", { name: "A run for the exit" })).toHaveAttribute("aria-pressed", "true");
+  await expect(sim.locator(".sim-what")).toContainText("a quarter of holders a day redeem everything");
+  const keys = sim.locator(".sim-key");
+  await expect(keys.nth(0)).toHaveText(`Liquid ${day60("Liquid $CONSUME on day 60")}Locked in Bonds ${day60("Locked in Bonds on day 60")}day 60`);
+  await expect(keys.nth(1)).toHaveText(`Backing ${day60("Backing of 1,000 $CONSUME, day 60 (starts at $1.00)")}day 60`);
+
+  // the charts are read day by day, from the keyboard too
+  const chart = sim.getByRole("slider", { name: "Supply of $CONSUME, day by day" });
+  await chart.focus();
+  await page.keyboard.press("Home");
+  await expect(keys.nth(0)).toHaveText("Liquid 0Locked in Bonds 0day 0");
+  await expect(keys.nth(1)).toHaveText("Backing $1.000day 0");
+  await page.keyboard.press("PageUp");
+  await expect(chart).toHaveAttribute("aria-valuenow", "7");
+  await page.keyboard.press("End");
+  await expect(keys.nth(1)).toContainText("day 60");
 });
 
 /** The whole page on a phone of this width: nothing may run off the side. */

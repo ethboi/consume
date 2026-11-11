@@ -6023,3 +6023,236 @@ section[inert] > :not(header) {
     font-size: 21px;
   }
 }
+
+/* ---- sixty days, simulated: a scenario picked, two charts on shared scales,
+   the day-60 table and what the run found ---- */
+.folio .sim-what {
+  margin: 14px 0 26px;
+  max-width: 78ch;
+  min-height: 3em;
+  font-style: italic;
+  color: var(--faded);
+}
+.folio .sim-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 30px clamp(24px, 4vw, 56px);
+  align-items: start;
+}
+.folio .sim-chart {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 2px solid var(--ink);
+}
+.folio .sim-chart figcaption b {
+  display: block;
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+.folio .sim-chart figcaption span {
+  display: block;
+  min-height: 2.7em;
+  font-size: var(--t-sm);
+  line-height: 1.35;
+  color: var(--faded);
+}
+/* the key is also the readout: each line's name, and its value on the day picked */
+.folio .sim-key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 20px;
+  margin: 10px 0 4px;
+  max-width: none;
+  font-size: 1rem;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.folio .sim-key i {
+  display: inline-block;
+  width: 26px;
+  margin-right: 8px;
+  vertical-align: 0.28em;
+  border-top: 2.5px solid var(--ink);
+}
+.folio .sim-key i.red {
+  border-top: 2.5px dashed var(--rubric);
+}
+.folio .sim-key b {
+  margin-left: 3px;
+  font-weight: 400;
+  font-size: 1.3rem;
+}
+.folio .sim-key em {
+  margin-left: auto;
+  color: var(--faded);
+}
+.folio .sim-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  touch-action: pan-y;
+  font-family: var(--font-text);
+  -webkit-tap-highlight-color: transparent;
+}
+.folio .sim-rule,
+.folio .sim-base {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-opacity: 0.14;
+}
+.folio .sim-base {
+  stroke-opacity: 0.6;
+}
+.folio .sim-tick {
+  font-size: 13px;
+  fill: var(--faded);
+  font-variant-numeric: lining-nums;
+}
+.folio .sim-mark {
+  stroke: var(--faded);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.folio .sim-mark-name {
+  font-size: 13px;
+  font-style: italic;
+  fill: var(--faded);
+}
+.folio .sim-line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.folio .sim-line.red {
+  stroke: var(--rubric);
+  stroke-dasharray: 6 4;
+}
+.folio .sim-cross {
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.folio .sim-dot {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+.folio .sim-dot.red {
+  fill: var(--rubric);
+}
+.folio .sim-chart-note {
+  margin: 6px 0 0;
+  font-size: var(--t-sm);
+  font-style: italic;
+  color: var(--faded);
+}
+
+.folio .sim-table {
+  width: 100%;
+  margin-top: 40px;
+  border-collapse: collapse;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.folio .sim-table caption {
+  padding-bottom: 10px;
+  text-align: left;
+  font-family: var(--font-sc);
+  font-size: 1.35rem;
+}
+.folio .sim-table th,
+.folio .sim-table td {
+  padding: 8px 14px;
+  text-align: right;
+  font-weight: 400;
+  border-top: 1px solid rgba(20, 17, 16, 0.28);
+}
+.folio .sim-table thead th,
+.folio .sim-table thead td {
+  vertical-align: bottom;
+  font-family: var(--font-sc);
+  line-height: 1.15;
+  border-top: 2px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+}
+.folio .sim-table tbody tr:first-child > * {
+  border-top: 0;
+}
+.folio .sim-table th[scope="row"] {
+  padding-left: 0;
+  text-align: left;
+}
+.folio .sim-table .on {
+  background: rgba(20, 17, 16, 0.065);
+}
+.folio .sim-table thead .on {
+  color: var(--rubric);
+}
+.folio .sim-table tbody tr:last-child > * {
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.folio .sim-found {
+  list-style: none;
+  margin: 40px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(24px, 4vw, 56px);
+  border-bottom: 1.5px solid var(--ink);
+}
+.folio .sim-found li {
+  padding: 14px 0 18px;
+  border-top: 1.5px solid var(--ink);
+}
+.folio .sim-found b {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-sc);
+  font-weight: 400;
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+.folio .sim-found span {
+  font-size: 1.0625rem;
+}
+.folio .sim-note {
+  margin: 16px 0 44px;
+  max-width: 86ch;
+  font-size: var(--t-sm);
+  color: var(--faded);
+}
+.folio .sim-note code {
+  color: var(--ink);
+}
+.folio .sim-note a {
+  color: var(--rubric);
+  font-style: italic;
+}
+@media (max-width: 820px) {
+  .folio .sim-charts,
+  .folio .sim-found {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .folio .sim-what,
+  .folio .sim-chart figcaption span {
+    min-height: 0;
+  }
+  /* the charts are drawn smaller here, so their lettering is set larger */
+  .folio .sim-tick,
+  .folio .sim-mark-name {
+    font-size: 15.5px;
+  }
+  /* one scenario at a time: the table keeps the column that is picked */
+  .folio .sim-table thead th:not(.on),
+  .folio .sim-table tbody td:not(.on) {
+    display: none;
+  }
+  .folio .sim-table th,
+  .folio .sim-table td {
+    padding: 8px 10px;
+  }
+}

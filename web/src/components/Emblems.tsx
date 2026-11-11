@@ -223,3 +223,22 @@ export function BookEmblem() {
     </svg>
   );
 }
+
+/** A counting frame, for the sixty days reckoned before launch. */
+export function AbacusEmblem() {
+  const bead = (x: number, y: number, fill: string) => <ellipse key={`${x}-${y}`} cx={x} cy={y} rx={3.4} ry={4.6} fill={fill} strokeWidth={1.4} />;
+  return (
+    <svg {...common}>
+      <path d="M7,8 L57,8 L57,56 L7,56 Z" fill="var(--paper)" strokeWidth={3} />
+      <path d="M11,12 L53,12 L53,52 L11,52 Z" strokeWidth={0.9} />
+      <path d="M11,21 L53,21 M11,32 L53,32 M11,43 L53,43" strokeWidth={1.2} />
+      {[16, 23, 30].map((x) => bead(x, 21, "var(--ink)"))}
+      {[41, 48].map((x) => bead(x, 21, "var(--paper)"))}
+      {[16, 23].map((x) => bead(x, 32, "var(--ink)"))}
+      {bead(34, 32, "var(--rubric)")}
+      {[41, 48].map((x) => bead(x, 32, "var(--paper)"))}
+      {bead(16, 43, "var(--ink)")}
+      {[27, 34, 41, 48].map((x) => bead(x, 43, "var(--paper)"))}
+    </svg>
+  );
+}

@@ -3,8 +3,8 @@
 //
 //   node sim/sim.mjs
 //
-// It writes one CSV a scenario and a summary into sim/out/, and two charts into
-// sim/charts/. Every run gives the same numbers: the randomness comes from a
+// It writes one CSV a scenario and a summary into sim/out/, two charts into
+// sim/charts/, and the figures the site shows into web/src/lib/simulation.json. Every run gives the same numbers: the randomness comes from a
 // fixed seed. The rules and the rounding are the contract's own (see model.mjs),
 // and after every feeding, broken seal and redemption the run checks that the
 // backing of each $CONSUME did not fall. If it ever did, the run stops.
@@ -44,6 +44,7 @@ const SCENARIOS = [
   {
     key: "steady",
     title: "Steady feeding",
+    what: "About 25 feedings a day for 60 days.",
     seed: 11,
     feedings: () => 25,
     ...flat(CALM),
@@ -52,6 +53,7 @@ const SCENARIOS = [
   {
     key: "rush",
     title: "A rush, then quiet",
+    what: "About 150 feedings a day for 10 days, then 3 a day.",
     seed: 23,
     feedings: (d) => (d < 10 ? 150 : 3),
     ...flat(CALM),
@@ -60,6 +62,7 @@ const SCENARIOS = [
   {
     key: "run",
     title: "A run for the exit",
+    what: "Steady for 30 days. Then for 10 days, 12% of Bonds a day have their seal broken, a quarter of holders a day redeem everything, and feeding nearly stops.",
     seed: 37,
     feedings: (d) => (d < 30 ? 25 : d < 40 ? 2 : 6),
     breakSeal: (d) => (d >= 30 && d < 40 ? 0.12 : CALM.breakSeal),
@@ -72,6 +75,7 @@ const SCENARIOS = [
   {
     key: "crash",
     title: "Memecoins fall about 70%",
+    what: "Steady for 25 days. Then every price falls over five days to between 10% and 40% of where it was and stays there, with more broken seals and redemptions for ten days.",
     seed: 53,
     feedings: (d) => (d < 25 ? 25 : 10),
     breakSeal: (d) => (d >= 25 && d < 35 ? 0.03 : CALM.breakSeal),
@@ -255,35 +259,56 @@ function main() {
     writeFileSync(join(HERE, "out", `${r.scn.key}.csv`), csv.join("\n") + "\n");
   }
 
+  // every figure once, as text: the summary table and the site both print these
+  const figures = [
+    ["fed", "Fed into the Stomach", (r) => `$${fmt(usdOf(r.tally.fedUsd))}`],
+    ["feedings", "Feedings", (r) => fmt(r.tally.feedings)],
+    ["refused", "Feedings refused by a cap", (r) => fmt(r.tally.refused)],
+    ["tithePaid", "Tithe paid to holders", (r) => `$${fmt(usdOf(r.c.tithePaid))}`],
+    ["titheWaived", "Tithe not charged (Feast)", (r) => `$${fmt(usdOf(r.c.titheWaived))}`],
+    ["seals", "Seals broken", (r) => fmt(r.tally.sealsBroken)],
+    ["forfeited", "$CONSUME forfeited, never minted", (r) => millions(consumeOf(r.c.forfeited))],
+    ["burned", "$CONSUME burned by redeeming", (r) => millions(consumeOf(r.c.redeemed))],
+    ["paidOut", "Memecoins paid out", (r) => `$${fmt(usdOf(r.c.paidOutUsd))}`],
+    ["liquid", "Liquid $CONSUME on day 60", (r) => millions(r.rows[DAYS - 1].supply)],
+    ["locked", "Locked in Bonds on day 60", (r) => millions(r.rows[DAYS - 1].locked)],
+    ["stomach", "Stomach on day 60", (r) => `$${fmt(r.rows[DAYS - 1].stomach_usd)}`],
+    ["backing", "Backing of 1,000 $CONSUME, day 60 (starts at $1.00)", (r) => `$${fmt(r.rows[DAYS - 1].backing_per_1000, 3)}`],
+    ["largest", "Largest memecoin in the Stomach", (r) => `${r.largest.symbol}, ${fmt(r.largest.share, 0)}%`],
+    [
+      "feast",
+      "The Feast, week by week",
+      (r) =>
+        Object.entries(r.tally.feastWeeks)
+          .map(([s, w]) => `${s} ${w}`)
+          .join(", "),
+    ],
+    ["checks", "Backing checks passed", (r) => fmt(r.c.checks)],
+  ].map(([key, label, cell]) => ({ key, label, cells: runs.map(cell) }));
+
   const line = (cells) => `| ${cells.join(" | ")} |`;
   const table = [
     line(["", ...runs.map((r) => r.scn.title)]),
     line(["---", ...runs.map(() => "---:")]),
-    line(["Fed into the Stomach", ...runs.map((r) => `$${fmt(usdOf(r.tally.fedUsd))}`)]),
-    line(["Feedings", ...runs.map((r) => fmt(r.tally.feedings))]),
-    line(["Feedings refused by a cap", ...runs.map((r) => fmt(r.tally.refused))]),
-    line(["Tithe paid to holders", ...runs.map((r) => `$${fmt(usdOf(r.c.tithePaid))}`)]),
-    line(["Tithe not charged (Feast)", ...runs.map((r) => `$${fmt(usdOf(r.c.titheWaived))}`)]),
-    line(["Seals broken", ...runs.map((r) => fmt(r.tally.sealsBroken))]),
-    line(["$CONSUME forfeited, never minted", ...runs.map((r) => millions(consumeOf(r.c.forfeited)))]),
-    line(["$CONSUME burned by redeeming", ...runs.map((r) => millions(consumeOf(r.c.redeemed)))]),
-    line(["Memecoins paid out", ...runs.map((r) => `$${fmt(usdOf(r.c.paidOutUsd))}`)]),
-    line(["Liquid $CONSUME on day 60", ...runs.map((r) => millions(r.rows[DAYS - 1].supply))]),
-    line(["Locked in Bonds on day 60", ...runs.map((r) => millions(r.rows[DAYS - 1].locked))]),
-    line(["Stomach on day 60", ...runs.map((r) => `$${fmt(r.rows[DAYS - 1].stomach_usd)}`)]),
-    line(["Backing of 1,000 $CONSUME, day 60 (starts at $1.00)", ...runs.map((r) => `$${fmt(r.rows[DAYS - 1].backing_per_1000, 3)}`)]),
-    line(["Largest memecoin in the Stomach", ...runs.map((r) => `${r.largest.symbol}, ${fmt(r.largest.share, 0)}%`)]),
-    line([
-      "The Feast, week by week",
-      ...runs.map((r) =>
-        Object.entries(r.tally.feastWeeks)
-          .map(([s, w]) => `${s} ${w}`)
-          .join(", "),
-      ),
-    ]),
-    line(["Backing checks passed", ...runs.map((r) => fmt(r.c.checks))]),
+    ...figures.map((f) => line([f.label, ...f.cells])),
   ].join("\n");
   writeFileSync(join(HERE, "out", "summary.md"), table + "\n");
+
+  // the same run for the site (web/src/components/Simulation.tsx): a point a day and the figures above
+  const site = {
+    days: DAYS,
+    scenarios: runs.map((r) => ({
+      key: r.scn.key,
+      title: r.scn.title,
+      what: r.scn.what,
+      marks: r.scn.marks,
+      liquid: r.rows.map((x) => Math.round(x.supply)),
+      locked: r.rows.map((x) => Math.round(x.locked)),
+      backing: r.rows.map((x) => Number(x.backing_per_1000.toFixed(4))),
+    })),
+    figures,
+  };
+  writeFileSync(join(HERE, "..", "web", "src", "lib", "simulation.json"), JSON.stringify(site) + "\n");
 
   const marks = (r) => r.scn.marks;
   writeFileSync(
@@ -320,6 +345,7 @@ function main() {
 
   console.log(table);
   console.log(`\nWrote ${runs.length} CSV files and summary.md to sim/out/, and supply.svg and backing.svg to sim/charts/.`);
+  console.log("Wrote the same figures to web/src/lib/simulation.json for the site.");
 }
 
 main();
