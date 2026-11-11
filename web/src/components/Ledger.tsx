@@ -15,7 +15,7 @@ import { useLive } from "@/lib/live";
 import { CONSUME_CONTRACT, DEMO, EXPLORER, heresyForToken, type Snapshot } from "@/lib/near";
 
 const CONSUME_DEC = 18;
-const FIRST = 12;
+const FIRST = 6;
 const MORE = 20;
 
 type Show = "all" | "fed" | "minted" | "burned";
@@ -129,8 +129,7 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
           "Sample entries. On a live contract each one links to its transaction."
         ) : agrees ? (
           <>
-            <b>Checked against the contract.</b> The indexed entries add up to the contract totals. This does not prove that every entry is
-            authentic or that the history is complete. Figures are rounded for display; the comparison uses full amounts.
+            <b>Checked against the contract.</b> The entries add up to its totals. That does not prove the history is complete.
           </>
         ) : short ? (
           <>
@@ -152,9 +151,8 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
           <p>
             {split.others === 0 ? (
               <>
-                {fedTimes === 1 ? "The one feeding so far came" : `All ${fedTimes} feedings so far came`} from the builder&apos;s own accounts:{" "}
-                <b>{split.account}</b> and the accounts under it. Nobody else has fed the Serpent yet.{" "}
-                <Link href="/demo">Be the first: it takes about two minutes and costs nothing.</Link>
+                {fedTimes === 1 ? "The one feeding so far is" : `All ${fedTimes} feedings so far are`} from the builder&apos;s own accounts,{" "}
+                <b>{split.account}</b> and those under it. <Link href="/demo">Be the first from outside.</Link>
               </>
             ) : (
               <>

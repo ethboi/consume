@@ -154,8 +154,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             </p>
             {NETWORK === "testnet" && !DEMO && (
               <p className="hero-net">
-                <b>On NEAR testnet.</b> The memecoins here are test memecoins with no value
-                {MOCK_INTENTS ? ", and arrivals from other chains are simulated." : "."}
+                <b>On NEAR testnet,</b> with test memecoins.
               </p>
             )}
             <ol className="howto" aria-label="How it works">
@@ -169,13 +168,13 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 <Seal size={40} />
                 <b>II</b>
                 <span>Bond</span>
-                <i>a token (an NFT) that pays you</i>
+                <i>an NFT that pays you</i>
               </li>
               <li>
                 <HourglassEmblem />
                 <b>III</b>
                 <span>Collect</span>
-                <i>paid over 30 days</i>
+                <i>over 30 days</i>
               </li>
               <li>
                 <ScalesEmblem />
@@ -248,8 +247,8 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             <dd className="value">{snap.stats.tithe_bps / 100}%</dd>
             <dd className="note">
               {snap.stats.next_famine_at_usd
-                ? `the part of a feeding kept for holders; ${Math.min(snap.config.max_tithe_bps, snap.stats.tithe_bps + snap.config.tithe_step_bps) / 100}% once ${usdCompact(snap.stats.next_famine_at_usd)} is eaten`
-                : "the part of a feeding kept for holders; it never goes higher"}
+                ? `kept for holders; ${Math.min(snap.config.max_tithe_bps, snap.stats.tithe_bps + snap.config.tithe_step_bps) / 100}% once ${usdCompact(snap.stats.next_famine_at_usd)} is eaten`
+                : "kept for holders; it never goes higher"}
             </dd>
           </div>
           <div className="tile feast">
@@ -268,6 +267,35 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             </dd>
           </div>
         </dl>
+      </section>
+
+      <section className="chapter band band-red" id="feed" aria-labelledby="feed-h" inert={unread}>
+        <header>
+          <FeedEmblem />
+          <h2 id="feed-h">Feed the Serpent</h2>
+          <p>Pick a memecoin, feed it, get a Bond.</p>
+        </header>
+        <Feed snap={snap} tick={tick} onDone={done} />
+      </section>
+
+      <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h" inert={unread}>
+        <header>
+          <HourglassEmblem />
+          <BondsHeading />
+          <p>NFTs that pay you $CONSUME over 30 days. Send one and its payout goes with it.</p>
+        </header>
+        <Bonds snap={snap} tick={tick} onDone={done} />
+        <CollectPreview />
+      </section>
+
+      <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h" inert={unread}>
+        <header>
+          <ScalesEmblem />
+          <h2 id="transmute-h">Redeem</h2>
+          <p>Burn $CONSUME, get memecoins back.</p>
+        </header>
+        <Redeem snap={snap} tick={tick} onDone={done} />
+        {VIA_INTENTS && <IntentsWallet snap={snap} tick={tick} onDone={done} />}
       </section>
 
       <section className="chapter" id="crucible" aria-labelledby="crucible-h">
@@ -333,38 +361,9 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <GobletEmblem />
           <h2 id="feast-h">The Feast</h2>
-          <p>Each week the most fed memecoin wins. For the week after, feeding it pays no tithe. No memecoin feasts two weeks running.</p>
+          <p>The most fed memecoin of the week pays no tithe the week after. None feasts two weeks running.</p>
         </header>
         <Feast snap={snap} />
-      </section>
-
-      <section className="chapter band band-red" id="feed" aria-labelledby="feed-h" inert={unread}>
-        <header>
-          <FeedEmblem />
-          <h2 id="feed-h">Feed the Serpent</h2>
-          <p>Pick a memecoin, feed it, get a Bond.</p>
-        </header>
-        <Feed snap={snap} tick={tick} onDone={done} />
-      </section>
-
-      <section className="chapter band band-ink" id="bonds" aria-labelledby="bonds-h" inert={unread}>
-        <header>
-          <HourglassEmblem />
-          <BondsHeading />
-          <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: send it and the uncollected payout goes with it.</p>
-        </header>
-        <Bonds snap={snap} tick={tick} onDone={done} />
-        <CollectPreview />
-      </section>
-
-      <section className="chapter after-band" id="transmute" aria-labelledby="transmute-h" inert={unread}>
-        <header>
-          <ScalesEmblem />
-          <h2 id="transmute-h">Redeem</h2>
-          <p>Burn $CONSUME, get memecoins back.</p>
-        </header>
-        <Redeem snap={snap} tick={tick} onDone={done} />
-        {VIA_INTENTS && <IntentsWallet snap={snap} tick={tick} onDone={done} />}
       </section>
 
       <section className="chapter" id="chains" aria-labelledby="chains-h">
@@ -389,10 +388,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <AbacusEmblem />
           <h2 id="sim-h">The Simulation</h2>
-          <p>
-            Before launch, sixty days of feeding, broken seals and redemptions were run through the contract&apos;s own arithmetic, four ways. Every figure in
-            this section is simulated. None of it is the live Stomach.
-          </p>
+          <p>Sixty days run four ways through the contract&apos;s own arithmetic. Every figure here is simulated.</p>
         </header>
         <Simulation repoUrl={REPO_URL} />
       </section>
@@ -417,23 +413,6 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
             . Try the <a href="/demo">short demo guide</a> or inspect the <a href={REPO_URL}>public source</a>.
           </p>
         </div>
-        <ul className="entry-asks">
-          <li>
-            <b>The mechanic in the contract</b>
-            <span>Every rule on this page is contract code, and each has a test of its own.</span>
-            <a href="#rule">Read the Rule</a>
-          </li>
-          <li>
-            <b>Sixty days simulated first</b>
-            <span>Four scenarios run through the contract&apos;s own arithmetic: steady feeding, a rush, a run for the exit and a 70% fall.</span>
-            <a href="#sim">See the simulation</a>
-          </li>
-          <li>
-            <b>A log of every mint and burn</b>
-            <span>Read from the contract&apos;s event logs and checked against the totals it keeps.</span>
-            <a href="#ledger">Open the Ledger</a>
-          </li>
-        </ul>
       </section>
 
       <footer className="colophon invert">
@@ -517,15 +496,15 @@ function Masthead({ tick }: { tick: number }) {
         </span>
       </a>
       <nav aria-label="Sections">
+        <a href="#feed">Feed</a>
+        <a href="#bonds">Bonds</a>
+        <a href="#transmute">Redeem</a>
         <a href="#crucible">
           <span className="nav-the">The </span>Stomach
         </a>
         <a href="#feast">
           <span className="nav-the">The </span>Feast
         </a>
-        <a href="#feed">Feed</a>
-        <a href="#bonds">Bonds</a>
-        <a href="#transmute">Redeem</a>
         <a href="#ledger">Ledger</a>
       </nav>
       <span className="masthead-end">
@@ -922,13 +901,11 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
             </button>
           </p>
         )}
-        {NETWORK === "testnet" && (
-          <p className={nearLow ? "pick-fees low" : "pick-fees"}>
-            {nearLow
-              ? `Your wallet holds ${fromRaw(near.data!, 24)} NEAR. A first feeding needs about 0.2 for fees and storage. `
-              : "Fees are paid in testnet NEAR, which is free. "}
+        {NETWORK === "testnet" && nearLow && (
+          <p className="pick-fees low">
+            Your wallet holds {fromRaw(near.data!, 24)} NEAR. A first feeding needs about 0.2 for fees and storage.{" "}
             <a href={NEAR_FAUCET} target="_blank" rel="noreferrer">
-              {nearLow ? "Get free testnet NEAR at near-faucet.io" : "Get some at near-faucet.io"}
+              Get free testnet NEAR at near-faucet.io
             </a>
             .
           </p>
@@ -1236,18 +1213,18 @@ function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: strin
       <div>
         <h3>{shown.length === 1 ? "The first Bond" : "The newest Bonds"}</h3>
         <p className="bond-show-what">
-          {count > shown.length ? `${count} Bonds so far, the newest ${shown.length} shown here. ` : ""}
-          These belong to the accounts named under them, not to you. Every feeding makes one, and whoever holds it can:
+          {count > shown.length ? `${count} so far. ` : ""}
+          Every feeding makes one. Whoever holds it can:
         </p>
         <ol className="bond-show-how">
           <li>
-            <b>Collect</b> what has been released, as often as they like.
+            <b>Collect</b> what has been released.
           </li>
           <li>
-            <b>Send</b> the card, and its uncollected payout goes with it. A sale through an approved account is tested on a local sandbox; no marketplace has listed a Bond.
+            <b>Send</b> it, and the uncollected payout goes with it.
           </li>
           <li>
-            <b>Break the seal</b> to leave early, giving up half of what is still locked.
+            <b>Break the seal</b> to leave early and give up half of what is still locked.
           </li>
         </ol>
         {note}
@@ -1687,8 +1664,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
           </p>
         )}
         <p className="hint">
-          If storage credit is low, redeeming adds 0.1 NEAR to it. Payout records use part of that credit;
-          unused credit can be taken back in the feeding panel.
+          Redeeming adds 0.1 NEAR of storage credit when yours is low. Unused credit can be taken back in the feeding panel.
         </p>
       </div>
 
@@ -1718,7 +1694,7 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
                 ? "The contract could not be read just now, so there is no figure to show. This is not an empty Stomach."
                 : "The Stomach is empty, so there is nothing to take yet."}</p>
         )}
-        <p className="hint r-foot">A share is counted against all $CONSUME, locked in Bonds or not, so nobody can empty the Stomach first.</p>
+        <p className="hint r-foot">Your share counts all $CONSUME, locked in Bonds or not.</p>
       </div>
     </div>
   );
@@ -1913,7 +1889,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <p>
             {keys
               ? "Three parties, each with its seal on this, and for now a fourth: whoever holds the contract account's key."
-              : "Three parties, each with its seal on this. Everything else was fixed at launch."}
+              : "Three parties. Everything else was fixed at launch."}
           </p>
         </div>
       </div>
@@ -1926,8 +1902,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h4>The Assayer</h4>
             <p>
-              Sets prices from NEAR Intents quotes. Its prices decide what every feeding earns, so a dishonest Assayer could mint itself
-              most of the Stomach.
+              Sets the prices, from NEAR Intents quotes. A dishonest Assayer could mint itself most of the Stomach.
             </p>
             <p className="seal-note">The biggest trust here</p>
             {feeder && (
@@ -1936,7 +1911,7 @@ function Rule({ snap }: { snap: Snapshot }) {
                 {limited && (
                   <>
                     {" "}
-                    Its one key can post prices and do nothing else: see <a href={limited.made}>the account made with that key</a> and{" "}
+                    Its one key can only post prices: see <a href={limited.made}>the account made with that key</a> and{" "}
                     <a href={limited.named}>the guardian naming it</a>.
                   </>
                 )}
@@ -1951,14 +1926,13 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h4>The guardian</h4>
             <p>
-              Can seal a memecoin and swap the Assayer. Nothing else: the list, the limits and the rates were fixed at launch, and nobody
-              can withdraw.
+              Can seal a memecoin and swap the Assayer. Nothing else, and nobody can withdraw.
             </p>
             {guardian === null && <p className="seal-who">Nobody holds it now: the role was given up, so the Assayer can never be swapped.</p>}
             {guardian && dao && (
               <p className="seal-who">
-                Today it is <b>{guardian}</b>, a DAO: each use of the role is a public proposal and a vote. See{" "}
-                <a href={dao.handed}>the handover</a> and <a href={dao.used}>the DAO using the role</a>.
+                Today it is <b>{guardian}</b>, a DAO: see <a href={dao.handed}>the handover</a> and{" "}
+                <a href={dao.used}>the DAO using the role</a>.
                 {council?.length === 1 && (
                   <>
                     {" "}
@@ -1987,8 +1961,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h4>NEAR Intents</h4>
             <p>
-              Holds the memecoins that arrive through it, in the Stomach&apos;s own balance. The Intents contract it uses was fixed at
-              launch.
+              Holds the memecoins that arrive through it, in the Stomach&apos;s own balance.
             </p>
           </div>
         </li>

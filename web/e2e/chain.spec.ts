@@ -559,7 +559,15 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await page.reload();
   await expect(page.locator("#ledger .roll-note")).toContainText("Checked against the contract.");
   const shows = page.locator("#ledger .roll-shows button");
+  const more = page.locator("#ledger .roll-more");
+  const allRows = async () => {
+    while (await more.isVisible()) await more.click();
+  };
   await expect(shows).toHaveText(["All 9", "Feedings 3", "Mints 5", "Burns 1"]);
+  // the newest six first, the rest behind one button
+  await expect(page.locator("#ledger ol.roll > li")).toHaveCount(6);
+  await expect(more).toHaveText("Show 3 more");
+  await allRows();
   await expect(page.locator("#ledger ol.roll > li")).toHaveCount(9);
   const linked = await page.locator("#ledger a.roll-tx").evaluateAll((links) => links.map((a) => (a.getAttribute("aria-label") ?? "").replace("Transaction ", "")));
   expect(linked).toHaveLength(9);
@@ -569,6 +577,7 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await expect(page.locator("#ledger ol.roll > li")).toContainText(`${ALICE} redeemed for a share of the Stomach`);
   await expect(page.locator("#ledger ol.roll > li")).toContainText("1,000 burned");
   await shows.filter({ hasText: "All" }).click();
+  await allRows();
 
   // The builder's own accounts apart from everyone else. Every sandbox account
   // sits under test.near, so the run names Alice as the builder (e2e/run.mjs).
@@ -585,6 +594,7 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await expect(page.locator("#ledger ol.roll .roll-own")).toHaveCount(9 - others.length);
   const leaveOut = who.getByLabel("Leave out the builder's accounts");
   await leaveOut.check();
+  await allRows();
   await expect(page.locator("#ledger ol.roll > li")).toHaveCount(others.length);
   await expect(page.locator("#ledger ol.roll .roll-own")).toHaveCount(0);
   await expect(page.locator("#ledger ol.roll > li").filter({ hasText: ALICE })).toHaveCount(0);
@@ -595,6 +605,7 @@ test("the Ledger lists every feeding, mint and burn, and adds up to the contract
   await expect(page.locator("#ledger .empty")).toHaveText("Nothing here from outside the builder's accounts yet. The first will be written here.");
   await shows.filter({ hasText: "All" }).click();
   await leaveOut.uncheck();
+  await allRows();
   await expect(page.locator("#ledger ol.roll > li")).toHaveCount(9);
 });
 

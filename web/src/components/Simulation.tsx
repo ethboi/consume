@@ -222,74 +222,71 @@ export function Simulation({ repoUrl }: { repoUrl?: string }) {
         />
       </div>
 
-      <table className="sim-table">
-        <caption>Where each run stood on day 60</caption>
-        <thead>
-          <tr>
-            <td />
-            {SCENARIOS.map((s, i) => (
-              <th key={s.key} scope="col" className={i === at ? "on" : undefined}>
-                {s.title}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {ROWS.map(([key, label]) => (
-            <tr key={key}>
-              <th scope="row">{label}</th>
-              {SCENARIOS.map((s, i) => (
-                <td key={s.key} className={i === at ? "on" : undefined}>
-                  {cell(key, i)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
       <ul className="sim-found">
         <li>
           <b>The backing never fell from an action</b>
           <span>
-            After every feeding, broken seal and redemption the run checks that the backing of each $CONSUME did not fall, and stops if it did. It passed every
-            time, {fmt(Math.min(...checks))} to {fmt(Math.max(...checks))} checks a scenario.
+            It is checked after every feeding, broken seal and redemption: {fmt(Math.min(...checks))} to {fmt(Math.max(...checks))} checks a run, all passed.
           </span>
         </li>
         <li>
           <b>A run for the exit does not break it</b>
           <span>
-            With a quarter of holders redeeming everything each day for ten days, everyone was paid their share in memecoins, {cell("paidOut", run)} over the
-            sixty days. Those who stayed ended with the highest backing of the four, {cell("backing", run)}.
+            A quarter of holders redeemed everything each day for ten days. All were paid their share: {cell("paidOut", run)} in memecoins over the sixty days.
           </span>
         </li>
         <li>
           <b>Falling prices do lower it</b>
           <span>
-            When every memecoin fell about 70%, the backing of 1,000 $CONSUME went from $1.00 to {cell("backing", crash)}. No rule can stop that: $CONSUME is a
-            share of what the Serpent has eaten.
+            When every memecoin fell about 70%, the backing of 1,000 $CONSUME went from $1.00 to {cell("backing", crash)}. No rule can stop that.
           </span>
         </li>
         <li>
           <b>The Feast moves on every week</b>
           <span>
-            No memecoin feasts two weeks running, so even with 30% of feeders choosing the memecoin that pays no tithe, the crown changed hands every week.{" "}
-            {Math.min(...feasted)} to {Math.max(...feasted)} different memecoins feasted in each scenario. Two well fed memecoins can still pass it back and
-            forth.
+            {Math.min(...feasted)} to {Math.max(...feasted)} different memecoins feasted in each run. Two well fed memecoins can still pass it back and forth.
           </span>
         </li>
       </ul>
 
-      <p className="sim-note">
-        The behaviour is assumed, not measured. The rates are our guesses at a small community, nobody in the model trades $CONSUME or Bonds, and the Assayer
-        is honest and on time. Each scenario is one run with a fixed seed, so <code>node sim/sim.mjs</code> prints these same figures every time.
-        {repoUrl && (
-          <>
-            {" "}
-            <a href={`${repoUrl}/tree/main/sim`}>Read the method and every number</a>
-          </>
-        )}
-      </p>
+      <details className="sim-all">
+        <summary>The figures for all four runs</summary>
+        <table className="sim-table">
+          <caption>Where each run stood on day 60</caption>
+          <thead>
+            <tr>
+              <td />
+              {SCENARIOS.map((s, i) => (
+                <th key={s.key} scope="col" className={i === at ? "on" : undefined}>
+                  {s.title}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROWS.map(([key, label]) => (
+              <tr key={key}>
+                <th scope="row">{label}</th>
+                {SCENARIOS.map((s, i) => (
+                  <td key={s.key} className={i === at ? "on" : undefined}>
+                    {cell(key, i)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="sim-note">
+          The behaviour is assumed, not measured: our guesses at a small community, nobody trading $CONSUME or Bonds, and an honest Assayer. Each scenario is
+          one run with a fixed seed, so <code>node sim/sim.mjs</code> prints these same figures every time.
+          {repoUrl && (
+            <>
+              {" "}
+              <a href={`${repoUrl}/tree/main/sim`}>Read the method and every number</a>
+            </>
+          )}
+        </p>
+      </details>
     </div>
   );
 }

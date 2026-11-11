@@ -291,7 +291,7 @@ test("the Feast shows this week's race, who feasts now, and that it cannot win a
 
   await expect(page.locator("#feast .feast-who")).toContainText(feasting);
   await expect(page.locator("#feast .feast-now")).toContainText(`feeding ${feasting} pays no tithe. Every other memecoin pays ${stats.tithe_bps / 100}%.`);
-  await expect(page.locator("#feast > header")).toContainText("No memecoin feasts two weeks running.");
+  await expect(page.locator("#feast > header")).toContainText("None feasts two weeks running.");
 });
 
 test("the roads show what NEAR Intents answered, open or shut", async ({ page }) => {
@@ -306,6 +306,12 @@ test("the roads show what NEAR Intents answered, open or shut", async ({ page })
   await expect(page.locator(".town-coin", { hasText: "BOME" }).locator(".out")).toHaveText("no road");
   await expect(page.locator(".town-coin .out.shut")).toHaveCount(1);
 });
+
+// The Ledger opens on its newest six entries. Press "Show more" until every entry is listed.
+const allRows = async (page: Page) => {
+  const more = page.locator("#ledger .roll-more");
+  while (await more.isVisible()) await more.click();
+};
 
 test("the Ledger lists the sample entries, and its filters add up", async ({ page, request }) => {
   const count = (kinds: LedgerEntry["kind"][]) => DEMO_LEDGER.entries.filter((e) => kinds.includes(e.kind)).length;
@@ -324,15 +330,22 @@ test("the Ledger lists the sample entries, and its filters add up", async ({ pag
   const shows = page.locator("#ledger .roll-shows button");
   await expect(shows).toHaveText([`All ${all}`, `Feedings ${feedings}`, `Mints ${mintings}`, `Burns ${burns}`]);
   const rows = page.locator("#ledger ol.roll > li");
+  // the newest six first, the rest behind one button
+  expect(all).toBeGreaterThan(6);
+  await expect(rows).toHaveCount(6);
+  await expect(page.locator("#ledger .roll-more")).toHaveText(`Show ${Math.min(20, all - 6)} more`);
+  await allRows(page);
   await expect(rows).toHaveCount(all);
   // a sample entry has no transaction to link to
   await expect(page.locator("#ledger a.roll-tx")).toHaveCount(0);
   for (const [i, n] of [feedings, mintings, burns].entries()) {
     await shows.nth(i + 1).click();
+    await allRows(page);
     await expect(rows).toHaveCount(n);
   }
   await expect(rows.first()).toContainText("redeemed for a share of the Stomach");
   await shows.first().click();
+  await allRows(page);
   await expect(rows).toHaveCount(all);
 
   // the same entries are what the site's own Ledger address gives an agent
@@ -367,9 +380,12 @@ const SIM_ROWS: [string, string][] = [
 test("the simulation is marked as simulated and shows the figures `node sim/sim.mjs` wrote", async ({ page }) => {
   await page.goto("/");
   const sim = page.locator("#sim");
-  await expect(sim.locator("header p")).toContainText("Every figure in this section is simulated. None of it is the live Stomach.");
+  await expect(sim.locator("header p")).toContainText("Every figure here is simulated.");
 
-  // the table, cell for cell, against sim/out/summary.md
+  // the table is folded under the findings; opened, it matches sim/out/summary.md cell for cell
+  await expect(sim.locator(".sim-table")).toBeHidden();
+  await sim.getByText("The figures for all four runs").click();
+  await expect(sim.locator(".sim-table")).toBeVisible();
   const summary = new Map(
     readFileSync(fileURLToPath(new URL("../../sim/out/summary.md", import.meta.url)), "utf8")
       .trim()
