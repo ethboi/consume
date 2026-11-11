@@ -6262,3 +6262,30 @@ section[inert] > :not(header) {
     padding: 8px 10px;
   }
 }
+.judge-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem 1.5rem;
+  margin: 1rem 0;
+}
+.bond-send {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid currentColor;
+  max-width: 38rem;
+}
+.bond-send h4 { margin: 0 0 .75rem; }
+.bond-send label { display: block; margin-bottom: .4rem; }
+.bond-send input { width: 100%; min-width: 0; padding: .65rem; border: 1px solid currentColor; color: inherit; background: var(--paper, #efe9dc); font: inherit; }
+.bond-send p { margin: .75rem 0; font-size: 1rem; line-height: 1.45; }
+.bond-recipient { overflow-wrap: anywhere; }
+.bond-send .actions { flex-wrap: wrap; }
+.demo-guide { max-width: 58rem; margin: auto; padding: clamp(1rem, 4vw, 3rem); line-height: 1.55; }
+.demo-guide nav { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.demo-guide header { margin: 3rem 0 2rem; }
+.demo-guide h1 { font-size: clamp(2.1rem, 6vw, 4rem); line-height: 1.1; }
+.demo-guide h2 { font-size: 1.6rem; margin: 1.5rem 0 .6rem; }
+.demo-guide p { margin: .8rem 0; }
+.demo-steps { padding-left: 1.4rem; }
+.demo-steps li { padding-left: .5rem; margin: 1.5rem 0; }
+.demo-guide section { margin: 2rem 0; border-top: 1px solid currentColor; }

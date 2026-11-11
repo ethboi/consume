@@ -1,4 +1,4 @@
-# Runs the checks the README lists under "Check it in five minutes" that need
+# Runs the checks the README lists under "Reproduce the checks" that need
 # no live network: steps 1 to 5, 9, 10, 14 and 15, plus the site's type check,
 # lint and build. Steps 14 and 15 are the browser tests in web/e2e: the sample
 # set, and the chain set, which starts its own site and its own NEAR sandbox.
@@ -92,7 +92,7 @@ jobs:
         run: pnpm build
       - name: Install Chromium for the browser tests
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser tests, sample figures (20 tests)
+      - name: Browser tests, sample figures (21 tests)
         run: node e2e/run.mjs sample
       - name: Keep the screenshots and traces of a failure
         if: failure()
@@ -135,7 +135,7 @@ jobs:
       - name: Install Chromium
         working-directory: web
         run: pnpm exec playwright install --with-deps chromium
-      - name: Browser tests on the sandbox (18 tests)
+      - name: Browser tests on the sandbox (21 tests)
         working-directory: web
         run: node e2e/run.mjs chain
       - name: Keep the screenshots and traces of a failure

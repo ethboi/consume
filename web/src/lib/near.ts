@@ -172,6 +172,14 @@ export async function fullAccessKeys(account: string): Promise<number> {
   return keys.filter((k) => k.access_key?.permission === "FullAccess").length;
 }
 
+/** Check the recipient exists on this network before preparing an NFT transfer. */
+export async function accountExists(account: string): Promise<boolean> {
+  const json = await query({ request_type: "view_account", finality: "final", account_id: account });
+  if (typeof json.result?.amount === "string") return true;
+  if (json.error?.cause?.name === "UNKNOWN_ACCOUNT" || json.error?.data?.name === "UNKNOWN_ACCOUNT") return false;
+  throw new Error("Could not check the recipient’s account. Try again shortly.");
+}
+
 /** An account's NEAR, in yoctoNEAR. An account the chain has never seen holds none. */
 export async function nearBalance(account: string): Promise<bigint> {
   const json = await query({ request_type: "view_account", finality: "final", account_id: account });

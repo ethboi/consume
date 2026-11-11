@@ -43,11 +43,12 @@ import { sleep, useLive } from "@/lib/live";
 import { Feast } from "./Feast";
 import { Ledger } from "./Ledger";
 import { Simulation } from "./Simulation";
+import { SendBond } from "./SendBond";
 import { play, setSound, soundOn, subscribeSound } from "@/lib/sound";
 
 const ONE_YOCTO = "1";
 const CONSUME_DEC = 18;
-const REPO_URL = (process.env.NEXT_PUBLIC_REPO_URL ?? "").trim();
+const REPO_URL = process.env.NEXT_PUBLIC_REPO_URL?.trim() || "https://github.com/ethboi/consume";
 const HACKATHON_URL = "https://nearhackathon.com";
 // where the ten coins hang around the serpent (degrees, 0 = right, clockwise),
 // clear of the head at the top and the banner below
@@ -188,8 +189,12 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
                 <span aria-hidden="true">☞</span> How it works
               </a>
             </div>
+            <nav className="judge-links" aria-label="Explore the project">
+              <a href="/demo">Demo: two-minute guide</a>
+              <a href={REPO_URL}>Source on GitHub</a>
+            </nav>
             <p className="hero-entry">
-              An entry in{" "}
+              Built for{" "}
               <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
                 NEAR HACKATHON
               </a>
@@ -343,7 +348,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <header>
           <HourglassEmblem />
           <BondsHeading />
-          <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: sell it and the payout goes with it.</p>
+          <p>NFTs that pay you $CONSUME over 30 days. The card is the NFT: send it and the uncollected payout goes with it.</p>
         </header>
         <Bonds snap={snap} tick={tick} onDone={done} />
         <CollectPreview />
@@ -402,11 +407,11 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         <div className="entry-head">
           <h2 id="entry-h">Made for NEAR HACKATHON</h2>
           <p>
-            CONSUME is entered in the Memecoins With Mechanics track at{" "}
+            CONSUME is built for Memecoins With Mechanics and NFTs That Do Something at{" "}
             <a href={HACKATHON_URL} target="_blank" rel="noreferrer">
               nearhackathon.com
             </a>
-            . This entry includes three of the track’s suggested project elements.
+            . Try the <a href="/demo">short demo guide</a> or inspect the <a href={REPO_URL}>public source</a>.
           </p>
         </div>
         <ul className="entry-asks">
@@ -438,6 +443,7 @@ export function Consume({ initial, loadError }: { initial: Snapshot; loadError: 
         </span>
         <nav aria-label="More">
           {REPO_URL && <a href={REPO_URL}>GitHub</a>}
+          <a href="/demo">Demo guide</a>
           <a href="/llms.txt">For agents</a>
           <a href="https://oneup.markets" title="OneUp, another project by the same builder">
             Also by @EthBoi_: OneUp
@@ -1238,7 +1244,7 @@ function BondShelf({ recent, minted, tick }: { recent: VestView[]; minted: strin
             <b>Collect</b> what has been released, as often as they like.
           </li>
           <li>
-            <b>Sell or send</b> the card, and what is still to come goes with it.
+            <b>Send</b> the card, and its uncollected payout goes with it. Selling through a marketplace has not been verified.
           </li>
           <li>
             <b>Break the seal</b> to leave early, giving up half of what is still locked.
@@ -1438,7 +1444,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
           const ends = new Date(Number((BigInt(v.vest.start_ns) + BigInt(v.vest.duration_ns)) / BigInt(1_000_000)));
           return (
             <article key={v.token_id} className={v.vest.exited ? "ind broken" : "ind"}>
-              {/* the NFT's own image, exactly as wallets and marketplaces show it */}
+              {/* Live card from contract state; marketplace media support varies. */}
               <a className="ind-card-link" href={`/bond/${v.token_id}.svg`} target="_blank" rel="noreferrer" title="Open the card full size">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -1488,6 +1494,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
                         Collect
                       </button>
                     </div>
+                    <SendBond bond={v} disabled={busyId !== null} onBusy={(busy) => setBusyId(busy ? `send:${v.token_id}` : null)} onDone={onDone} />
                     {locked > BigInt(0) && (
                       <div className="ind-break">
                         {confirmBreak === v.token_id ? (
@@ -1499,7 +1506,7 @@ function Bonds({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: D
                             Yes, break it
                           </button>
                         ) : (
-                          <button className="small-button" disabled={DEMO} onClick={() => setConfirmBreak(v.token_id)}>
+                          <button className="small-button" disabled={DEMO || busyId !== null} onClick={() => setConfirmBreak(v.token_id)}>
                             Break the seal early
                           </button>
                         )}
@@ -1833,7 +1840,7 @@ function Rule({ snap }: { snap: Snapshot }) {
           <div>
             <h3>Bonds</h3>
             <p>
-              Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Sell or give the Bond and the rest goes with it. Break the
+              Your $CONSUME arrives in an NFT that releases it evenly over {days} days. Send the Bond and the rest goes with it. Break the
               seal early and you take what has been released plus half the rest; the other {haircut}% is never minted, which raises everyone
               else&apos;s share.
             </p>

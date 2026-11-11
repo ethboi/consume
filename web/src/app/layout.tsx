@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { UnifrakturMaguntia, IM_Fell_English, IM_Fell_English_SC } from "next/font/google";
 import localFont from "next/font/local";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { WalletProvider } from "@/components/Wallet";
 import "./globals.css";
 
-const blackletter = UnifrakturMaguntia({ weight: "400", subsets: ["latin"], variable: "--font-blackletter" });
+const blackletter = localFont({ src: "../../node_modules/@fontsource/unifrakturmaguntia/files/unifrakturmaguntia-latin-400-normal.woff2", weight: "400", variable: "--font-blackletter" });
 // The blackletter's capital R and S are read as N and G by anyone who has not learned Fraktur
 // ("The Rule" as "The Nule", "Stomach" as "Gtomach"). Those two letters alone are taken from
 // Almendra Bold, which matches the blackletter's weight; every other glyph falls through to it.
@@ -18,8 +17,11 @@ const capitals = localFont({
   adjustFontFallback: false,
   variable: "--font-capitals",
 });
-const fell = IM_Fell_English({ weight: "400", style: ["normal", "italic"], subsets: ["latin"], variable: "--font-fell" });
-const fellSc = IM_Fell_English_SC({ weight: "400", subsets: ["latin"], variable: "--font-fell-sc" });
+const fell = localFont({ src: [
+  { path: "../../node_modules/@fontsource/im-fell-english/files/im-fell-english-latin-400-normal.woff2", weight: "400", style: "normal" },
+  { path: "../../node_modules/@fontsource/im-fell-english/files/im-fell-english-latin-400-italic.woff2", weight: "400", style: "italic" },
+], variable: "--font-fell" });
+const fellSc = localFont({ src: "../../node_modules/@fontsource/im-fell-english-sc/files/im-fell-english-sc-latin-400-normal.woff2", weight: "400", variable: "--font-fell-sc" });
 
 const DESCRIPTION =
   "A memecoin that eats other memecoins. Feed it DOGE, PEPE or SHIB and it pays you in $CONSUME. What it eats stays in its stomach, and every $CONSUME is a claim on it. Built on NEAR for NEAR HACKATHON.";

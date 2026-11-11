@@ -5,8 +5,8 @@ Three sets of tests drive the site in a real browser (Playwright, Chromium). One
 ```bash
 cd web
 node e2e/run.mjs            # sample, then chain
-node e2e/run.mjs sample     # 20 tests, about a minute
-node e2e/run.mjs chain      # 18 tests, a few minutes
+node e2e/run.mjs sample     # 21 tests, about a minute
+node e2e/run.mjs chain      # 21 tests, a few minutes
 node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 ```
 
@@ -15,7 +15,7 @@ node e2e/run.mjs live       # 8 tests, read-only, against https://consume.cash
 | Set | File | What runs | What it shows |
 | --- | --- | --- | --- |
 | sample | `sample.spec.ts` | The site built with no contract set, so it shows its sample figures. No chain. | Every section renders from its data and adds up, the quote follows the contract's rule, every button that would sign is off, the previews play and send nothing, the Bond pictures are served, nothing runs off the side of a phone, and `llms.txt` names the MCP server's 14 tools. |
-| chain | `chain.spec.ts` | A local NEAR sandbox, the CONSUME contract as built from `contracts/`, the NEAR Intents stand-in, the site built against them, and a browser with a test wallet. | The whole product in one story: connect, bring test memecoins, feed, a refused signature, the Bond and its picture, a feeding over the limit, Collect all, Collect, Break the seal, Redeem, an agent feeding through the MCP server, the Ledger, and sign out. |
+| chain | `chain.spec.ts` | A local NEAR sandbox, the CONSUME contract as built from `contracts/`, the NEAR Intents stand-in, the site built against them, and a browser with a test wallet. | The whole product in one story: connect, bring test memecoins, feed, a refused signature, the Bond and its picture, a feeding over the limit, Collect all, Collect, Break the seal, Redeem, an agent feeding through the MCP server, the Ledger, recipient validation, a rejected transfer signature, an atomic transfer with storage top-up, collection by the recipient, refusal of the former holder, and sign out. |
 | live | `live.spec.ts` | Nothing local. It reads a deployed site. | The public site is up and joined to a contract, the page agrees with what the contract reports, prices are fresh, a prepared feeding names only the contract and its Intents account, and the Ledger adds up. |
 
 ## First run
