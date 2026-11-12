@@ -1,19 +1,25 @@
 // The guest wallet: a testnet account made for a visitor who has no wallet.
 // The browser makes the key (lib/signing.ts), NEAR's public testnet faucet
 // makes and funds the account, and the key stays in this browser's storage.
+// When the faucet will not, the site's own sponsor account is asked to make
+// the same account (app/api/guest, lib/sponsor.ts): it is sent the name and
+// the public key, as the faucet is, and never the private half.
 // It signs the same calls a connected wallet would be asked to sign, and sends
 // them to the same RPC. Testnet only: `guestOffered` is false anywhere else.
 
 import { DEMO, NETWORK, accountExists, cleanError, rpc } from "./near";
 import { base58, from64, loadKey, newKey, signTransaction, to64, unbase58, type FunctionCall } from "./signing";
+import { GUEST_PREFIX } from "./sponsor";
 
 /** NEAR's own helper for testnet: it makes the named account with the given key and some test NEAR. */
 export const FAUCET_URL = "https://helper.nearprotocol.com/account";
 
 export const guestOffered = NETWORK === "testnet" && !DEMO;
 
-/** Every guest account starts with this, so a guest is plain to see on an explorer and in the Ledger. */
-export const GUEST_PREFIX = "consume-guest-";
+/** The site's own road to the same account, for when the faucet will not make it. */
+export const SPONSOR_URL = "/api/guest";
+
+export { GUEST_PREFIX };
 
 export type Guest = {
   accountId: string;
@@ -92,9 +98,18 @@ export async function makeGuest(): Promise<Guest> {
     body: JSON.stringify({ newAccountId: guest.accountId, newAccountPublicKey: guest.publicKey }),
     signal: AbortSignal.timeout(40_000),
   }).catch(() => null);
-  if (!res?.ok) throw new Error(FAUCET_TROUBLE);
+  // the faucet would not, and did not make it after all: ask the site's sponsor for the same account
+  if (!res?.ok && !(await keyNow(guest, "optimistic").catch(() => null))) {
+    const sponsored = await fetch(SPONSOR_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId: guest.accountId, publicKey: guest.publicKey }),
+      signal: AbortSignal.timeout(50_000),
+    }).catch(() => null);
+    if (!sponsored?.ok) throw new Error(FAUCET_TROUBLE);
+  }
 
-  // the faucet answers once its transaction is sent: wait until the chain shows the account's key
+  // either answers once its transaction is sent: wait until the chain shows the account's key
   for (let i = 0; i < 25; i++) {
     if (await keyNow(guest, "optimistic").catch(() => null)) {
       keep(guest, true);
