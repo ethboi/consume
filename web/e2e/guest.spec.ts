@@ -10,9 +10,16 @@
 // One stand-in: NEAR's testnet faucet, which makes the account on testnet,
 // does not know this sandbox. The request the page sends it is answered by the
 // harness, which makes the account the same way: that name, that key, some NEAR.
+//
+// When the faucet will not, the page asks the site's own sponsor (/api/guest).
+// This build has no sponsor set, so the route answers 503 and the page says the
+// faucet's line, which the first test checks. The last test stands in for a
+// sponsor that is set: on testnet it calls `create_account` on `testnet`, a
+// contract this sandbox does not have, so the harness makes the account there
+// too. What the route accepts and signs is unit-tested in src/lib/sponsor.test.ts.
 
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
-import { FAUCET_URL } from "../src/lib/guest";
+import { FAUCET_URL, SPONSOR_URL } from "../src/lib/guest";
 import { bySymbol } from "../src/lib/heresies";
 import { TOUR } from "../src/lib/tour";
 import type { Stats, VestView } from "../src/lib/near";
@@ -37,6 +44,8 @@ let bondId = "";
 /** Whether the stand-in faucet answers. */
 let faucetUp = false;
 const faucetAsked: { newAccountId: string; newAccountPublicKey: string }[] = [];
+/** What the site's own sponsor route answered each time the page asked it. */
+const sponsorAnswered: number[] = [];
 /** Every transaction the page itself sent to the RPC and saw finished, oldest first. */
 const sentByPage: Sent[] = [];
 const pageErrors: string[] = [];
@@ -71,6 +80,7 @@ test.beforeAll(async ({ browser }) => {
   });
   page.on("response", async (r) => {
     const req = r.request();
+    if (req.method() === "POST" && new URL(r.url()).pathname === SPONSOR_URL) sponsorAnswered.push(r.status());
     if (req.method() !== "POST" || !same(r.url(), RPC_URL)) return;
     if ((req.postDataJSON() as { method?: string } | null)?.method !== "broadcast_tx_commit") return;
     const json = (await r.json().catch(() => null)) as { result?: Sent } | null;
@@ -109,6 +119,8 @@ test("with no wallet, Try as a guest makes an account whose only key was made in
   await expect(page.locator("#feed .guest-trouble")).toHaveText("The testnet faucet could not make an account just now. Try again in a moment, or connect a wallet.");
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
   expect(faucetAsked).toHaveLength(2);
+  // each time the faucet refused, the site's sponsor was asked next; this build has none, and its route said so
+  expect(sponsorAnswered).toEqual([503, 503]);
   expect(await page.evaluate(() => window.localStorage.getItem("consume.guest")), "an account that was never made is not kept").toBeNull();
 
   faucetUp = true;
@@ -119,8 +131,9 @@ test("with no wallet, Try as a guest makes an account whose only key was made in
   await expect(page.locator("#feed .guest-trouble")).toHaveCount(0);
   await expect(page.locator("#bonds h2")).toHaveText("Your Bonds");
 
-  // the faucet was told the name and the public key, and nothing else
+  // the faucet was told the name and the public key, and nothing else; it answered, so the sponsor was not asked
   expect(faucetAsked).toHaveLength(3);
+  expect(sponsorAnswered).toHaveLength(2);
   expect(Object.keys(faucetAsked[2]).sort()).toEqual(["newAccountId", "newAccountPublicKey"]);
   expect(faucetAsked[2].newAccountId).toBe(guest);
   // the chain holds one key for the account: that one
@@ -210,4 +223,66 @@ test("leaving the guest wallet signs out, and trying again brings the same accou
   expect(sentByPage).toHaveLength(3);
   expect(refused, "the page reached for nothing outside this machine").toEqual([]);
   expect(pageErrors).toEqual([]);
+});
+
+test("when the faucet will not, the site's sponsor is asked for the same account and told only its name and public key", async ({ browser, request }) => {
+  // the route itself: it makes only a guest wallet's own name, with a whole ed25519 key, and this build has no sponsor
+  const key = `ed25519:${"1".repeat(32)}`;
+  for (const [data, status] of [
+    [{ accountId: "alice.testnet", publicKey: key }, 400],
+    [{ accountId: "consume-guest-ab12.testnet.evil.testnet", publicKey: key }, 400],
+    [{ accountId: "consume-guest-ab12.testnet", publicKey: "ed25519:short" }, 400],
+    [{ accountId: "consume-guest-ab12.testnet", publicKey: key }, 503],
+  ] as const) {
+    const res = await request.post(`${process.env.E2E_BASE_URL}${SPONSOR_URL}`, { data });
+    expect(res.status(), JSON.stringify(data)).toBe(status);
+  }
+
+  // a visitor who has never been here, the faucet down, and a sponsor that answers
+  const fresh = await browser.newContext({ baseURL: process.env.E2E_BASE_URL });
+  try {
+    const visitor = await fresh.newPage();
+    const errors: string[] = [];
+    visitor.on("pageerror", (e) => errors.push(e.message));
+    const reached = await stayLocal(visitor);
+    await roads(visitor);
+    let faucetRefused = 0;
+    await visitor.route(FAUCET_URL, (route) => {
+      const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type" };
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      faucetRefused++;
+      return route.fulfill({ status: 503, headers: cors, body: "busy" });
+    });
+    const sponsorAsked: { accountId: string; publicKey: string }[] = [];
+    await visitor.route(`**${SPONSOR_URL}`, async (route) => {
+      const asked = route.request().postDataJSON() as { accountId: string; publicKey: string };
+      sponsorAsked.push(asked);
+      await createAccount(asked.accountId, asked.publicKey);
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ accountId: asked.accountId }) });
+    });
+
+    await visitor.goto("/");
+    await visitor.locator("#feed").getByRole("button", { name: "No wallet? Try as a guest" }).click();
+    const button = visitor.locator("header .sign-button");
+    await expect(button).toHaveText(GUEST_NAME);
+    const second = (await button.innerText()).trim();
+    expect(second).not.toBe(guest);
+    await expect(visitor.locator("#feed .guest-trouble")).toHaveCount(0);
+
+    // the faucet was asked first and once; then the sponsor, with the name and the public key and nothing else
+    expect(faucetRefused).toBe(1);
+    expect(sponsorAsked).toHaveLength(1);
+    expect(Object.keys(sponsorAsked[0]).sort()).toEqual(["accountId", "publicKey"]);
+    expect(sponsorAsked[0].accountId).toBe(second);
+    // the chain holds one key for the account, the one this browser made and kept
+    const keys = await keysOf(second);
+    expect(keys.map((k) => [k.public_key, k.access_key.permission])).toEqual([[sponsorAsked[0].publicKey, "FullAccess"]]);
+    const kept = JSON.parse((await visitor.evaluate(() => window.localStorage.getItem("consume.guest")))!) as { accountId: string; publicKey: string; pkcs8: string };
+    expect([kept.accountId, kept.publicKey]).toEqual([second, sponsorAsked[0].publicKey]);
+
+    expect(reached, "the page reached for nothing outside this machine").toEqual([]);
+    expect(errors).toEqual([]);
+  } finally {
+    await fresh.close();
+  }
 });

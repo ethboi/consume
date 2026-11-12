@@ -52,6 +52,9 @@ const NO_CONTRACT = {
   NEXT_PUBLIC_GA_ID: "",
   CONSUME_INDEXER_URL: "",
   CONSUME_BUILDER_ACCOUNT: "",
+  // no guest sponsor here: /api/guest answers 503 and signs nothing
+  CONSUME_GUEST_SPONSOR_ID: "",
+  CONSUME_GUEST_SPONSOR_KEY: "",
 };
 
 const children = new Set();
