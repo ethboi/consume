@@ -14,6 +14,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { FAUCET_URL } from "../src/lib/guest";
 import { bySymbol } from "../src/lib/heresies";
+import { TOUR } from "../src/lib/tour";
 import type { Stats, VestView } from "../src/lib/near";
 import { CONSUME, INTENTS, RPC_URL, createAccount, keysOf, note, roads, stayLocal, view } from "./chain";
 
@@ -43,6 +44,13 @@ const pageErrors: string[] = [];
 const signButton = () => page.locator("header .sign-button");
 const offer = () => page.locator("#feed").getByRole("button", { name: "No wallet? Try as a guest" });
 const feedSheet = () => page.locator("dialog.feeding:not(.collecting)");
+const tourCard = () => page.getByRole("dialog", { name: "A tour of the page" });
+/** Take the tour to its last stop, where a visitor with no wallet is offered a guest wallet. */
+async function tourToTheEnd() {
+  await page.getByRole("button", { name: "Take the tour" }).click();
+  for (let i = 1; i < TOUR.length; i++) await tourCard().getByRole("button", { name: "Next", exact: true }).click();
+  await expect(tourCard().locator(".tour-at")).toHaveText("VI of VI");
+}
 const stats = () => view<Stats>(CONSUME, "get_stats");
 const same = (a: string, b: string) => a.replace(/\/$/, "") === b.replace(/\/$/, "");
 
@@ -84,11 +92,23 @@ test("with no wallet, Try as a guest makes an account whose only key was made in
   await page.goto("/");
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
 
-  // a faucet that is busy is said in one line, and the offer stands
+  // the tour ends by offering the guest wallet; a busy faucet is said in one line there, and the feeding is still one press away
+  await tourToTheEnd();
+  await expect(tourCard().getByRole("button", { name: "Have a wallet? Go to the feeding" })).toBeVisible();
+  await tourCard().getByRole("button", { name: "Try as a guest" }).click();
+  await expect(tourCard().getByRole("alert")).toHaveText("The testnet faucet could not make an account just now. Try again in a moment, or connect a wallet.");
+  await expect(tourCard().getByRole("button", { name: "Try as a guest" })).toHaveCount(0);
+  await tourCard().getByRole("button", { name: "Feed the Serpent" }).click();
+  await expect(tourCard()).toHaveCount(0);
+  await expect(page.locator("#feed")).toBeInViewport();
+  await expect(signButton()).toHaveAccessibleName("Connect wallet");
+  expect(faucetAsked).toHaveLength(1);
+
+  // the same under the feeding panel, where the offer stands
   await offer().click();
   await expect(page.locator("#feed .guest-trouble")).toHaveText("The testnet faucet could not make an account just now. Try again in a moment, or connect a wallet.");
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
-  expect(faucetAsked).toHaveLength(1);
+  expect(faucetAsked).toHaveLength(2);
   expect(await page.evaluate(() => window.localStorage.getItem("consume.guest")), "an account that was never made is not kept").toBeNull();
 
   faucetUp = true;
@@ -100,15 +120,15 @@ test("with no wallet, Try as a guest makes an account whose only key was made in
   await expect(page.locator("#bonds h2")).toHaveText("Your Bonds");
 
   // the faucet was told the name and the public key, and nothing else
-  expect(faucetAsked).toHaveLength(2);
-  expect(Object.keys(faucetAsked[1]).sort()).toEqual(["newAccountId", "newAccountPublicKey"]);
-  expect(faucetAsked[1].newAccountId).toBe(guest);
+  expect(faucetAsked).toHaveLength(3);
+  expect(Object.keys(faucetAsked[2]).sort()).toEqual(["newAccountId", "newAccountPublicKey"]);
+  expect(faucetAsked[2].newAccountId).toBe(guest);
   // the chain holds one key for the account: that one
   const keys = await keysOf(guest);
-  expect(keys.map((k) => [k.public_key, k.access_key.permission])).toEqual([[faucetAsked[1].newAccountPublicKey, "FullAccess"]]);
+  expect(keys.map((k) => [k.public_key, k.access_key.permission])).toEqual([[faucetAsked[2].newAccountPublicKey, "FullAccess"]]);
   // and its other half is kept by the browser, under the same account
   const kept = JSON.parse((await page.evaluate(() => window.localStorage.getItem("consume.guest")))!) as { accountId: string; publicKey: string; pkcs8: string };
-  expect([kept.accountId, kept.publicKey]).toEqual([guest, faucetAsked[1].newAccountPublicKey]);
+  expect([kept.accountId, kept.publicKey]).toEqual([guest, faucetAsked[2].newAccountPublicKey]);
   expect(kept.pkcs8.length).toBeGreaterThan(40);
 
   // a reload keeps the guest
@@ -119,7 +139,7 @@ test("with no wallet, Try as a guest makes an account whose only key was made in
 
 test("the guest brings test PEPE and feeds it: each transaction signed in the page, and the Bond is the guest's", async () => {
   const before = await stats();
-  const key = faucetAsked[1].newAccountPublicKey;
+  const key = faucetAsked[2].newAccountPublicKey;
 
   await page.locator('label:has(input[name="meme"][value="PEPE"])').click();
   await page.getByRole("button", { name: "Bring test PEPE from Ethereum" }).click();
@@ -166,10 +186,21 @@ test("leaving the guest wallet signs out, and trying again brings the same accou
   await page.reload();
   await expect(signButton()).toHaveAccessibleName("Connect wallet");
 
-  // the key was kept: the faucet is asked for nothing, and the Bond is still on the shelf
-  await offer().click();
+  // the key was kept, so the tour's last stop brings the same guest back and lands on the feeding:
+  // the faucet is asked for nothing, and the Bond is still on the shelf
+  await tourToTheEnd();
+  await tourCard().getByRole("button", { name: "Try as a guest" }).click();
   await expect(signButton()).toHaveText(guest);
-  expect(faucetAsked).toHaveLength(2);
+  await expect(tourCard()).toHaveCount(0);
+  await expect(page.locator("#feed")).toBeInViewport();
+  expect(faucetAsked).toHaveLength(3);
+
+  // with a wallet in hand the tour ends as it always did
+  await tourToTheEnd();
+  await expect(tourCard().getByRole("button", { name: "Try as a guest" })).toHaveCount(0);
+  await expect(tourCard().getByRole("button", { name: "Have a wallet? Go to the feeding" })).toHaveCount(0);
+  await tourCard().getByRole("button", { name: "Feed the Serpent" }).click();
+  await expect(tourCard()).toHaveCount(0);
   await expect(page.locator("#bonds article.ind").filter({ has: page.locator("h3", { hasText: new RegExp(`№ ${bondId}$`) }) })).toBeVisible();
 
   expect(sentByPage).toHaveLength(3);

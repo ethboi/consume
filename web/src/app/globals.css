@@ -6525,6 +6525,36 @@ button.text-link {
 .tour-steps .press:last-child {
   flex: 1;
 }
+/* the last stop, for a visitor with no wallet: the other way on, and what the faucet said if it was busy */
+.tour-own,
+.tour-trouble {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  font-size: 1rem;
+}
+.tour-own {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-style: italic;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--rubric);
+  text-underline-offset: 4px;
+}
+.tour-own:hover {
+  color: var(--rubric);
+}
+.tour-trouble {
+  font-style: italic;
+  color: var(--rubric);
+}
+.tour-steps .press:last-child:disabled {
+  cursor: progress;
+}
 section[tabindex="-1"]:focus {
   outline: none;
 }
