@@ -38,7 +38,7 @@ Tools: `overview`, `list_memecoins`, `feast_race`, `quote_feeding`, `quote_redee
 
 ## Reading the contract directly
 
-View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_epoch_fed`, `get_feast`, `quote_meal`, `quote_redeem`, `get_vest`, `get_vests_for_owner`, `get_recent_vests`, `get_meal_credit`, `get_owed`, plus the NEP-141 and NEP-171 standards. Dollar amounts are in millionths of a dollar. $CONSUME has 18 decimals.
+View methods, all free: `get_config`, `get_stats`, `get_tribes`, `get_tribe`, `get_epoch_fed`, `get_feast`, `quote_meal`, `quote_redeem`, `get_vest`, `get_vests_for_owner`, `get_recent_vests`, `get_meal_credit`, `get_owed`, plus the NEP-141 and NEP-171 standards. Dollar amounts are in millionths of a dollar. $CONSUME has 18 decimals.
 
 ## The log of every mint and burn
 
