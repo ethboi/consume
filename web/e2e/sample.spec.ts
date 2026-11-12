@@ -148,7 +148,7 @@ test("every button that would sign is off", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Connect wallet to feed" })).toBeDisabled();
   // the guest wallet is for a site joined to the testnet contract: here it is not offered at all
   await expect(page.getByRole("button", { name: /guest/i })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Bring test PEPE from Ethereum" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Get free test PEPE" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Collect all" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Burn and redeem" })).toBeDisabled();
   for (const name of ["Collect", "Break the seal early"]) {

@@ -808,6 +808,16 @@ main,
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* the one small button that is the next thing to press: free test memecoins, while you hold none */
+.small-button.solid {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 7px 14px;
+}
+.small-button.solid:hover:not(:disabled) {
+  background: var(--rubric);
+  border-color: var(--rubric);
+}
 
 .verdict {
   border-left: 3px solid var(--rubric);

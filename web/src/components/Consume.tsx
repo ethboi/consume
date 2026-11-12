@@ -605,6 +605,7 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
   });
   const quote = q.data ?? null;
   const balance = bals.data ? (bals.data[token] ?? BigInt(0)) : null;
+  const holds = balance !== null && balance > BigInt(0);
   // fees and storage are paid in NEAR; a fresh testnet wallet may hold none
   const near = useLive(DEMO || !accountId || NETWORK !== "testnet" ? null : `${accountId}:near:${tick}`, () => nearBalance(accountId!));
   const nearLow = near.data !== undefined && near.data < NEAR_LOW;
@@ -858,9 +859,14 @@ function Feed({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: Do
         </p>
         {NETWORK === "testnet" && (
           <p className="pick-foot">
-            <span>No {h.symbol} yet?</span>
-            <button className="small-button" disabled={DEMO || busy || !accountId} onClick={faucet}>
-              {MOCK_INTENTS ? (h.chain === "NEAR" ? `Deposit test ${h.symbol}` : `Bring test ${h.symbol} from ${h.chain}`) : `Get test ${h.symbol}`}
+            {!holds && <span>No {h.symbol} yet?</span>}
+            <button
+              className={holds ? "small-button" : "small-button solid"}
+              disabled={DEMO || busy || !accountId}
+              onClick={faucet}
+              title={MOCK_INTENTS && h.chain !== "NEAR" ? `It arrives in your NEAR Intents balance as if sent from ${h.chain}` : undefined}
+            >
+              {holds ? `Get more test ${h.symbol}` : `Get free test ${h.symbol}`}
             </button>
           </p>
         )}

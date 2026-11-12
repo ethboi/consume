@@ -144,7 +144,7 @@ test("connect through the site's own wallet picker", async () => {
 test("bring test PEPE from Ethereum into the NEAR Intents balance", async () => {
   await pick("PEPE");
   await expect(page.locator(".verdict-line")).toContainText("You have no PEPE to feed yet.");
-  await page.getByRole("button", { name: "Bring test PEPE from Ethereum" }).click();
+  await page.getByRole("button", { name: "Get free test PEPE" }).click();
   await expect(toast()).toContainText("20,000,000 test PEPE arrived in your NEAR Intents balance from Ethereum.");
 
   expect(wallet.signed).toHaveLength(1);
@@ -266,7 +266,7 @@ test("the Bond's picture is drawn from what the contract holds", async () => {
 
 test("feed more NearKat than one feeding takes: the rest comes back", async () => {
   await pick("NearKat");
-  await page.getByRole("button", { name: "Deposit test NearKat" }).click();
+  await page.getByRole("button", { name: "Get free test NearKat" }).click();
   await expect(toast()).toContainText("1,100,000 test NearKat arrived in your NEAR Intents balance.");
   expect(await heldOnIntents(ALICE, KAT)).toBe(drip(KAT));
 

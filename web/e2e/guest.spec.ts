@@ -142,8 +142,12 @@ test("the guest brings test PEPE and feeds it: each transaction signed in the pa
   const key = faucetAsked[2].newAccountPublicKey;
 
   await page.locator('label:has(input[name="meme"][value="PEPE"])').click();
-  await page.getByRole("button", { name: "Bring test PEPE from Ethereum" }).click();
+  await expect(page.locator(".pick-foot")).toContainText("No PEPE yet?");
+  await page.getByRole("button", { name: "Get free test PEPE" }).click();
   await expect(page.locator(".toast")).toContainText("20,000,000 test PEPE arrived in your NEAR Intents balance from Ethereum.");
+  // holding some, the question goes and the button offers more
+  await expect(page.getByRole("button", { name: "Get more test PEPE" })).toBeVisible();
+  await expect(page.locator(".pick-foot")).not.toContainText("No PEPE yet?");
   const held = BigInt(await view<string>(INTENTS, "mt_balance_of", { account_id: guest, token_id: `nep141:${PEPE.mainnet}` }));
   expect(held).toBe(BigInt(PEPE.faucetWhole) * BigInt(10) ** BigInt(PEPE.decimals));
 
