@@ -44,7 +44,7 @@ Both read the public testnet deployment (`consume.consumecash.testnet`). To poin
 | `account` | An account's NEAR, $CONSUME, memecoins ready to feed, all Bonds (paged at a single finalized block) and anything owed |
 | `bond` | One Bond: collected, ready, locked, and what breaking the seal would give and forfeit |
 | `recent_feedings` | The latest feedings, newest first |
-| `ledger` | The log of every feeding, every $CONSUME minted and every $CONSUME burned, each with its transaction, and whether the entries add up to the totals the contract keeps (when they do not, the list is short: its limits are in the main README under "Every mint and burn, logged") |
+| `ledger` | The log of every feeding, every $CONSUME minted and every $CONSUME burned, each with its transaction, and whether the entries add up to the totals the contract keeps (when they do not, the list is short: its limits are in [docs/DETAILS.md](../docs/DETAILS.md#every-mint-and-burn-logged) under "Every mint and burn, logged") |
 | `prepare_feed` | The unsigned calls for a feeding, with the quote, the slippage floor and a ten minute deadline |
 | `prepare_collect` | The unsigned call that collects what a Bond has released |
 | `prepare_break_seal` | The unsigned call that breaks a Bond's seal, with what is forfeited |

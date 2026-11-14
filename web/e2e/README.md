@@ -27,7 +27,7 @@ cd web && pnpm install
 pnpm exec playwright install chromium        # or use the Chrome already installed: E2E_CHANNEL=chrome
 ```
 
-The chain set also needs the two contracts built, with Rust, the `wasm32-unknown-unknown` target and cargo-near (see the main README):
+The chain set also needs the two contracts built, with Rust, the `wasm32-unknown-unknown` target and cargo-near (see [Try it](../../docs/DETAILS.md#try-it) in docs/DETAILS.md):
 
 ```bash
 (cd contracts/consume && cargo near build non-reproducible-wasm)
