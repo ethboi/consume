@@ -12,8 +12,10 @@
 // more than their share, so a doubtful price is worse than none.
 //
 // A round is posted only when all ten have a quote within 5% of the list
-// price. Otherwise nothing is posted and the round is tried again a minute
-// later. The contract refuses a feeding once a price is 15 minutes old, so a
+// price, or, when the list price disagrees, within 5% of the price Ref Finance
+// (the main exchange on NEAR) reports for that token: a second, independent
+// check that the quote is the market and the list price is the one behind.
+// Otherwise nothing is posted and the round is tried again a minute later. The contract refuses a feeding once a price is 15 minutes old, so a
 // run of bad rounds stops feedings and leaves redeeming open: that is the
 // safe way to fail.
 //
@@ -33,6 +35,8 @@ import { roundArgs } from "../web/src/lib/round.ts";
 import { flags } from "./launch-args.mjs";
 
 const ONECLICK = "https://1click.chaindefuser.com/v0";
+/** Ref Finance's price for one token, the second check when a quote and the 1Click list price disagree. */
+const REF_PRICE = "https://indexer.ref.finance/get-token-price?token_id=";
 const USDC = "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36133a1";
 const headers = { "Content-Type": "application/json", "User-Agent": "consume-assayer" };
 /** A quote this far from the list price means one of the two is wrong: the round is not posted. */
@@ -76,6 +80,14 @@ async function quoteTwice(assetId, raw) {
   return dryQuoteUsd(assetId, raw).catch(() => null);
 }
 
+/** Ref Finance's USD price for a NEAR token, or null when it has none. */
+async function refPrice(token) {
+  const res = await fetch(REF_PRICE + encodeURIComponent(token), { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) return null;
+  const price = Number((await res.json().catch(() => null))?.price);
+  return Number.isFinite(price) && price > 0 ? price : null;
+}
+
 /** One row per memecoin. `price` is null when it has no price that can be trusted. */
 export async function readPrices() {
   const res = await fetch(`${ONECLICK}/tokens`, { headers, signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -94,7 +106,12 @@ export async function readPrices() {
     const quoted = out / whole;
     const apart = Math.abs(quoted - listed) / listed;
     if (apart > DIVERGENCE) {
-      return { ...row, source: `quote $${quoted.toPrecision(6)} and list price $${listed.toPrecision(6)} are ${(apart * 100).toFixed(1)}% apart` };
+      const disagree = `quote $${quoted.toPrecision(6)} and list price $${listed.toPrecision(6)} are ${(apart * 100).toFixed(1)}% apart`;
+      const ref = await refPrice(h.mainnet).catch(() => null);
+      if (ref === null || Math.abs(quoted - ref) / ref > DIVERGENCE) {
+        return { ...row, source: ref === null ? `${disagree}, and Ref Finance has no price` : `${disagree}, and Ref Finance says $${ref.toPrecision(6)}` };
+      }
+      return { ...row, price: quoted, listed, source: `dry quote; ${disagree}, but Ref Finance agrees with the quote ($${ref.toPrecision(6)})` };
     }
     return { ...row, price: quoted, listed, source: "dry quote" };
   };
