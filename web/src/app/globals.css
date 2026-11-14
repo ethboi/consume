@@ -6737,3 +6737,114 @@ section[tabindex="-1"]:focus {
 @media (max-width: 380px) {
   .folio .page-head .sign-long { display: none; }
 }
+
+/* phones: the same page, packed tighter. Rows, padding and the redeem basket take less height. */
+@media (max-width: 600px) {
+  .folio .chapter {
+    padding-top: 26px;
+  }
+  .folio .chapter > header {
+    margin-bottom: 14px;
+  }
+  /* redeem: the basket in two columns of small rows */
+  .folio .redeem-out .basket {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 14px;
+    font-size: 15px;
+    line-height: 1.3;
+  }
+  .folio .redeem-out .basket li {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 5px;
+    padding-bottom: 3px;
+  }
+  .folio .redeem-out .basket li > :first-child {
+    width: 20px;
+    height: 20px;
+  }
+  .folio .redeem-out .r-foot {
+    padding-top: 10px;
+  }
+  /* the Stomach's table */
+  .folio .ledger td {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    line-height: 1.3;
+  }
+  /* the Feast's race */
+  .folio .race li {
+    padding: 7px 0 8px;
+    row-gap: 3px;
+    line-height: 1.3;
+  }
+  /* the Ledger's entries */
+  .folio .roll li {
+    padding: 7px 0;
+    row-gap: 1px;
+    font-size: 17px;
+    line-height: 1.35;
+  }
+  /* the newest Bonds: two rows of three on a phone */
+  .folio .bond-shelf > li:nth-child(n + 7) {
+    display: none;
+  }
+  /* the three pages at the foot, and the hackathon note */
+  .folio .more a {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .folio .entry {
+    padding-top: 28px;
+    padding-bottom: 28px;
+  }
+}
+
+/* buttons read as buttons: small ones carry a printed shadow like the big press,
+   the guest wallet is a button rather than a link, and an unavailable press is
+   flat and dashed instead of hatched, so it does not read as a texture */
+.small-button {
+  color: var(--ink);
+  padding: 6px 12px;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.small-button:disabled {
+  box-shadow: none;
+}
+.small-button:active:not(:disabled),
+.guest .text-link:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+.guest .text-link {
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  padding: 8px 14px;
+  text-decoration: none;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.guest .text-link:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--paper);
+}
+.press:disabled,
+.press.big:disabled {
+  background: var(--paper-2);
+  border: 2px dashed rgba(20, 17, 16, 0.45);
+  color: rgba(20, 17, 16, 0.5);
+}
+
+/* phones: each section stands apart. A heavy rule between them, and every
+   other plain section on the handled sheet, so the eye finds where one ends */
+@media (max-width: 600px) {
+  .small-button,
+  .guest .text-link {
+    min-height: 40px;
+  }
+  .folio .chapter + .chapter {
+    border-top: 4px solid var(--ink);
+  }
+  .folio #crucible,
+  .folio #ledger {
+    background: #ddd0b6; /* a shade deeper than --paper-2, so the change of section shows on a small screen */
+  }
+}
