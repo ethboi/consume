@@ -12,7 +12,7 @@
 // more than their share, so a doubtful price is worse than none.
 //
 // A round is posted only when all ten have a quote within 5% of the list
-// price, or, when the list price disagrees, within 5% of the price Ref Finance
+// price, or, when the list price disagrees, within 10% of the price Ref Finance
 // (the main exchange on NEAR) reports for that token: a second, independent
 // check that the quote is the market and the list price is the one behind.
 // Otherwise nothing is posted and the round is tried again a minute later. The contract refuses a feeding once a price is 15 minutes old, so a
@@ -41,6 +41,8 @@ const USDC = "nep141:17208628f84f5d6ad33f0da3bbbeb27ffcb398eac501a31bd6ad2011e36
 const headers = { "Content-Type": "application/json", "User-Agent": "consume-assayer" };
 /** A quote this far from the list price means one of the two is wrong: the round is not posted. */
 const DIVERGENCE = 0.05;
+/** How far a quote may sit from Ref Finance's price, the second check. Wider than DIVERGENCE: Ref's indexer price for a thin NEAR token can lag the market by several percent. */
+const REF_DIVERGENCE = 0.1;
 /** How long 1Click gets to answer. */
 const TIMEOUT_MS = 15_000;
 /** After a round that was not posted, try again this soon (seconds). */
@@ -108,7 +110,7 @@ export async function readPrices() {
     if (apart > DIVERGENCE) {
       const disagree = `quote $${quoted.toPrecision(6)} and list price $${listed.toPrecision(6)} are ${(apart * 100).toFixed(1)}% apart`;
       const ref = await refPrice(h.mainnet).catch(() => null);
-      if (ref === null || Math.abs(quoted - ref) / ref > DIVERGENCE) {
+      if (ref === null || Math.abs(quoted - ref) / ref > REF_DIVERGENCE) {
         return { ...row, source: ref === null ? `${disagree}, and Ref Finance has no price` : `${disagree}, and Ref Finance says $${ref.toPrecision(6)}` };
       }
       return { ...row, price: quoted, listed, source: `dry quote; ${disagree}, but Ref Finance agrees with the quote ($${ref.toPrecision(6)})` };
