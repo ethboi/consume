@@ -6426,6 +6426,12 @@ section[inert] > :not(header) {
 .demo-steps li { padding-left: .5rem; margin: 1.5rem 0; }
 .demo-guide section { margin: 2rem 0; border-top: 1px solid currentColor; }
 .demo-guide code { overflow-wrap: anywhere; }
+.demo-steps h2 { margin-bottom: .3rem; }
+.demo-steps p { margin: .3rem 0; }
+.demo-guide details.fine { margin-top: .4rem; border-top: 0; padding-top: 0; }
+.demo-guide details.fine summary { color: var(--rubric); }
+.demo-guide ul { padding-left: 1.2rem; }
+.demo-guide ul li { margin: .5rem 0; }
 
 /* phones: the longest name and the sealed slip are cut larger where there is room */
 @media (max-width: 600px) {

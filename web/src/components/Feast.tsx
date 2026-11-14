@@ -174,7 +174,6 @@ export function Feast({ snap }: { snap: Snapshot }) {
               : fed
                 ? "If it ended now, no memecoin would feast next week."
                 : ""}
-            {fed && out && feasting ? ` ${feasting} is feasting now, and no memecoin feasts two weeks running.` : ""}
           </p>
         </div>
       </aside>

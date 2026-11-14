@@ -290,7 +290,6 @@ test("the Feast shows this week's race, who feasts now, and that it cannot win a
   await expect(places.nth(1).locator(".race-place")).toHaveText("1");
   await expect(places.nth(2)).toContainText(`${usd(big(race[1].micro) - big(race[2].micro))} behind`);
   await expect(page.locator("#feast .feast-ends")).toContainText(`If it ended now, ${leader} would feast next week.`);
-  await expect(page.locator("#feast .feast-ends")).toContainText(`${feasting} is feasting now, and no memecoin feasts two weeks running.`);
 
   await expect(page.locator("#feast .feast-who")).toContainText(feasting);
   await expect(page.locator("#feast .feast-now")).toContainText(`feeding ${feasting} pays no tithe. Every other memecoin pays ${stats.tithe_bps / 100}%.`);

@@ -1635,9 +1635,10 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           </p>
         )}
-        <p className="hint">
-          Redeeming adds 0.1 NEAR of storage credit when yours is low. Unused credit can be taken back in the feeding panel.
-        </p>
+        <details className="fine">
+          <summary>Storage</summary>
+          <p>Redeeming adds 0.1 NEAR of storage credit when yours is low. Unused credit can be taken back in the feeding panel.</p>
+        </details>
       </div>
 
       <div className="redeem-out" aria-live="polite">

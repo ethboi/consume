@@ -159,8 +159,8 @@ export function Ledger({ stats, tick, fallback }: { stats: Snapshot["stats"] | n
                 <b>
                   {split.others} of {fedTimes} feedings
                 </b>{" "}
-                came from {last.feeders.others === 1 ? "one account" : `${last.feeders.others} accounts`} outside the builder&apos;s own. The
-                builder&apos;s own are <b>{split.account}</b> and the accounts under it, marked below.
+                came from {last.feeders.others === 1 ? "one account" : `${last.feeders.others} accounts`} outside the builder&apos;s own (
+                <b>{split.account}</b> and those under it).
               </>
             )}
           </p>

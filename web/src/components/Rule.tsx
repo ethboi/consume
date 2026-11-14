@@ -174,8 +174,7 @@ export function Rule({ snap }: { snap: Snapshot }) {
                 {limited && (
                   <>
                     {" "}
-                    Its one key can only post prices: see <a href={limited.made}>the account made with that key</a> and{" "}
-                    <a href={limited.named}>the guardian naming it</a>.
+                    Its one key only posts prices (<a href={limited.made}>made</a>, <a href={limited.named}>named</a>).
                   </>
                 )}
               </p>
@@ -194,12 +193,11 @@ export function Rule({ snap }: { snap: Snapshot }) {
             {guardian === null && <p className="seal-who">Nobody holds it now: the role was given up, so the Assayer can never be swapped.</p>}
             {guardian && dao && (
               <p className="seal-who">
-                Today it is <b>{guardian}</b>, a DAO: see <a href={dao.handed}>the handover</a> and{" "}
-                <a href={dao.used}>the DAO using the role</a>.
+                Today it is <b>{guardian}</b>, a DAO (<a href={dao.handed}>handover</a>, <a href={dao.used}>in use</a>).
                 {council?.length === 1 && (
                   <>
                     {" "}
-                    Its council is one account, <b>{council[0]}</b>, so one builder still decides.
+                    Its one council member, <b>{council[0]}</b>, still decides.
                   </>
                 )}
                 {council && council.length > 1 && <> Its council has {council.length} accounts: {council.join(", ")}.</>}
