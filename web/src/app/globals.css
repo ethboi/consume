@@ -6848,3 +6848,58 @@ section[tabindex="-1"]:focus {
     background: #ddd0b6; /* a shade deeper than --paper-2, so the change of section shows on a small screen */
   }
 }
+
+/* ---- bonds on phones: a small card beside the name and what is ready, the buttons full width under both ---- */
+@media (max-width: 600px) {
+  .ind {
+    grid-template-columns: 104px minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 0;
+    align-items: start;
+  }
+  .ind-body {
+    display: contents;
+  }
+  .ind-card-link {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+  }
+  .ind-body > * {
+    grid-column: 2;
+    min-width: 0;
+  }
+  .ind-body h3 {
+    margin: 0 0 4px;
+  }
+  .ind-meal {
+    font-size: 0.95rem;
+    margin: 0 0 10px;
+  }
+  .ind-claim {
+    margin: 0;
+  }
+  .ind-claim .big {
+    font-size: 1.9rem;
+  }
+  .ind-body > .ind-progress,
+  .ind-body > .actions,
+  .ind-body > .small-button,
+  .ind-body > .bond-send,
+  .ind-body > .ind-break {
+    grid-column: 1 / -1;
+  }
+  .ind-body > .ind-progress {
+    margin: 14px 0 12px;
+  }
+  .ind-body > .actions {
+    margin: 0 0 10px;
+  }
+  .ind-body > .actions .press,
+  .ind-body > .small-button,
+  .ind-break .small-button {
+    width: 100%;
+  }
+  .ind-break {
+    margin-top: 12px;
+  }
+}
