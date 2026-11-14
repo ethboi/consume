@@ -1611,9 +1611,15 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           </div>
           <span className="hint">
-            {accountId && balance !== null
-              ? `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME.`
-              : "Collect $CONSUME from your Bonds first, then burn it here."}
+            {!accountId
+              ? "Connect a wallet to burn the $CONSUME you have collected."
+              : balance === null
+                ? "Collect $CONSUME from your Bonds first, then burn it here."
+                : balance === BigInt(0)
+                  ? "You hold no $CONSUME yet. Collect it from your Bonds first."
+                  : typed
+                    ? `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME.`
+                    : `You hold ${fromRaw(balance, CONSUME_DEC, 0)} $CONSUME. Type an amount or press All of it.`}
           </span>
         </div>
         {(shownError || over) && <p className="error">{shownError ?? "That is more $CONSUME than you hold."}</p>}
@@ -1635,10 +1641,6 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
             </button>
           </p>
         )}
-        <details className="fine">
-          <summary>Storage</summary>
-          <p>Redeeming adds 0.1 NEAR of storage credit when yours is low. Unused credit can be taken back in the feeding panel.</p>
-        </details>
       </div>
 
       <div className="redeem-out" aria-live="polite">
@@ -1668,6 +1670,10 @@ function Redeem({ snap, tick, onDone }: { snap: Snapshot; tick: number; onDone: 
                 : "The Stomach is empty, so there is nothing to take yet."}</p>
         )}
         <p className="hint r-foot">Your share counts all $CONSUME, locked in Bonds or not.</p>
+        <details className="fine">
+          <summary>Storage</summary>
+          <p>Redeeming adds 0.1 NEAR of storage credit when yours is low. Unused credit can be taken back in the feeding panel.</p>
+        </details>
       </div>
     </div>
   );

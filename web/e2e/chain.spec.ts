@@ -459,7 +459,9 @@ test("Redeem: burn 1,000 $CONSUME for the same share of every memecoin in the St
   await mark("redeeming 1,000 $CONSUME");
 
   await expect(page.locator("#crucible .stomach-total strong")).toHaveText(usd(await stomachUsd(), 0));
-  await expect(page.locator("#transmute .hint", { hasText: "You hold" })).toHaveText(`You hold ${fromRaw(held - burn, 18, 0)} $CONSUME.`);
+  await expect(page.locator("#transmute .hint", { hasText: "You hold" })).toHaveText(
+    `You hold ${fromRaw(held - burn, 18, 0)} $CONSUME. Type an amount or press All of it.`,
+  );
 });
 
 test("an agent feeds DOGE with the calls the MCP server prepares, and its Bond is its own", async () => {
