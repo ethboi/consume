@@ -6957,3 +6957,16 @@ section[tabindex="-1"]:focus {
     margin: 10px 0 12px;
   }
 }
+
+/* ---- the Ledger on phones: smaller type so each entry wraps less ---- */
+@media (max-width: 600px) {
+  .folio .roll li {
+    column-gap: 10px;
+    row-gap: 1px;
+    font-size: 16px;
+  }
+  .folio .roll time,
+  .folio .roll small {
+    font-size: 14px;
+  }
+}
